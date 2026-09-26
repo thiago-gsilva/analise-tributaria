@@ -1,0 +1,19 @@
+{
+  "name": "analise-tributaria",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Simulador e comparador de regimes tributarios (Simples Nacional, Simples Hibrido IBS/CBS e Lucro Presumido), com relatorio em PDF.",
+  "scripts": {
+    "build": "python3 build.py",
+    "serve": "python3 -m http.server 8791",
+    "test": "node test-cnae.js && node test-hibrido.js && node test-pdf.js && node test-comparativo-presumido.js"
+  },
+  "dependencies": {
+    "chart.js": "4.4.4",
+    "jspdf": "2.5.1",
+    "html2canvas": "1.4.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.47.0"
+  }
+}

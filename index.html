@@ -1,0 +1,3006 @@
+<title>Análise Tributária</title>
+<meta name="description" content="Sistema de simulação e comparação de regimes tributários — Simples Nacional, Fator R, IBS/CBS e Lucro Presumido, com relatório em PDF.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+
+<style>
+/* ==========================================================================
+   TOKENS — identidade visual fixa (dashboard financeiro premium).
+   Paleta e hierarquia definidas deliberadamente; não segue tema claro/escuro
+   do sistema — é uma identidade de marca única, como um relatório impresso.
+   ========================================================================== */
+:root{
+  color-scheme: light;
+  --navy:        #0F2747;
+  --blue-deep:   #123B63;
+  --blue-med:    #1769AA;
+  --blue-light:  #EAF4FB;
+  --green:       #10A36A;
+  --green-dark:  #087A50;
+  --green-light: #E8F7F1;
+  --bg:          #F5F7FA;
+  --white:       #FFFFFF;
+  --text:        #334155;
+  --text-sec:    #64748B;
+  --border:      #E2E8F0;
+  --red:         #DC4C64;
+  --red-light:   #FCEAED;
+  --yellow:      #D99A00;
+  --yellow-light:#FEF6E4;
+  --radius-card: 16px;
+  --radius-sm:   10px;
+  --shadow-card: 0 4px 16px rgba(15,39,71,.06);
+  --shadow-pop:  0 12px 32px rgba(15,39,71,.14);
+  --grad-navy:   linear-gradient(135deg,#0F2747,#1769AA);
+  --grad-navygreen: linear-gradient(135deg,#123B63,#10A36A);
+  --ff-body: 'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --ff-display: 'Fraunces','Inter',serif;
+  --sb-w: 264px;
+  /* --heading: cor de texto de títulos/rótulos (separada de --navy, que também
+     serve de FUNDO em botões/badges/cabeçalhos de tabela). Mantê-las
+     independentes permite que o modo escuro clareie o texto sem mexer nos
+     fundos de marca. */
+  --heading: var(--navy);
+}
+
+/* ==========================================================================
+   MODO ESCURO — paleta própria (não é uma inversão do modo claro).
+   Duas rotas ativam o tema escuro: escolha explícita do usuário
+   (data-theme="dark", persistida em localStorage) ou preferência do
+   sistema operacional quando o usuário está em "Automático" (data-theme
+   ausente/"system") e o SO pede prefers-color-scheme: dark.
+   ========================================================================== */
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --navy:        #2563EB;
+  --blue-deep:   #60A5FA;
+  --blue-med:    #3B82F6;
+  --blue-light:  rgba(59,130,246,.16);
+  --green:       #22C55E;
+  --green-dark:  #4ADE80;
+  --green-light: rgba(34,197,94,.16);
+  --bg:          #0B1220;
+  --white:       #111C2E;
+  --text:        #F8FAFC;
+  --text-sec:    #CBD5E1;
+  --border:      #24344D;
+  --red:         #F87171;
+  --red-light:   rgba(248,113,113,.14);
+  --yellow:      #F59E0B;
+  --yellow-light:rgba(245,158,11,.14);
+  --heading:     #F8FAFC;
+  --shadow-card: 0 4px 16px rgba(0,0,0,.4);
+  --shadow-pop:  0 14px 34px rgba(0,0,0,.55);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-theme="dark"]){
+    color-scheme: dark;
+    --navy:        #2563EB;
+    --blue-deep:   #60A5FA;
+    --blue-med:    #3B82F6;
+    --blue-light:  rgba(59,130,246,.16);
+    --green:       #22C55E;
+    --green-dark:  #4ADE80;
+    --green-light: rgba(34,197,94,.16);
+    --bg:          #0B1220;
+    --white:       #111C2E;
+    --text:        #F8FAFC;
+    --text-sec:    #CBD5E1;
+    --border:      #24344D;
+    --red:         #F87171;
+    --red-light:   rgba(248,113,113,.14);
+    --yellow:      #F59E0B;
+    --yellow-light:rgba(245,158,11,.14);
+    --heading:     #F8FAFC;
+    --shadow-card: 0 4px 16px rgba(0,0,0,.4);
+    --shadow-pop:  0 14px 34px rgba(0,0,0,.55);
+  }
+}
+
+/* ---- Correções de literais fixos (não-token) para o modo escuro ---- */
+:root[data-theme="dark"] tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
+:root[data-theme="dark"] tbody tr:hover td{background:rgba(59,130,246,.09)}
+:root[data-theme="dark"] .acc-head:hover{background:rgba(255,255,255,.025)}
+:root[data-theme="dark"] .acc-body{background:rgba(255,255,255,.015)}
+:root[data-theme="dark"] .field input::placeholder{color:#7C8CA6}
+:root[data-theme="dark"] .field input:focus,
+:root[data-theme="dark"] .field select:focus,
+:root[data-theme="dark"] .field textarea:focus{box-shadow:0 0 0 3px rgba(59,130,246,.22)}
+:root[data-theme="dark"] .stepper-toolbar{background:rgba(11,18,32,.92)}
+:root[data-theme="dark"] .alert-green{color:#4ADE80;border-color:rgba(34,197,94,.35)}
+:root[data-theme="dark"] .alert-red{color:#F87171;border-color:rgba(248,113,113,.35)}
+:root[data-theme="dark"] .alert-yellow{color:#F59E0B;border-color:rgba(245,158,11,.35)}
+:root[data-theme="dark"] .badge-yellow{color:#F59E0B}
+:root[data-theme="dark"] .btn-primary:hover{background:#2E6FE0}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-theme="dark"]) tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) tbody tr:hover td{background:rgba(59,130,246,.09)}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .acc-head:hover{background:rgba(255,255,255,.025)}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .acc-body{background:rgba(255,255,255,.015)}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .field input::placeholder{color:#7C8CA6}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .field input:focus,
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .field select:focus,
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .field textarea:focus{box-shadow:0 0 0 3px rgba(59,130,246,.22)}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .stepper-toolbar{background:rgba(11,18,32,.92)}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .alert-green{color:#4ADE80;border-color:rgba(34,197,94,.35)}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .alert-red{color:#F87171;border-color:rgba(248,113,113,.35)}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .alert-yellow{color:#F59E0B;border-color:rgba(245,158,11,.35)}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .badge-yellow{color:#F59E0B}
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .btn-primary:hover{background:#2E6FE0}
+}
+
+/* Transições curtas (150-250ms) para troca de tema — não afeta elementos que
+   já definem sua própria transição mais específica (hover/foco continuam
+   como antes). Respeita prefers-reduced-motion (regra já existente abaixo). */
+body,.card,.card-flat,.sidebar,.topbar,thead th,tbody td,.accordion,.ac-list,.ac-item,
+.badge,.alert,.meta-pill,.source-row,.table-wrap,.divider,.logo-slot,.theme-btn,
+h1,h2,h3,h4,a,.muted,.tabs,.tab-btn,.checkbox-row,.field label,.field .hint{
+  transition:background-color .2s ease,border-color .2s ease,color .2s ease;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:auto}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--ff-body);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:var(--ff-body);color:var(--heading);margin:0;text-wrap:balance}
+p{margin:0}
+button{font-family:inherit}
+a{color:var(--blue-med)}
+::selection{background:var(--green-light);color:var(--heading)}
+.num{font-variant-numeric:tabular-nums}
+
+/* focus visibility (acessibilidade) */
+:focus-visible{outline:2px solid var(--blue-med);outline-offset:2px;border-radius:4px}
+[hidden]{display:none!important}
+
+/* ==========================================================================
+   LAYOUT
+   ========================================================================== */
+.app{
+  display:flex;
+  min-height:100%;
+  max-width:1600px;
+  margin:0 auto;
+}
+
+/* ---- Sidebar ---- */
+.sidebar{
+  width:var(--sb-w);
+  flex:0 0 var(--sb-w);
+  background:var(--white);
+  border-right:1px solid var(--border);
+  padding:20px 14px 24px;
+  position:sticky;
+  top:0;
+  align-self:flex-start;
+  height:100vh;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  z-index:20;
+}
+.sidebar-brand{
+  display:flex;align-items:center;gap:10px;
+  padding:6px 10px 14px;
+  border-bottom:1px solid var(--border);
+}
+.sidebar-brand .mark{
+  width:34px;height:34px;border-radius:9px;
+  background:var(--grad-navygreen);
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.sidebar-brand .mark svg{width:19px;height:19px;stroke:#fff}
+.sidebar-brand .txt{display:flex;flex-direction:column;line-height:1.15}
+.sidebar-brand .txt strong{font-size:14.5px;font-weight:800;color:var(--heading);letter-spacing:-.01em}
+.sidebar-brand .txt span{font-size:11px;color:var(--text-sec)}
+
+.nav{display:flex;flex-direction:column;gap:2px;flex:1}
+.nav-item{
+  display:flex;align-items:center;gap:11px;
+  padding:9px 12px;border-radius:10px;
+  color:var(--heading);text-decoration:none;
+  font-size:13.5px;font-weight:500;
+  border:none;background:transparent;cursor:pointer;
+  text-align:left;width:100%;
+  position:relative;
+  transition:background .18s ease,color .18s ease;
+}
+.nav-item svg{width:17px;height:17px;stroke:var(--heading);flex:0 0 auto;opacity:.72;transition:opacity .18s ease,stroke .18s ease}
+.nav-item:hover{background:var(--blue-light)}
+.nav-item[aria-current="page"]{background:var(--blue-light);color:var(--blue-deep);font-weight:600}
+.nav-item[aria-current="page"] svg{opacity:1;stroke:var(--blue-deep)}
+.nav-item[aria-current="page"]::before{
+  content:"";position:absolute;left:-14px;top:8px;bottom:8px;width:3px;
+  background:var(--green);border-radius:0 3px 3px 0;
+}
+.nav-group-label{
+  font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--text-sec);
+  text-transform:uppercase;padding:12px 12px 2px;
+}
+.sidebar-foot{
+  border-top:1px solid var(--border);padding-top:12px;
+  font-size:11px;color:var(--text-sec);padding-left:12px;
+}
+
+/* ---- Main column ---- */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* ---- Header ---- */
+.topbar{
+  background:var(--grad-navy);
+  color:#fff;
+  padding:22px 32px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:20px;flex-wrap:wrap;
+  position:relative;overflow:hidden;
+}
+.topbar::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
+  background:linear-gradient(90deg,var(--green),transparent 60%);
+}
+.topbar-title h1{color:#fff;font-size:26px;font-weight:700;letter-spacing:-.01em}
+.topbar-title p{color:#BFD6EA;font-size:13.5px;margin-top:3px}
+.topbar-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.meta-pill{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
+  border-radius:10px;padding:8px 13px;font-size:11.5px;color:#DCEAF5;
+  display:flex;flex-direction:column;gap:2px;min-width:88px;
+}
+.meta-pill strong{font-size:13.5px;color:#fff;font-weight:700}
+.menu-toggle{display:none}
+
+/* ---- Alternador de tema (claro / escuro / sistema) ---- */
+.theme-toggle{
+  display:flex;align-items:center;gap:2px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
+  border-radius:10px;padding:3px;flex:0 0 auto;
+}
+.theme-btn{
+  display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:8px;
+  background:transparent;border:none;cursor:pointer;
+  color:#BFD6EA;transition:background .18s ease,color .18s ease;
+}
+.theme-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.theme-btn:hover{background:rgba(255,255,255,.14);color:#fff}
+.theme-btn.active{background:var(--green);color:#fff}
+.theme-btn:focus-visible{outline:2px solid #fff;outline-offset:1px}
+
+.content{padding:26px 32px 60px;display:flex;flex-direction:column;gap:24px}
+.section{display:flex;flex-direction:column;gap:20px}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.section-head h2{font-size:22px;font-weight:700}
+.section-head .sub{font-size:13px;color:var(--text-sec);margin-top:3px}
+.section-actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ==========================================================================
+   CARDS
+   ========================================================================== */
+.card{
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:var(--radius-card);
+  box-shadow:var(--shadow-card);
+  padding:22px;
+}
+.card-flat{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-card);padding:22px}
+.card-title{font-size:15px;font-weight:700;color:var(--heading);display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.card-title svg{width:17px;height:17px;stroke:var(--blue-med)}
+.card-title .grow{flex:1}
+
+.grid{display:grid;gap:18px}
+.grid-4{grid-template-columns:repeat(4,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+@media (max-width:1180px){.grid-4{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:760px){.grid-4,.grid-3,.grid-2{grid-template-columns:1fr}}
+
+/* ---- KPI cards ---- */
+.kpi{
+  background:var(--white);border:1px solid var(--border);border-radius:var(--radius-card);
+  box-shadow:var(--shadow-card);padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px;
+  transition:transform .18s ease,box-shadow .18s ease,background-color .2s ease,border-color .2s ease;
+}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-pop)}
+.kpi-top{display:flex;align-items:center;justify-content:space-between}
+.kpi-icon{width:34px;height:34px;border-radius:9px;background:var(--blue-light);display:flex;align-items:center;justify-content:center}
+.kpi-icon svg{width:17px;height:17px;stroke:var(--blue-deep)}
+.kpi-icon.green{background:var(--green-light)}
+.kpi-icon.green svg{stroke:var(--green-dark)}
+.kpi-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-sec)}
+.kpi-value{font-size:27px;font-weight:800;color:var(--heading);letter-spacing:-.02em}
+.kpi-value.green{color:var(--green-dark)}
+.kpi-sub{font-size:12px;color:var(--text-sec)}
+.kpi-sub.up{color:var(--green-dark);font-weight:600}
+
+/* ---- Regime cards ---- */
+.regime-card{
+  background:var(--white);border:1px solid var(--border);border-radius:var(--radius-card);
+  box-shadow:var(--shadow-card);padding:22px;display:flex;flex-direction:column;gap:14px;
+  border-top:3px solid var(--blue-deep);transition:box-shadow .2s ease,transform .2s ease,background-color .2s ease,border-color .2s ease;
+}
+.regime-card:hover{box-shadow:var(--shadow-pop);transform:translateY(-2px)}
+.regime-card.selected{border-color:var(--green);box-shadow:0 0 0 1px var(--green),var(--shadow-pop)}
+.regime-card .rh{display:flex;align-items:center;justify-content:space-between}
+.regime-card h3{font-size:15.5px;font-weight:700}
+.regime-card .val{font-size:26px;font-weight:800;color:var(--heading)}
+.regime-card .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-sec);padding:6px 0;border-top:1px dashed var(--border)}
+.regime-card .row b{color:var(--text);font-weight:600}
+
+/* ==========================================================================
+   FORM / INPUTS
+   ========================================================================== */
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12.5px;font-weight:600;color:var(--heading)}
+.field .hint{font-size:11px;color:var(--text-sec)}
+.cnae-status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px}
+.cnae-status .btn{padding:5px 10px;font-size:11.5px}
+.cnae-status .btn svg{width:13px;height:13px}
+.field input[type="text"],.field input[type="number"],.field select,.field textarea{
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px 12px;font-size:13.5px;color:var(--text);background:var(--white);
+  font-family:inherit;transition:border-color .16s ease,box-shadow .16s ease,background-color .2s ease,color .2s ease;
+  width:100%;
+}
+.field input::placeholder{color:#A9B4C2}
+.field input:focus,.field select:focus,.field textarea:focus{
+  border-color:var(--blue-med);box-shadow:0 0 0 3px rgba(23,105,170,.14);outline:none;
+}
+.field-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge-inline{display:inline-flex}
+.checkbox-row{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--text)}
+.checkbox-row input{width:16px;height:16px;accent-color:var(--green)}
+.radio-pills{display:flex;gap:8px;flex-wrap:wrap}
+.radio-pill{
+  border:1px solid var(--border);background:var(--white);border-radius:10px;
+  padding:8px 14px;font-size:12.5px;font-weight:600;color:var(--text-sec);cursor:pointer;
+  transition:all .16s ease;
+}
+.radio-pill.active{border-color:var(--blue-med);background:var(--blue-light);color:var(--blue-deep)}
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border-radius:10px;padding:11px 18px;font-size:13.5px;font-weight:600;
+  cursor:pointer;border:1px solid transparent;transition:all .18s ease;
+  line-height:1;white-space:nowrap;
+}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-primary:hover{background:var(--blue-med)}
+.btn-success{background:var(--green);color:#fff}
+.btn-success:hover{background:var(--green-dark)}
+.btn-secondary{background:var(--white);border-color:var(--border);color:var(--blue-deep)}
+.btn-secondary:hover{background:var(--blue-light);border-color:var(--blue-med)}
+.btn-ghost{background:transparent;color:var(--text-sec);border-color:transparent}
+.btn-ghost:hover{background:var(--bg);color:var(--heading)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:7px 12px;font-size:12.5px;border-radius:8px}
+.btn-block{width:100%}
+
+/* ==========================================================================
+   BADGES / ALERTS
+   ========================================================================== */
+.badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+  padding:4px 9px;border-radius:100px;line-height:1.3;white-space:nowrap;
+}
+.badge svg{width:11px;height:11px}
+.badge-green{background:var(--green-light);color:var(--green-dark)}
+.badge-blue{background:var(--blue-light);color:var(--blue-deep)}
+.badge-yellow{background:var(--yellow-light);color:#8A6300}
+.badge-red{background:var(--red-light);color:var(--red)}
+.badge-navy{background:var(--navy);color:#fff}
+
+.alert{
+  border-radius:12px;padding:13px 16px;display:flex;gap:11px;align-items:flex-start;
+  font-size:13px;border:1px solid transparent;
+}
+.alert svg{width:17px;height:17px;flex:0 0 auto;margin-top:1px}
+.alert b{font-weight:700}
+.alert-green{background:var(--green-light);color:#0B6E4C;border-color:#BFE9D8}
+.alert-green svg{stroke:var(--green-dark)}
+.alert-yellow{background:var(--yellow-light);color:#8A6300;border-color:#F3DFA3}
+.alert-yellow svg{stroke:var(--yellow)}
+.alert-red{background:var(--red-light);color:#A5273D;border-color:#F3C4CD}
+.alert-red svg{stroke:var(--red)}
+.alert-blue{background:var(--blue-light);color:var(--blue-deep);border-color:#CFE6F5}
+.alert-blue svg{stroke:var(--blue-med)}
+
+/* ==========================================================================
+   TABLES
+   ========================================================================== */
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+thead th{
+  background:var(--navy);color:#fff;text-align:left;font-weight:600;
+  padding:11px 14px;font-size:12px;white-space:nowrap;
+}
+thead th.num,tbody td.num{text-align:right}
+tbody td{padding:10px 14px;border-top:1px solid var(--border);color:var(--text)}
+tbody tr:nth-child(even){background:#FAFBFD}
+tbody tr.total td{background:var(--green-light);font-weight:700;color:var(--green-dark);border-top:2px solid var(--green)}
+tbody tr.hl td{background:var(--blue-light)}
+tbody tr:hover td{background:#F1F6FB}
+
+/* ==========================================================================
+   TABS (sub-navegação dentro de seção)
+   ========================================================================== */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tab-btn{
+  padding:10px 16px;font-size:13px;font-weight:600;color:var(--text-sec);
+  background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;
+  transition:color .16s ease,border-color .16s ease;margin-bottom:-1px;
+}
+.tab-btn:hover{color:var(--heading)}
+.tab-btn.active{color:var(--blue-deep);border-color:var(--green)}
+
+/* ==========================================================================
+   ACCORDION — memória de cálculo
+   ========================================================================== */
+.accordion{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.accordion+.accordion{margin-top:10px}
+.acc-head{
+  display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;
+  background:var(--white);user-select:none;
+}
+.acc-head:hover{background:#FAFBFD}
+.acc-head svg.chev{width:15px;height:15px;stroke:var(--text-sec);transition:transform .2s ease;margin-left:auto}
+.accordion.open .acc-head svg.chev{transform:rotate(180deg)}
+.acc-head .step-badge{
+  width:24px;height:24px;border-radius:7px;background:var(--blue-light);color:var(--blue-deep);
+  display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;flex:0 0 auto;
+}
+.acc-body{
+  max-height:0;overflow:hidden;transition:max-height .25s ease,background-color .2s ease,border-color .2s ease;
+  background:#FAFBFD;border-top:1px solid transparent;
+}
+.accordion.open .acc-body{border-top:1px solid var(--border)}
+.acc-body-inner{padding:14px 18px 18px 50px;font-size:13px;color:var(--text);display:flex;flex-direction:column;gap:8px}
+.formula{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+  background:var(--blue-light);color:var(--blue-deep);padding:9px 12px;border-radius:8px;
+  overflow-x:auto;
+}
+
+/* ==========================================================================
+   RESULT BLOCK (tela pós-cálculo)
+   ========================================================================== */
+.result-banner{
+  background:var(--grad-navygreen);border-radius:18px;padding:24px 26px;color:#fff;
+  display:flex;flex-direction:column;gap:16px;
+}
+.result-banner .rb-head{display:flex;align-items:center;gap:10px}
+.result-banner .rb-head svg{width:22px;height:22px;stroke:#fff}
+.result-banner .rb-head h3{color:#fff;font-size:18px}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px}
+.result-item{display:flex;flex-direction:column;gap:3px}
+.result-item .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#CFE6DF}
+.result-item .v{font-size:19px;font-weight:800}
+
+/* ==========================================================================
+   MISC
+   ========================================================================== */
+.divider{height:1px;background:var(--border);margin:4px 0}
+.muted{color:var(--text-sec)}
+.small{font-size:12px}
+.tiny{font-size:11px}
+.flex{display:flex}
+.flex-between{display:flex;align-items:center;justify-content:space-between}
+.gap-8{gap:8px}.gap-10{gap:10px}.gap-14{gap:14px}
+.chart-box{position:relative;height:280px}
+.chart-box.sm{height:200px}
+.logo-slot{
+  border:1.5px dashed var(--border);border-radius:12px;height:64px;width:180px;
+  display:flex;align-items:center;justify-content:center;color:var(--text-sec);
+  font-size:11px;font-weight:600;letter-spacing:.03em;text-align:center;
+}
+.loading{display:flex;align-items:center;gap:9px;color:var(--text-sec);font-size:13px}
+.spinner{width:15px;height:15px;border-radius:50%;border:2px solid var(--blue-light);border-top-color:var(--blue-med);animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fade-in{animation:fadeIn .28s ease both}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+.source-row{display:flex;justify-content:space-between;gap:14px;padding:13px 0;border-top:1px solid var(--border);flex-wrap:wrap}
+.source-row:first-child{border-top:none}
+.source-row .name{font-weight:600;color:var(--heading);font-size:13px}
+.source-row .desc{font-size:12px;color:var(--text-sec);margin-top:2px;max-width:520px}
+.source-row .right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto}
+.source-row .date{font-size:11px;color:var(--text-sec)}
+
+.autocomplete{position:relative}
+.ac-list{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--white);
+  border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-pop);
+  max-height:280px;overflow-y:auto;z-index:30;
+}
+.ac-item{padding:10px 13px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--border)}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.hi{background:var(--blue-light)}
+.ac-item .code{color:var(--blue-med);font-weight:700;font-size:11px}
+.ac-item .desc{color:var(--text);margin-top:1px}
+.ac-item .tag{float:right;font-size:10px;color:var(--text-sec)}
+.ac-item.ac-empty{cursor:default;color:var(--text-sec);font-style:italic}
+.ac-item.ac-empty:hover{background:none}
+
+.stepper-toolbar{position:sticky;top:0;background:rgba(245,247,250,.92);backdrop-filter:blur(6px);z-index:10;padding:10px 0;margin:-10px 0 6px}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+@media (max-width:980px){
+  .sidebar{
+    position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);
+    box-shadow:var(--shadow-pop);transition:transform .22s ease;width:78vw;max-width:300px;height:100vh;
+  }
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-scrim{display:none;position:fixed;inset:0;background:rgba(15,39,71,.4);z-index:19}
+  .sidebar-scrim.open{display:block}
+  .menu-toggle{
+    display:flex;align-items:center;justify-content:center;
+    width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.2);cursor:pointer;flex:0 0 auto;
+  }
+  .menu-toggle svg{width:19px;height:19px;stroke:#fff}
+  .topbar{padding:16px 18px}
+  .content{padding:18px 16px 50px}
+  .topbar-title h1{font-size:20px}
+}
+@media (max-width:600px){
+  .topbar-meta{width:100%;justify-content:flex-start}
+  .result-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+
+<script>
+/* Aplica o tema salvo o mais cedo possível (antes do corpo renderizar) para
+   evitar um "flash" claro→escuro. A lógica completa (troca via botões,
+   ouvinte de mudança do SO, re-tema dos gráficos) vive no script principal. */
+(function () {
+  try {
+    var saved = localStorage.getItem("analise-tributaria-theme");
+    var theme = (saved === "light" || saved === "dark") ? saved : "system";
+    document.documentElement.setAttribute("data-theme", theme);
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "system");
+  }
+})();
+</script>
+
+<div class="app">
+  <div class="sidebar-scrim" id="scrim"></div>
+  <aside class="sidebar" id="sidebar" aria-label="Navegação principal">
+    <div class="sidebar-brand">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 21h10M5 7l7-4 7 4M5 7l-2 5a3.5 3.5 0 0 0 7 0L8 7M19 7l-2 5a3.5 3.5 0 0 0 7 0l-2-5"/></svg></div>
+      <div class="txt"><strong>Análise Tributária</strong><span>Simulação fiscal</span></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sidebar-foot">
+      Base tributária atualizada em <strong id="baseUpdateDate"></strong><br>
+      Uso interno — decisão final do contador responsável.
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="flex" style="gap:14px;align-items:center">
+        <button class="menu-toggle" id="menuToggle" aria-label="Abrir menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+        <div class="topbar-title">
+          <h1>Análise Tributária</h1>
+          <p>Simulação e comparação de regimes</p>
+        </div>
+      </div>
+      <div class="topbar-meta">
+        <div class="theme-toggle" id="themeToggle" role="group" aria-label="Alternar tema da interface">
+          <button type="button" class="theme-btn" data-theme-choice="light" aria-label="Modo claro" title="Modo claro">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2.4M12 19.6V22M22 12h-2.4M4.4 12H2M19.07 4.93l-1.7 1.7M6.63 17.37l-1.7 1.7M19.07 19.07l-1.7-1.7M6.63 6.63 4.93 4.93"/></svg>
+          </button>
+          <button type="button" class="theme-btn" data-theme-choice="dark" aria-label="Modo escuro" title="Modo escuro">
+            <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7.2 7.2 0 0 0 9.8 9.8z"/></svg>
+          </button>
+          <button type="button" class="theme-btn" data-theme-choice="system" aria-label="Automático (seguir o sistema)" title="Automático (seguir o sistema)">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+          </button>
+        </div>
+        <div class="meta-pill"><span>Ano-base</span><strong id="metaYear">2026</strong></div>
+        <div class="meta-pill"><span>Status da base</span><strong style="color:#8CE0B8">Vigente</strong></div>
+        <div class="meta-pill"><span>Atualizado em</span><strong id="metaDate">—</strong></div>
+      </div>
+    </header>
+
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+/* ============================================================================
+   ANÁLISE TRIBUTÁRIA — aplicação
+   Estrutura: ICONS · DATA (parâmetros) · ENGINE (cálculo puro) · STATE ·
+   RENDER (por seção) · CHARTS · PDF · INIT
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   ICONS — conjunto próprio de ícones em linha (stroke, 24x24), sem dependência
+   externa. Visual discreto conforme especificação.
+   --------------------------------------------------------------------------- */
+const ICON_PATHS = {
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/>',
+  building: '<path d="M6 22V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v18"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M16 8h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-4"/><path d="M10 6h2M10 10h2M10 14h2M10 18h2"/>',
+  calculator: '<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><circle cx="8.3" cy="10.3" r=".7" fill="currentColor" stroke="none"/><circle cx="12" cy="10.3" r=".7" fill="currentColor" stroke="none"/><circle cx="15.7" cy="10.3" r=".7" fill="currentColor" stroke="none"/><circle cx="8.3" cy="14" r=".7" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r=".7" fill="currentColor" stroke="none"/><circle cx="15.7" cy="14" r=".7" fill="currentColor" stroke="none"/><circle cx="8.3" cy="17.7" r=".7" fill="currentColor" stroke="none"/><circle cx="12" cy="17.7" r=".7" fill="currentColor" stroke="none"/><circle cx="15.7" cy="17.7" r=".7" fill="currentColor" stroke="none"/>',
+  percent: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  layers: '<polygon points="12 2 22 8 12 14 2 8"/><polyline points="2 14 12 20 22 14"/><polyline points="2 11 12 17 22 11"/>',
+  receipt: '<path d="M4 2h16v20l-3-2-2 2-2-2-2 2-2-2-2 2-3-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/>',
+  chart: '<path d="M3 3v18h18"/><rect x="6.5" y="13" width="3" height="6" rx=".5"/><rect x="11.5" y="9" width="3" height="10" rx=".5"/><rect x="16.5" y="6" width="3" height="13" rx=".5"/><polyline points="6.5 11 11.5 7 14.5 9 19.5 4"/>',
+  scale: '<line x1="12" y1="3" x2="12" y2="21"/><path d="M7 21h10"/><path d="M5 7l-3 5a3 3 0 0 0 6 0z"/><path d="M19 7l-3 5a3 3 0 0 0 6 0z"/><path d="M5 7h14"/><path d="M12 3L6 7M12 3l6 4"/>',
+  filetext: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/>',
+  download: '<path d="M12 3v12"/><polyline points="7 11 12 16 17 11"/><path d="M5 20h14"/>',
+  upload: '<path d="M12 21V9"/><polyline points="7 14 12 9 17 14"/><path d="M5 20h14"/>',
+  info: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r=".9" fill="currentColor" stroke="none"/>',
+  alert: '<path d="M12 3l10 18H2z"/><line x1="12" y1="9.5" x2="12" y2="14"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/>',
+  check: '<circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9"/>',
+  search: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  chevron: '<polyline points="6 9 12 15 18 9"/>',
+  swap: '<path d="M17 3l4 4-4 4"/><path d="M3 7h18"/><path d="M7 21l-4-4 4-4"/><path d="M21 17H3"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="3" y1="12" x2="21" y2="12"/>',
+  trending: '<polyline points="3 17 9 11 13 15 21 6"/><polyline points="14 6 21 6 21 13"/>',
+  wallet: '<path d="M20 7.5H5.5a2.5 2.5 0 0 1 0-5H18v5"/><path d="M3 7.5v12A2.5 2.5 0 0 0 5.5 22H19a1 1 0 0 0 1-1v-5"/><path d="M16.5 13H21v4h-4.5a2 2 0 0 1 0-4z"/>',
+  landmark: '<line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 21 8 3 8"/>',
+};
+function icon(name, extra) {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="' + (extra || '') + '">' + (ICON_PATHS[name] || "") + "</svg>";
+}
+
+/* ---------------------------------------------------------------------------
+   DATA — banco de parâmetros tributários
+   --------------------------------------------------------------------------- */
+const FAIXAS_LIMITES = [
+  { min: 0, max: 180000 },
+  { min: 180000, max: 360000 },
+  { min: 360000, max: 720000 },
+  { min: 720000, max: 1800000 },
+  { min: 1800000, max: 3600000 },
+  { min: 3600000, max: 4800000 },
+];
+
+const ANEXOS = {
+  I: { nome: "Anexo I", desc: "Comércio", trib: ["IRPJ", "CSLL", "COFINS", "PIS", "CPP", "ICMS"],
+    faixas: [
+      { aliq: 0.04, ded: 0, partilha: { IRPJ: 5.5, CSLL: 3.5, COFINS: 12.74, PIS: 2.76, CPP: 41.5, ICMS: 34.0 } },
+      { aliq: 0.073, ded: 5940, partilha: { IRPJ: 5.5, CSLL: 3.5, COFINS: 12.74, PIS: 2.76, CPP: 41.5, ICMS: 34.0 } },
+      { aliq: 0.095, ded: 13860, partilha: { IRPJ: 5.5, CSLL: 3.5, COFINS: 12.74, PIS: 2.76, CPP: 42.0, ICMS: 33.5 } },
+      { aliq: 0.107, ded: 22500, partilha: { IRPJ: 5.5, CSLL: 3.5, COFINS: 12.74, PIS: 2.76, CPP: 42.0, ICMS: 33.5 } },
+      { aliq: 0.143, ded: 87300, partilha: { IRPJ: 5.5, CSLL: 3.5, COFINS: 12.74, PIS: 2.76, CPP: 42.0, ICMS: 33.5 } },
+      { aliq: 0.19, ded: 378000, partilha: { IRPJ: 13.5, CSLL: 10.0, COFINS: 28.27, PIS: 6.13, CPP: 42.1, ICMS: 0 } },
+    ] },
+  II: { nome: "Anexo II", desc: "Indústria", trib: ["IRPJ", "CSLL", "COFINS", "PIS", "CPP", "IPI", "ICMS"],
+    faixas: [
+      { aliq: 0.045, ded: 0, partilha: { IRPJ: 5.5, CSLL: 3.5, COFINS: 11.51, PIS: 2.49, CPP: 37.5, IPI: 7.5, ICMS: 32.0 } },
+      { aliq: 0.078, ded: 5940, partilha: { IRPJ: 5.5, CSLL: 3.5, COFINS: 11.51, PIS: 2.49, CPP: 37.5, IPI: 7.5, ICMS: 32.0 } },
+      { aliq: 0.10, ded: 13860, partilha: { IRPJ: 5.5, CSLL: 3.5, COFINS: 11.51, PIS: 2.49, CPP: 37.5, IPI: 7.5, ICMS: 32.0 } },
+      { aliq: 0.112, ded: 22500, partilha: { IRPJ: 5.5, CSLL: 3.5, COFINS: 11.51, PIS: 2.49, CPP: 37.5, IPI: 7.5, ICMS: 32.0 } },
+      { aliq: 0.147, ded: 85500, partilha: { IRPJ: 5.5, CSLL: 3.5, COFINS: 11.51, PIS: 2.49, CPP: 37.5, IPI: 7.5, ICMS: 32.0 } },
+      { aliq: 0.30, ded: 720000, partilha: { IRPJ: 8.5, CSLL: 7.5, COFINS: 20.96, PIS: 4.54, CPP: 23.5, IPI: 35.0, ICMS: 0 } },
+    ] },
+  III: { nome: "Anexo III", desc: "Serviços — Fator R ≥ 28%", trib: ["IRPJ", "CSLL", "COFINS", "PIS", "CPP", "ISS"],
+    faixas: [
+      { aliq: 0.06, ded: 0, partilha: { IRPJ: 4.0, CSLL: 3.5, COFINS: 12.82, PIS: 2.78, CPP: 43.4, ISS: 33.5 } },
+      { aliq: 0.112, ded: 9360, partilha: { IRPJ: 4.0, CSLL: 3.5, COFINS: 14.05, PIS: 3.05, CPP: 43.4, ISS: 32.0 } },
+      { aliq: 0.135, ded: 17640, partilha: { IRPJ: 4.0, CSLL: 3.5, COFINS: 13.64, PIS: 2.96, CPP: 43.4, ISS: 32.5 } },
+      { aliq: 0.16, ded: 35640, partilha: { IRPJ: 4.0, CSLL: 3.5, COFINS: 13.64, PIS: 2.96, CPP: 43.4, ISS: 32.5 } },
+      { aliq: 0.21, ded: 125640, partilha: { IRPJ: 4.0, CSLL: 3.5, COFINS: 12.82, PIS: 2.78, CPP: 43.4, ISS: 33.5 } },
+      { aliq: 0.33, ded: 648000, partilha: { IRPJ: 35.0, CSLL: 15.0, COFINS: 16.03, PIS: 3.47, CPP: 30.5, ISS: 0 } },
+    ] },
+  IV: { nome: "Anexo IV", desc: "Serviços — CPP recolhido à parte", trib: ["IRPJ", "CSLL", "COFINS", "PIS", "ISS"],
+    faixas: [
+      { aliq: 0.045, ded: 0, partilha: { IRPJ: 18.8, CSLL: 15.2, COFINS: 17.67, PIS: 3.83, ISS: 44.5 } },
+      { aliq: 0.09, ded: 8100, partilha: { IRPJ: 19.8, CSLL: 15.2, COFINS: 20.55, PIS: 4.45, ISS: 40.0 } },
+      { aliq: 0.102, ded: 12420, partilha: { IRPJ: 20.8, CSLL: 15.2, COFINS: 19.73, PIS: 4.27, ISS: 40.0 } },
+      { aliq: 0.14, ded: 39780, partilha: { IRPJ: 17.8, CSLL: 19.2, COFINS: 18.90, PIS: 4.10, ISS: 40.0 } },
+      { aliq: 0.22, ded: 183780, partilha: { IRPJ: 18.8, CSLL: 19.2, COFINS: 18.08, PIS: 3.92, ISS: 40.0 } },
+      { aliq: 0.33, ded: 828000, partilha: { IRPJ: 53.5, CSLL: 21.5, COFINS: 20.55, PIS: 4.45, ISS: 0 } },
+    ] },
+  V: { nome: "Anexo V", desc: "Serviços — Fator R < 28%", trib: ["IRPJ", "CSLL", "COFINS", "PIS", "CPP", "ISS"],
+    faixas: [
+      { aliq: 0.155, ded: 0, partilha: { IRPJ: 25.0, CSLL: 15.0, COFINS: 14.10, PIS: 3.05, CPP: 28.85, ISS: 14.0 } },
+      { aliq: 0.18, ded: 4500, partilha: { IRPJ: 23.0, CSLL: 15.0, COFINS: 14.10, PIS: 3.05, CPP: 27.85, ISS: 17.0 } },
+      { aliq: 0.195, ded: 9900, partilha: { IRPJ: 24.0, CSLL: 15.0, COFINS: 14.92, PIS: 3.23, CPP: 23.85, ISS: 19.0 } },
+      { aliq: 0.205, ded: 17100, partilha: { IRPJ: 21.0, CSLL: 15.0, COFINS: 15.74, PIS: 3.41, CPP: 23.85, ISS: 21.0 } },
+      { aliq: 0.23, ded: 62100, partilha: { IRPJ: 23.0, CSLL: 12.5, COFINS: 14.10, PIS: 3.05, CPP: 23.85, ISS: 23.5 } },
+      { aliq: 0.305, ded: 540000, partilha: { IRPJ: 35.0, CSLL: 15.5, COFINS: 16.44, PIS: 3.56, CPP: 29.50, ISS: 0 } },
+    ] },
+};
+
+const PRESUNCAO = {
+  comercio_industria: { irpj: 8, csll: 12, label: "Comércio / indústria em geral" },
+  revenda_combustiveis: { irpj: 1.6, csll: 12, label: "Revenda de combustíveis" },
+  transporte_cargas: { irpj: 8, csll: 12, label: "Transporte de cargas" },
+  transporte_passageiros: { irpj: 16, csll: 12, label: "Transporte de passageiros" },
+  servicos_hospitalares: { irpj: 8, csll: 12, label: "Serviços hospitalares / saúde (equiparados)" },
+  construcao_com_material: { irpj: 8, csll: 12, label: "Construção civil (empreitada c/ material)" },
+  servicos_gerais: { irpj: 32, csll: 32, label: "Serviços profissionais / gerais" },
+  servicos_ate_120k: { irpj: 16, csll: 32, label: "Serviços gerais — RBAA até R$ 120 mil/ano" },
+};
+
+// Base de CNAEs — classificação oficial CONCLA/IBGE (CNAE 2.3), carregada de
+// /data/cnaes.json (ou de um arquivo JSON/CSV oficial importado pelo usuário).
+// Esta base é puramente classificatória: NÃO determina automaticamente o
+// Anexo do Simples Nacional nem a atividade do Lucro Presumido — essas
+// definições usam exclusivamente a base tributária já existente no projeto
+// (ANEXOS, PRESUNCAO, motor de Fator R) e a escolha explícita do usuário.
+let CNAE_DATA = null; // { meta, secoes[], divisoes[], grupos[], classes[], subclasses[] }
+const CNAE_STATUS = {
+  estado: "carregando", // "carregando" | "ok" | "erro"
+  mensagem: "Carregando base de CNAEs (CONCLA/IBGE)...",
+  registros: null,
+  atualizadoEm: null,
+  fonte: null,
+};
+
+function stripAccents(s) {
+  return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+function normSearch(s) {
+  return stripAccents((s || "").toLowerCase()).trim();
+}
+function onlyDigits(s) {
+  return (s || "").replace(/\D/g, "");
+}
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function fmtDateBR(iso) {
+  if (!iso) return "—";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return iso;
+  return m[3] + "/" + m[2] + "/" + m[1];
+}
+function escHtml(s) {
+  return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Busca com ranking por relevância (tolerante a acentos): código completo,
+// código parcial, descrição, palavra-chave (inclusive nas atividades
+// específicas de cada subclasse — ex.: "promoção" encontra 7319-0/02).
+function cnaeSearch(query, limit) {
+  limit = limit || 12;
+  if (!CNAE_DATA || !Array.isArray(CNAE_DATA.subclasses)) return [];
+  const qRaw = (query || "").trim();
+  if (!qRaw) return [];
+  const qNorm = normSearch(qRaw);
+  const qDigits = onlyDigits(qRaw);
+  const wordRe = qNorm ? new RegExp("(^|\\s)" + escapeRegExp(qNorm)) : null;
+  const scored = [];
+  for (const s of CNAE_DATA.subclasses) {
+    const codeDigits = onlyDigits(s.codigo);
+    const descNorm = normSearch(s.descricao);
+    let tier = -1;
+    if (qDigits && codeDigits === qDigits) tier = 0;
+    else if (qDigits && codeDigits.indexOf(qDigits) === 0) tier = 1;
+    else if (qNorm && descNorm === qNorm) tier = 1;
+    else if (qNorm && descNorm.indexOf(qNorm) === 0) tier = 2;
+    else if (qNorm && wordRe && wordRe.test(descNorm)) tier = 3;
+    else if (qNorm && descNorm.indexOf(qNorm) !== -1) tier = 4;
+    else if (qDigits && codeDigits.indexOf(qDigits) !== -1) tier = 4;
+    else if (qNorm && Array.isArray(s.atividades) && s.atividades.some((a) => normSearch(a).indexOf(qNorm) === 0)) tier = 5;
+    else if (qNorm && Array.isArray(s.atividades) && s.atividades.some((a) => normSearch(a).indexOf(qNorm) !== -1)) tier = 6;
+    if (tier >= 0) scored.push({ item: s, tier });
+  }
+  scored.sort((a, b) => a.tier - b.tier || a.item.codigo.localeCompare(b.item.codigo));
+  return scored.slice(0, limit).map((x) => x.item);
+}
+
+function updateFontesCnaeRow() {
+  const row = FONTES.find((f) => f.id === "cnae");
+  if (!row) return;
+  if (CNAE_STATUS.estado === "ok") {
+    row.fonte = (CNAE_STATUS.fonte || "IBGE/CONCLA") + " — " + CNAE_STATUS.registros + " subclasses (CNAE 2.3), classificação oficial";
+    row.data = "base gerada em " + fmtDateBR(CNAE_STATUS.atualizadoEm);
+    row.status = "oficial";
+  } else if (CNAE_STATUS.estado === "erro") {
+    row.fonte = "Base de CNAEs não carregada — " + CNAE_STATUS.mensagem;
+    row.data = "indisponível";
+    row.status = "hipotese";
+  } else {
+    row.fonte = CNAE_STATUS.mensagem;
+    row.data = "—";
+    row.status = "hipotese";
+  }
+}
+function afterCnaeBaseChange() {
+  const focused = document.activeElement && document.activeElement.id === "fCnae";
+  if (!focused && (state.active === "empresa" || state.active === "fontes")) renderContent();
+}
+
+async function loadCnaeBase() {
+  CNAE_STATUS.estado = "carregando";
+  CNAE_STATUS.mensagem = "Carregando base de CNAEs (CONCLA/IBGE)...";
+  try {
+    const resp = await fetch("data/cnaes.json");
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const data = await resp.json();
+    if (!data || !Array.isArray(data.subclasses) || !data.subclasses.length) throw new Error("arquivo sem registros de subclasses");
+    CNAE_DATA = data;
+    CNAE_STATUS.estado = "ok";
+    CNAE_STATUS.registros = data.subclasses.length;
+    CNAE_STATUS.atualizadoEm = (data.meta && data.meta.geradoEm) || null;
+    CNAE_STATUS.fonte = (data.meta && data.meta.fonte) || "IBGE/CONCLA";
+    CNAE_STATUS.mensagem = "Base carregada com sucesso.";
+  } catch (err) {
+    CNAE_DATA = null;
+    CNAE_STATUS.estado = "erro";
+    CNAE_STATUS.mensagem = "Não foi possível carregar data/cnaes.json (" + err.message + "). Importe um arquivo JSON/CSV oficial para continuar.";
+  }
+  updateFontesCnaeRow();
+  afterCnaeBaseChange();
+}
+
+// Cabeçalho de hierarquia (Seção/Divisão/Grupo/Classe) de uma subclasse, a
+// partir das tabelas oficiais carregadas — usado apenas para exibição.
+function cnaeHierarquia(sub) {
+  if (!sub || !CNAE_DATA) return null;
+  const find = (arr, codigo) => (Array.isArray(arr) ? arr.find((x) => x.codigo === codigo) : null);
+  return {
+    secao: find(CNAE_DATA.secoes, sub.secao),
+    divisao: find(CNAE_DATA.divisoes, sub.divisao),
+    grupo: find(CNAE_DATA.grupos, sub.grupo),
+    classe: find(CNAE_DATA.classes, sub.classe),
+  };
+}
+
+// Importação manual de base oficial (JSON no mesmo formato de cnaes.json, ou
+// CSV com colunas equivalentes a codigo/descricao/secao/divisao/grupo/classe).
+function parseCsvCnae(text) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === "," || c === ";") { row.push(field); field = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); field = "";
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else field += c;
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  if (!rows.length) return [];
+  const header = rows[0].map((h) => normSearch(h).replace(/[^a-z0-9]/g, ""));
+  const idx = (names) => { for (const n of names) { const i = header.indexOf(n); if (i !== -1) return i; } return -1; };
+  const iCod = idx(["codigo", "cod", "cnae", "subclasse"]);
+  const iDesc = idx(["descricao", "desc", "denominacao", "descricaosubclasse"]);
+  const iSec = idx(["secao"]);
+  const iDiv = idx(["divisao"]);
+  const iGrp = idx(["grupo"]);
+  const iCla = idx(["classe"]);
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    const cols = rows[r];
+    if (!cols || iCod === -1 || !cols[iCod]) continue;
+    out.push({
+      codigo: (cols[iCod] || "").trim(),
+      descricao: (cols[iDesc !== -1 ? iDesc : 1] || "").trim(),
+      secao: iSec !== -1 ? (cols[iSec] || "").trim() : "",
+      divisao: iDiv !== -1 ? (cols[iDiv] || "").trim() : "",
+      grupo: iGrp !== -1 ? (cols[iGrp] || "").trim() : "",
+      classe: iCla !== -1 ? (cols[iCla] || "").trim() : "",
+      atividades: [],
+    });
+  }
+  return out;
+}
+function normalizeImportedRecord(r) {
+  return {
+    codigo: String(r.codigo || r.code || "").trim(),
+    descricao: String(r.descricao || r.description || "").trim(),
+    secao: String(r.secao || "").trim(),
+    divisao: String(r.divisao || "").trim(),
+    grupo: String(r.grupo || "").trim(),
+    classe: String(r.classe || "").trim(),
+    atividades: Array.isArray(r.atividades) ? r.atividades : [],
+  };
+}
+function importCnaeFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const text = String(reader.result || "");
+      let subclasses;
+      const isJson = /\.json$/i.test(file.name) || /^\s*[{[]/.test(text);
+      if (isJson) {
+        const data = JSON.parse(text);
+        subclasses = Array.isArray(data) ? data.map(normalizeImportedRecord) : Array.isArray(data.subclasses) ? data.subclasses.map(normalizeImportedRecord) : null;
+        if (!subclasses) throw new Error("JSON não contém uma lista de CNAEs reconhecível");
+      } else {
+        subclasses = parseCsvCnae(text);
+      }
+      subclasses = subclasses.filter((s) => s.codigo && s.descricao);
+      if (!subclasses.length) throw new Error("nenhum registro válido encontrado no arquivo");
+      CNAE_DATA = { meta: { fonte: "Arquivo importado pelo usuário (" + file.name + ")", geradoEm: todayISO() }, secoes: [], divisoes: [], grupos: [], classes: [], subclasses };
+      CNAE_STATUS.estado = "ok";
+      CNAE_STATUS.registros = subclasses.length;
+      CNAE_STATUS.atualizadoEm = todayISO();
+      CNAE_STATUS.fonte = "Arquivo importado (" + file.name + ")";
+      CNAE_STATUS.mensagem = "Base importada com sucesso a partir de " + file.name + ".";
+    } catch (err) {
+      CNAE_STATUS.estado = "erro";
+      CNAE_STATUS.mensagem = "Falha ao importar \"" + file.name + "\": " + err.message + ".";
+    }
+    updateFontesCnaeRow();
+    renderContent();
+  };
+  reader.onerror = () => {
+    CNAE_STATUS.estado = "erro";
+    CNAE_STATUS.mensagem = "Falha ao ler o arquivo \"" + file.name + "\".";
+    updateFontesCnaeRow();
+    renderContent();
+  };
+  reader.readAsText(file, "utf-8");
+}
+function todayISO() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// Cronograma de transição IBS/CBS — Reforma Tributária (EC 132/2023, LC 214/2025)
+// issIcmsFatorRemanescente: fração da alíquota de ISS/ICMS ainda cobrada naquele
+// ano — não é uma alíquota nova/inventada, é apenas a mesma informação já
+// descrita em `nota` (90%/80%/70%/60%/0%) em forma numérica, para uso pelo
+// motor de cálculo (Lucro Presumido). Não é lida pelo cálculo do Simples
+// Híbrido, que continua exatamente como antes.
+const IBS_CBS_CRONOGRAMA = [
+  { ano: 2026, cbs: 0.9, ibs: 0.1, issIcmsFatorRemanescente: 1.0, nota: "Ano-teste. Valores recolhidos são integralmente compensáveis com PIS/COFINS — sem impacto financeiro líquido para a empresa. Optantes do Simples Nacional estão dispensados de destacar IBS/CBS." },
+  { ano: 2027, cbs: 8.8, ibs: 0.1, issIcmsFatorRemanescente: 1.0, nota: "Extinção de PIS/COFINS e do IPI (exceto Zona Franca de Manaus). CBS assume a arrecadação federal em substituição." },
+  { ano: 2028, cbs: 8.8, ibs: 0.1, issIcmsFatorRemanescente: 1.0, nota: "Transição mantida, sem alterações relevantes de alíquota." },
+  { ano: 2029, cbs: 8.8, ibs: 1.77, issIcmsFatorRemanescente: 0.9, nota: "ICMS e ISS passam a ser cobrados a 90% de suas alíquotas atuais." },
+  { ano: 2030, cbs: 8.8, ibs: 3.54, issIcmsFatorRemanescente: 0.8, nota: "ICMS e ISS reduzidos a 80% das alíquotas atuais." },
+  { ano: 2031, cbs: 8.8, ibs: 5.31, issIcmsFatorRemanescente: 0.7, nota: "ICMS e ISS reduzidos a 70% das alíquotas atuais." },
+  { ano: 2032, cbs: 8.8, ibs: 7.08, issIcmsFatorRemanescente: 0.6, nota: "ICMS e ISS reduzidos a 60% das alíquotas atuais." },
+  { ano: 2033, cbs: 8.8, ibs: 17.70, issIcmsFatorRemanescente: 0.0, nota: "Extinção total de ICMS e ISS. Sistema IBS/CBS plenamente vigente em todo o território nacional." },
+];
+const ALIQUOTA_REF_ESTIMADA = 26.5; // teto de referência (EC 132/2023); CGIBS estimou preliminarmente 27,91% — sujeito a resolução do Senado Federal, por isso tratado como hipótese.
+
+const FONTES = [
+  { nome: "Tabelas de alíquotas e partilha — Simples Nacional (Anexos I a V)", fonte: "Lei Complementar 123/2006, redação vigente desde 01/2018 · Receita Federal do Brasil", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Regra do Fator R (limiar de 28%)", fonte: "Lei Complementar 123/2006, art. 18, §5º-J e §5º-M", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Percentuais de presunção — Lucro Presumido (IRPJ/CSLL)", fonte: "Lei 9.249/1995, art. 15 e 20 · Decreto 9.580/2018 (RIR)", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Alíquotas PIS/COFINS cumulativo — Lucro Presumido", fonte: "Lei 9.718/1998 (0,65% e 3,00%)", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Adicional de IRPJ (10% sobre excedente trimestral)", fonte: "Lei 9.249/1995, art. 3º, §1º — limite de R$ 60.000/trimestre", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Majoração de 10% da presunção acima de R$ 1,25 mi/trimestre", fonte: "IN RFB nº 2.305/2025 e nº 2.306/2026 — regra recente, recomenda-se confirmação antes de aplicar em casos reais", data: "consultado em 09/2026", status: "hipotese" },
+  { nome: "Alíquotas-teste CBS (0,9%) e IBS (0,1%) — ano-calendário 2026", fonte: "Lei Complementar 214/2025 e Emenda Constitucional 132/2023", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Cronograma de transição IBS/CBS 2027-2033", fonte: "Lei Complementar 214/2025 — alíquotas de CBS a partir de 2027 e implantação gradual do IBS", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Alíquota de referência combinada final (~26,5%)", fonte: "Estimativa preliminar do Comitê Gestor do IBS (CGIBS); valor final depende de resolução do Senado Federal com base na arrecadação efetiva", data: "consultado em 09/2026", status: "hipotese" },
+  { nome: "ISS municipal", fonte: "Alíquota varia por município (2% a 5%) — informar manualmente por cliente", data: "parâmetro do usuário", status: "hipotese" },
+  { id: "cnae", nome: "Base de CNAEs (classificação oficial)", fonte: "Carregando base de CNAEs (CONCLA/IBGE)...", data: "—", status: "hipotese" },
+];
+updateFontesCnaeRow(); // aplica o estado inicial ("carregando") ao registro acima
+
+/* ---------------------------------------------------------------------------
+   ENGINE — funções puras de cálculo
+   --------------------------------------------------------------------------- */
+function getFaixaIndex(rbt12) {
+  if (rbt12 <= 0) return 0;
+  for (let i = 0; i < FAIXAS_LIMITES.length; i++) if (rbt12 <= FAIXAS_LIMITES[i].max) return i;
+  return FAIXAS_LIMITES.length - 1;
+}
+function calcAliquotaEfetiva(rbt12, anexoKey) {
+  const anexo = ANEXOS[anexoKey];
+  const idx = getFaixaIndex(rbt12);
+  const faixa = anexo.faixas[idx];
+  if (rbt12 <= 0) return { aliqEfetiva: 0, idx, faixa };
+  const aliqEfetiva = (rbt12 * faixa.aliq - faixa.ded) / rbt12;
+  return { aliqEfetiva: Math.max(aliqEfetiva, 0), idx, faixa };
+}
+function calcFatorR(folha12m, rbt12) { return rbt12 <= 0 ? 0 : folha12m / rbt12; }
+// Auxiliar somente informativo (usado no slide "Fator R" do relatório em PDF):
+// folha de salários (12 meses) necessária para atingir o limiar de 28% do
+// Fator R, dado o RBT12 atual. Não altera a regra de enquadramento em si
+// (calcFatorR/calcSimplesNacional) — é apenas um valor de referência exibido.
+function calcFolhaNecessariaFatorR(rbt12) { return rbt12 * 0.28; }
+
+function calcSimplesNacional({ faturamentoMensal, rbt12, anexoKey, folha12m }) {
+  let anexoUsado = anexoKey, fatorR = null;
+  if (anexoKey === "III_V") {
+    fatorR = calcFatorR(folha12m || 0, rbt12);
+    anexoUsado = fatorR >= 0.28 ? "III" : "V";
+  }
+  const { aliqEfetiva, idx, faixa } = calcAliquotaEfetiva(rbt12, anexoUsado);
+  const dasMensal = faturamentoMensal * aliqEfetiva;
+  const partilhaValores = {};
+  Object.keys(faixa.partilha).forEach((t) => (partilhaValores[t] = dasMensal * (faixa.partilha[t] / 100)));
+  return {
+    anexoUsado, faixaIndex: idx + 1, faixaLabel: (idx + 1) + "ª faixa",
+    aliqNominal: faixa.aliq, parcelaDeduzir: faixa.ded, aliqEfetiva,
+    dasMensal, dasAnual: dasMensal * 12, cargaEfetivaPct: aliqEfetiva * 100,
+    partilha: faixa.partilha, partilhaValores, fatorR, rbt12,
+  };
+}
+
+function calcLucroPresumidoTrimestral({ receitaTrimestre, atividade, pisAliq, cofinsAliq, issAliq, aplicarMajoracao2026, anoProjecao }) {
+  const pres = PRESUNCAO[atividade];
+  let irpjPct = pres.irpj, csllPct = pres.csll, baseIRPJ, baseCSLL, notaMajoracao = null;
+  if (aplicarMajoracao2026 && receitaTrimestre > 1250000) {
+    const parteNormal = 1250000, parteMajorada = receitaTrimestre - 1250000;
+    const irpjMajPct = irpjPct * 1.10, csllMajPct = csllPct * 1.10;
+    baseIRPJ = parteNormal * (irpjPct / 100) + parteMajorada * (irpjMajPct / 100);
+    baseCSLL = parteNormal * (csllPct / 100) + parteMajorada * (csllMajPct / 100);
+    notaMajoracao = { irpjMajPct, csllMajPct, parteMajorada };
+  } else {
+    baseIRPJ = receitaTrimestre * (irpjPct / 100);
+    baseCSLL = receitaTrimestre * (csllPct / 100);
+  }
+  const irpjNormal = baseIRPJ * 0.15;
+  const adicionalBase = Math.max(baseIRPJ - 60000, 0);
+  const irpjAdicional = adicionalBase * 0.10;
+  const irpjTotal = irpjNormal + irpjAdicional;
+  const csllTotal = baseCSLL * 0.09;
+
+  // ---- Tributos sobre o consumo (PIS/COFINS ou CBS/IBS + ISS) ----
+  // Apurados mensalmente na prática; aqui somados sobre a receita do
+  // trimestre. Usa o MESMO cronograma de transição já existente no projeto
+  // (IBS_CBS_CRONOGRAMA, usado também na aba Simples Híbrido) — nenhuma
+  // alíquota nova é inventada aqui. A partir de 2027 a Lei Complementar
+  // 214/2025 extingue PIS/COFINS (substituídos pela CBS); em 2026 (ano-teste)
+  // os valores de CBS/IBS são integralmente compensáveis com PIS/COFINS, sem
+  // impacto financeiro líquido, por isso o ano-teste mantém PIS/COFINS/ISS
+  // como os tributos efetivamente vigentes.
+  const ano = anoProjecao || 2027;
+  const crono = IBS_CBS_CRONOGRAMA.find((c) => c.ano === ano) || IBS_CBS_CRONOGRAMA[IBS_CBS_CRONOGRAMA.length - 1];
+  const substituidoPorCbs = ano >= 2027;
+  const fatorRemanescenteIss = crono.issIcmsFatorRemanescente != null ? crono.issIcmsFatorRemanescente : 1;
+  const issAliqEfetiva = substituidoPorCbs ? issAliq * fatorRemanescenteIss : issAliq;
+  let pis = 0, cofins = 0, cbs = 0, ibs = 0;
+  if (substituidoPorCbs) {
+    cbs = receitaTrimestre * (crono.cbs / 100);
+    ibs = receitaTrimestre * (crono.ibs / 100);
+  } else {
+    pis = receitaTrimestre * pisAliq;
+    cofins = receitaTrimestre * cofinsAliq;
+  }
+  const iss = receitaTrimestre * issAliqEfetiva;
+  const consumoTotal = pis + cofins + cbs + ibs + iss;
+  const totalTrimestre = irpjTotal + csllTotal + consumoTotal;
+  return {
+    atividade: pres.label, irpjPctUsado: irpjPct, csllPctUsado: csllPct, baseIRPJ, baseCSLL,
+    irpjNormal, irpjAdicional, irpjTotal, csllTotal,
+    pis, cofins, cbs, ibs, iss, consumoTotal,
+    issAliqEfetivaPct: issAliqEfetiva * 100, fatorRemanescenteIss,
+    ano, substituidoPorCbs, crono,
+    totalTrimestre,
+    cargaEfetivaPct: receitaTrimestre > 0 ? (totalTrimestre / receitaTrimestre) * 100 : 0, notaMajoracao,
+  };
+}
+function calcLucroPresumidoAnual(params) {
+  const t = calcLucroPresumidoTrimestral(params);
+  return { receitaAnual: params.receitaTrimestre * 4, totalAnual: t.totalTrimestre * 4, trimestre: t, cargaEfetivaPct: t.cargaEfetivaPct };
+}
+// Generaliza o ponto de equilíbrio: receita mensal necessária para atingir um
+// resultado-alvo (não apenas zero), dados custos fixos, % de custos variáveis
+// e a carga tributária efetiva (%) incidente sobre a receita.
+function calcReceitaParaResultado({ resultadoDesejadoMensal, custosFixosMensais, custosVariaveisPct, cargaTributariaPct }) {
+  const comprometido = (custosVariaveisPct + cargaTributariaPct) / 100;
+  if (comprometido >= 1) return { valido: false };
+  const receita = (resultadoDesejadoMensal + custosFixosMensais) / (1 - comprometido);
+  return { valido: true, receita, margemContribuicaoPct: (1 - comprometido) * 100 };
+}
+function calcPontoEquilibrio({ custosFixosMensais, custosVariaveisPct, cargaTributariaPct }) {
+  const res = calcReceitaParaResultado({ resultadoDesejadoMensal: 0, custosFixosMensais, custosVariaveisPct, cargaTributariaPct });
+  if (!res.valido) return { valido: false };
+  return { valido: true, receitaEquilibrio: res.receita, margemContribuicaoPct: res.margemContribuicaoPct };
+}
+function calcBrutoParaLiquido(bruto, cargaPct) { return bruto * (1 - cargaPct / 100); }
+function calcLiquidoParaBruto(liquido, cargaPct) { const f = 1 - cargaPct / 100; return f <= 0 ? null : liquido / f; }
+
+/* ---------------------------------------------------------------------------
+   ENGINE — Simples Híbrido (IBS/CBS apurados à parte do DAS, mecanismo não
+   cumulativo previsto a partir de 2027 — EC 132/2023, LC 214/2025).
+   Usa exclusivamente parâmetros já existentes no sistema (partilha dos Anexos
+   e cronograma IBS_CBS_CRONOGRAMA); os únicos valores ajustáveis pelo usuário
+   são percentuais de CRÉDITO, que dependem do perfil de insumos/compras de
+   cada empresa e por isso não são — e não devem ser — alíquotas fixas do
+   sistema. Sem informação em contrário, tratamos o crédito como 0 (não
+   assumido), nunca como integral.
+   --------------------------------------------------------------------------- */
+function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaValores, cronoAno, creditoIbsPct, creditoCbsPct }) {
+  // Parcelas do DAS hoje embutidas que correspondem aos tributos sobre
+  // consumo substituídos pela reforma: ICMS (Anexo I/II) ou ISS (Anexo
+  // III/IV/V) → viram IBS; PIS e COFINS (federais) → viram CBS. É essa soma
+  // que sai da partilha do Simples e passa a ser apurada separadamente no
+  // mecanismo à parte. IRPJ, CSLL e CPP não são afetados pela reforma e
+  // permanecem no DAS sem IBS/CBS.
+  const tributoConsumo = partilha.ICMS != null ? "ICMS" : (partilha.ISS != null ? "ISS" : null);
+  const parcelaIbsNoDas = (partilhaValores.ICMS || 0) + (partilhaValores.ISS || 0);
+  const parcelaCbsNoDas = (partilhaValores.COFINS || 0) + (partilhaValores.PIS || 0);
+  const parcelaConsumoDas = parcelaIbsNoDas + parcelaCbsNoDas;
+  const dasSemIbsCbs = Math.max(dasMensal - parcelaConsumoDas, 0);
+
+  const ibsDebito = faturamentoMensal * ((cronoAno.ibs || 0) / 100);
+  const cbsDebito = faturamentoMensal * ((cronoAno.cbs || 0) / 100);
+  const creditoIbs = ibsDebito * ((creditoIbsPct || 0) / 100);
+  const creditoCbs = cbsDebito * ((creditoCbsPct || 0) / 100);
+  const ibsLiquido = Math.max(ibsDebito - creditoIbs, 0);
+  const cbsLiquido = Math.max(cbsDebito - creditoCbs, 0);
+  const totalIbsCbsLiquido = ibsLiquido + cbsLiquido;
+  const totalMensal = dasSemIbsCbs + totalIbsCbsLiquido;
+
+  return {
+    ano: cronoAno.ano, ibsPct: cronoAno.ibs || 0, cbsPct: cronoAno.cbs || 0, tributoConsumo,
+    parcelaIbsNoDas, parcelaCbsNoDas, parcelaConsumoDas, dasSemIbsCbs,
+    ibsDebito, cbsDebito, creditoIbsPct: creditoIbsPct || 0, creditoCbsPct: creditoCbsPct || 0,
+    creditoIbs, creditoCbs, ibsLiquido, cbsLiquido,
+    totalIbsCbsLiquido, totalMensal, totalAnual: totalMensal * 12,
+    cargaEfetivaPct: faturamentoMensal > 0 ? (totalMensal / faturamentoMensal) * 100 : 0,
+  };
+}
+
+// CONTRATANTE — crédito potencial de IBS/CBS sobre um valor de contratação e
+// custo líquido resultante. creditoPct é parâmetro de simulação (não assumir
+// crédito integral — depende das condições legais aplicáveis à operação).
+function calcCreditoContratante({ valorContrato, creditoPct, ibsPct, cbsPct }) {
+  const creditoIbs = valorContrato * ((ibsPct || 0) / 100) * ((creditoPct || 0) / 100);
+  const creditoCbs = valorContrato * ((cbsPct || 0) / 100) * ((creditoPct || 0) / 100);
+  const creditoTotal = creditoIbs + creditoCbs;
+  const custoLiquido = valorContrato - creditoTotal;
+  return { creditoIbs, creditoCbs, creditoTotal, custoLiquido };
+}
+// Valor de contratação, sob as condições de crédito do Híbrido, que resulta
+// no mesmo custo líquido desejado (usado no cálculo inverso do item CONTRATANTE
+// do Ponto de Equilíbrio).
+function calcValorContratoParaCustoLiquido({ custoLiquidoDesejado, creditoPct, ibsPct, cbsPct }) {
+  const aliqTotal = ((ibsPct || 0) + (cbsPct || 0)) / 100;
+  const fator = 1 - aliqTotal * ((creditoPct || 0) / 100);
+  if (fator <= 0) return null;
+  return custoLiquidoDesejado / fator;
+}
+
+/* ---------------------------------------------------------------------------
+   HELPERS de formatação
+   --------------------------------------------------------------------------- */
+const fmtBRL = (v) => (isFinite(v) ? v : 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtPct = (v, dec) => (isFinite(v) ? v : 0).toLocaleString("pt-BR", { minimumFractionDigits: dec == null ? 2 : dec, maximumFractionDigits: dec == null ? 2 : dec }) + "%";
+const fmtNum = (v) => (isFinite(v) ? v : 0).toLocaleString("pt-BR");
+function parseNum(str) {
+  if (typeof str === "number") return str;
+  if (!str) return 0;
+  const cleaned = String(str).replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+  const n = parseFloat(cleaned);
+  return isFinite(n) ? n : 0;
+}
+function todayBR() { return new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }); }
+
+/* ---------------------------------------------------------------------------
+   STATE
+   --------------------------------------------------------------------------- */
+const NAV = [
+  { id: "dashboard", label: "Dashboard", ic: "grid" },
+  { id: "empresa", label: "Dados da Empresa", ic: "building" },
+  { id: "simples", label: "Simples Nacional", ic: "calculator" },
+  { id: "fatorr", label: "Fator R", ic: "percent" },
+  { id: "hibrido", label: "Simples Híbrido", ic: "layers" },
+  { id: "presumido", label: "Lucro Presumido", ic: "receipt" },
+  { id: "comparativo", label: "Comparativo", ic: "chart" },
+  { id: "equilibrio", label: "Ponto de Equilíbrio", ic: "scale" },
+  { id: "memoria", label: "Memória de Cálculo", ic: "filetext" },
+  { id: "relatorio", label: "Relatório PDF", ic: "download" },
+  { id: "fontes", label: "Fontes", ic: "info" },
+];
+
+const state = {
+  active: "dashboard",
+  empresa: {
+    nome: "", cnpj: "", cnae: null, // registro CNAE (CONCLA/IBGE): {codigo,descricao,secao,divisao,grupo,classe,atividades} — puramente classificatório, não define Anexo/atividade tributária
+    faturamentoMensal: 18000,
+    rbt12Modo: "auto", rbt12Manual: 216000,
+    folha12m: 0, proLabore: 0,
+    anoAnalise: 2026,
+  },
+  simples: { anexoModo: "auto", anexoManual: "III" },
+  presumido: { atividade: "servicos_gerais", receitaTrimestre: 54000, pisAliq: 0.65, cofinsAliq: 3.0, issAliq: 3.0, majoracao: false, anoProjecao: 2027 },
+  equilibrio: { custosFixos: 6000, custosVariaveisPct: 10, contratoBruto: 10000, contratoLiquido: 8500, creditoContratanteAtualPct: 0 },
+  hibrido: { anoProjecao: 2033, valorContratoAnual: 216000, creditoIbsPct: 0, creditoCbsPct: 0, creditoContratanteHibridoPct: 100 },
+  comparativo: { view: "detalhado" }, // "detalhado" (padrão, análise técnica completa) | "resumo" (Resumo Executivo)
+  result: null, // preenchido por computeAll()
+  memoria: [],
+};
+
+function rbt12Atual() {
+  return state.empresa.rbt12Modo === "auto" ? state.empresa.faturamentoMensal * 12 : state.empresa.rbt12Manual;
+}
+function anexoKeyAtual() {
+  // O Anexo do Simples Nacional é definido apenas pela escolha do usuário
+  // (manual) ou, no modo automático, pela regra do Fator R — nunca inferido
+  // a partir do CNAE, que é uma classificação puramente informativa.
+  if (state.simples.anexoModo === "manual") return state.simples.anexoManual;
+  return "III_V";
+}
+
+function validarEntradas() {
+  const e = state.empresa, issues = [];
+  if (!e.faturamentoMensal || e.faturamentoMensal <= 0) issues.push({ tipo: "red", msg: "Informe um faturamento mensal maior que zero." });
+  const rbt12 = rbt12Atual();
+  if (rbt12 < e.faturamentoMensal) issues.push({ tipo: "yellow", msg: "O RBT12 informado é menor que o faturamento mensal — verifique se o valor está correto." });
+  if (rbt12 > 4800000) issues.push({ tipo: "yellow", msg: "RBT12 acima de R$ 4.800.000,00 — empresa fora do limite de permanência no Simples Nacional." });
+  if (e.folha12m > rbt12 && rbt12 > 0) issues.push({ tipo: "yellow", msg: "A folha de salários informada é maior que o RBT12 — confira os valores." });
+  return issues;
+}
+
+function computeAll() {
+  const e = state.empresa;
+  const rbt12 = rbt12Atual();
+  const anexoKey = anexoKeyAtual();
+  const memoria = [];
+
+  const simples = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey, folha12m: e.folha12m });
+  memoria.push({
+    titulo: "RBT12 — Receita Bruta dos últimos 12 meses",
+    formula: e.rbt12Modo === "auto" ? "RBT12 = Faturamento mensal × 12 = " + fmtBRL(e.faturamentoMensal) + " × 12 = " + fmtBRL(rbt12) : "RBT12 informado manualmente = " + fmtBRL(rbt12),
+    detalhe: e.rbt12Modo === "auto" ? "Calculado automaticamente a partir do faturamento mensal informado (uso simplificado — em uma apuração real, utilize a soma efetiva dos 12 meses anteriores)." : "Valor informado manualmente pelo usuário.",
+  });
+  if (anexoKey === "III_V") {
+    memoria.push({
+      titulo: "Fator R",
+      formula: "Fator R = Folha de salários (12m) ÷ RBT12 = " + fmtBRL(e.folha12m) + " ÷ " + fmtBRL(rbt12) + " = " + fmtPct(simples.fatorR * 100),
+      detalhe: "Fator R " + (simples.fatorR >= 0.28 ? "≥ 28% → tributação pelo Anexo III." : "< 28% → tributação pelo Anexo V."),
+    });
+  }
+  memoria.push({
+    titulo: "Enquadramento e alíquota efetiva — " + ANEXOS[simples.anexoUsado].nome,
+    formula: "Alíquota efetiva = (RBT12 × Alíquota nominal − Parcela a deduzir) ÷ RBT12 = (" + fmtBRL(rbt12) + " × " + fmtPct(simples.aliqNominal * 100) + " − " + fmtBRL(simples.parcelaDeduzir) + ") ÷ " + fmtBRL(rbt12) + " = " + fmtPct(simples.cargaEfetivaPct),
+    detalhe: simples.faixaLabel + " de RBT12 (" + ANEXOS[simples.anexoUsado].nome + " — " + ANEXOS[simples.anexoUsado].desc + ").",
+  });
+  memoria.push({
+    titulo: "DAS mensal estimado",
+    formula: "DAS = Faturamento mensal × Alíquota efetiva = " + fmtBRL(e.faturamentoMensal) + " × " + fmtPct(simples.cargaEfetivaPct) + " = " + fmtBRL(simples.dasMensal),
+    detalhe: "Valor total anual estimado: " + fmtBRL(simples.dasAnual) + " (DAS mensal × 12).",
+  });
+
+  const presumido = calcLucroPresumidoAnual({
+    receitaTrimestre: e.faturamentoMensal * 3,
+    atividade: state.presumido.atividade,
+    pisAliq: state.presumido.pisAliq / 100,
+    cofinsAliq: state.presumido.cofinsAliq / 100,
+    issAliq: state.presumido.issAliq / 100,
+    aplicarMajoracao2026: state.presumido.majoracao,
+    anoProjecao: state.presumido.anoProjecao,
+  });
+  const t = presumido.trimestre;
+  memoria.push({
+    titulo: "Lucro Presumido — base de cálculo trimestral (" + t.atividade + ")",
+    formula: "Base IRPJ = Receita trimestral × " + fmtPct(t.irpjPctUsado) + " = " + fmtBRL(e.faturamentoMensal * 3) + " × " + fmtPct(t.irpjPctUsado) + " = " + fmtBRL(t.baseIRPJ) + "  |  Base CSLL = " + fmtBRL(t.baseCSLL),
+    detalhe: "Receita trimestral considerada: faturamento mensal × 3 = " + fmtBRL(e.faturamentoMensal * 3) + " · Ano de projeção: " + t.ano + ".",
+  });
+  memoria.push({
+    titulo: "IRPJ e CSLL — tributos trimestrais",
+    formula: "IRPJ normal = " + fmtBRL(t.baseIRPJ) + " × 15% = " + fmtBRL(t.irpjNormal) + "  |  Adicional = máx(" + fmtBRL(t.baseIRPJ) + " − R$ 60.000, 0) × 10% = " + fmtBRL(t.irpjAdicional) + "  |  CSLL = " + fmtBRL(t.baseCSLL) + " × 9% = " + fmtBRL(t.csllTotal),
+    detalhe: "IRPJ total do trimestre: " + fmtBRL(t.irpjTotal) + " · Apurados por trimestre (não mensalmente).",
+  });
+  memoria.push(t.substituidoPorCbs ? {
+    titulo: "CBS, IBS e ISS — tributos mensais (ano " + t.ano + ")",
+    formula: "CBS = Receita × " + fmtPct(t.crono.cbs, 2) + " = " + fmtBRL(t.cbs) + "  |  IBS = Receita × " + fmtPct(t.crono.ibs, 2) + " = " + fmtBRL(t.ibs) + "  |  ISS = Receita × " + fmtPct(t.issAliqEfetivaPct) + " = " + fmtBRL(t.iss),
+    detalhe: "A partir de 2027, a LC 214/2025 extingue PIS e COFINS, substituídos pela CBS; o ISS informado (" + fmtPct(state.presumido.issAliq) + ") é aplicado " + (t.fatorRemanescenteIss < 1 ? "a " + fmtPct(t.fatorRemanescenteIss * 100, 0) + " de sua alíquota, conforme o cronograma de redução do ISS/ICMS" : "integralmente") + " — mesmo cronograma de transição (IBS_CBS_CRONOGRAMA) usado na aba Simples Híbrido. Total do trimestre: " + fmtBRL(t.totalTrimestre) + " · Carga efetiva: " + fmtPct(t.cargaEfetivaPct) + ".",
+  } : {
+    titulo: "PIS, COFINS e ISS — tributos mensais (ano " + t.ano + ")",
+    formula: "PIS = " + fmtBRL(t.pis) + "  |  COFINS = " + fmtBRL(t.cofins) + "  |  ISS = " + fmtBRL(t.iss),
+    detalhe: "Ano-teste da reforma (2026) ou anterior: PIS/COFINS/ISS permanecem pelas regras vigentes — o valor-teste de CBS/IBS é integralmente compensável, sem impacto financeiro líquido. Total do trimestre: " + fmtBRL(t.totalTrimestre) + " · Carga efetiva: " + fmtPct(t.cargaEfetivaPct) + ".",
+  });
+
+  // ---- Simples Híbrido — composição separada de DAS / IBS / CBS / créditos ----
+  const cronoAno = IBS_CBS_CRONOGRAMA.find((c) => c.ano === state.hibrido.anoProjecao) || IBS_CBS_CRONOGRAMA[IBS_CBS_CRONOGRAMA.length - 1];
+  const hibrido = calcSimplesHibrido({
+    faturamentoMensal: e.faturamentoMensal,
+    dasMensal: simples.dasMensal,
+    partilha: simples.partilha,
+    partilhaValores: simples.partilhaValores,
+    cronoAno,
+    creditoIbsPct: state.hibrido.creditoIbsPct,
+    creditoCbsPct: state.hibrido.creditoCbsPct,
+  });
+  memoria.push({
+    titulo: "Simples Híbrido — DAS sem IBS/CBS (ano " + hibrido.ano + ")",
+    formula: "DAS sem IBS/CBS = DAS total − parcela de " + (hibrido.tributoConsumo || "ICMS/ISS") + " (" + fmtBRL(hibrido.parcelaIbsNoDas) + ") − parcela de PIS/COFINS (" + fmtBRL(hibrido.parcelaCbsNoDas) + ") = " + fmtBRL(simples.dasMensal) + " − " + fmtBRL(hibrido.parcelaConsumoDas) + " = " + fmtBRL(hibrido.dasSemIbsCbs),
+    detalhe: "No mecanismo de apuração à parte (previsto a partir de 2027), as parcelas do DAS hoje correspondentes a " + (hibrido.tributoConsumo || "ICMS/ISS") + " (vira IBS) e a PIS/COFINS (vira CBS) saem da partilha do Simples e passam a ser recolhidas separadamente, em regime não cumulativo. IRPJ, CSLL e CPP permanecem no DAS.",
+  });
+  memoria.push({
+    titulo: "IBS e CBS — débito e crédito",
+    formula: "IBS débito = Faturamento × " + fmtPct(hibrido.ibsPct, 2) + " = " + fmtBRL(hibrido.ibsDebito) + "  |  CBS débito = Faturamento × " + fmtPct(hibrido.cbsPct, 2) + " = " + fmtBRL(hibrido.cbsDebito),
+    detalhe: "Crédito IBS informado: " + fmtPct(hibrido.creditoIbsPct, 1) + " do débito (" + fmtBRL(hibrido.creditoIbs) + ") · Crédito CBS informado: " + fmtPct(hibrido.creditoCbsPct, 1) + " do débito (" + fmtBRL(hibrido.creditoCbs) + "). Estes percentuais são PARÂMETROS DE SIMULAÇÃO, ajustáveis pelo usuário conforme os créditos de insumos efetivamente apurados pela empresa — não são alíquota legal e não é assumido crédito integral por padrão. O crédito de IBS não é compensado contra o débito de CBS (créditos apurados separadamente).",
+  });
+  memoria.push({
+    titulo: "Total Híbrido líquido",
+    formula: "IBS líquido = " + fmtBRL(hibrido.ibsDebito) + " − " + fmtBRL(hibrido.creditoIbs) + " = " + fmtBRL(hibrido.ibsLiquido) + "  |  CBS líquido = " + fmtBRL(hibrido.cbsDebito) + " − " + fmtBRL(hibrido.creditoCbs) + " = " + fmtBRL(hibrido.cbsLiquido) + "  |  Total Híbrido = " + fmtBRL(hibrido.dasSemIbsCbs) + " + " + fmtBRL(hibrido.ibsLiquido) + " + " + fmtBRL(hibrido.cbsLiquido) + " = " + fmtBRL(hibrido.totalMensal),
+    detalhe: "Carga efetiva do Híbrido: " + fmtPct(hibrido.cargaEfetivaPct) + " (Simples Normal: " + fmtPct(simples.cargaEfetivaPct) + ") · Total anual: " + fmtBRL(hibrido.totalAnual) + ".",
+  });
+
+  const pe = calcPontoEquilibrio({
+    custosFixosMensais: state.equilibrio.custosFixos,
+    custosVariaveisPct: state.equilibrio.custosVariaveisPct,
+    cargaTributariaPct: simples.cargaEfetivaPct,
+  });
+
+  // ---- Ponto de equilíbrio — PRESTADORA: receita necessária no Híbrido para
+  // manter o mesmo resultado líquido mensal de hoje (Simples Normal). ----
+  const custosVarAtual = e.faturamentoMensal * (state.equilibrio.custosVariaveisPct / 100);
+  const resultadoAtualPrestadora = e.faturamentoMensal - custosVarAtual - state.equilibrio.custosFixos - simples.dasMensal;
+  const receitaHibridoParaMesmoResultado = calcReceitaParaResultado({
+    resultadoDesejadoMensal: resultadoAtualPrestadora,
+    custosFixosMensais: state.equilibrio.custosFixos,
+    custosVariaveisPct: state.equilibrio.custosVariaveisPct,
+    cargaTributariaPct: hibrido.cargaEfetivaPct,
+  });
+  const pePrestadora = {
+    valorAtualContrato: e.faturamentoMensal,
+    resultadoAtual: resultadoAtualPrestadora,
+    valido: receitaHibridoParaMesmoResultado.valido,
+    receitaNecessariaHibrido: receitaHibridoParaMesmoResultado.valido ? receitaHibridoParaMesmoResultado.receita : null,
+  };
+
+  // ---- Ponto de equilíbrio — CONTRATANTE: custo líquido hoje x valor de
+  // contrato equivalente no Híbrido para manter o mesmo custo líquido. ----
+  const contratoAtualEquilibrio = state.equilibrio.contratoBruto;
+  const creditoContratanteAtualPct = state.equilibrio.creditoContratanteAtualPct || 0;
+  const creditoContratanteAtual = contratoAtualEquilibrio * (creditoContratanteAtualPct / 100);
+  const custoLiquidoContratanteAtual = contratoAtualEquilibrio - creditoContratanteAtual;
+  const peContratante = {
+    valorAtualContrato: contratoAtualEquilibrio,
+    creditoAtualPct: creditoContratanteAtualPct,
+    creditoAtual: creditoContratanteAtual,
+    custoLiquidoAtual: custoLiquidoContratanteAtual,
+    valorEquivalenteHibrido: calcValorContratoParaCustoLiquido({
+      custoLiquidoDesejado: custoLiquidoContratanteAtual,
+      creditoPct: state.hibrido.creditoContratanteHibridoPct,
+      ibsPct: hibrido.ibsPct, cbsPct: hibrido.cbsPct,
+    }),
+  };
+
+  state.result = { rbt12, anexoKey, simples, presumido, hibrido, pe, pePrestadora, peContratante, issues: validarEntradas(), timestamp: new Date() };
+  state.memoria = memoria;
+  return state.result;
+}
+
+/* ---------------------------------------------------------------------------
+   DOM helpers
+   --------------------------------------------------------------------------- */
+const $ = (sel, root) => (root || document).querySelector(sel);
+const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+function el(tag, attrs, children) {
+  const node = document.createElement(tag);
+  if (attrs) Object.keys(attrs).forEach((k) => {
+    if (k === "class") node.className = attrs[k];
+    else if (k === "html") node.innerHTML = attrs[k];
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), attrs[k]);
+    else node.setAttribute(k, attrs[k]);
+  });
+  (children || []).forEach((c) => { if (c) node.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+  return node;
+}
+function badge(text, kind, iconName) {
+  return '<span class="badge badge-' + kind + '">' + (iconName ? icon(iconName) : "") + text + "</span>";
+}
+function alertBox(kind, iconName, html) {
+  return '<div class="alert alert-' + kind + '">' + icon(iconName) + '<div>' + html + '</div></div>';
+}
+
+/* ---------------------------------------------------------------------------
+   NAV / SHELL
+   --------------------------------------------------------------------------- */
+function renderNav() {
+  const nav = $("#nav");
+  nav.innerHTML = "";
+  NAV.forEach((item) => {
+    const btn = el("button", {
+      class: "nav-item", "aria-current": item.id === state.active ? "page" : null,
+      html: icon(item.ic) + "<span>" + item.label + "</span>",
+      onclick: () => { setActive(item.id); closeSidebarMobile(); },
+    });
+    nav.appendChild(btn);
+  });
+}
+function setActive(id) {
+  state.active = id;
+  renderNav();
+  renderContent();
+  $("#content").scrollTo && window.scrollTo({ top: 0, behavior: "smooth" });
+  saveDraft();
+}
+function closeSidebarMobile() {
+  $("#sidebar").classList.remove("open");
+  $("#scrim").classList.remove("open");
+}
+
+const RENDERERS = {
+  dashboard: renderDashboard,
+  empresa: renderEmpresa,
+  simples: renderSimples,
+  fatorr: renderFatorR,
+  hibrido: renderHibrido,
+  presumido: renderPresumido,
+  comparativo: renderComparativo,
+  equilibrio: renderEquilibrio,
+  memoria: renderMemoria,
+  relatorio: renderRelatorio,
+  fontes: renderFontes,
+};
+
+/* ---------------------------------------------------------------------------
+   RENDER: DASHBOARD
+   --------------------------------------------------------------------------- */
+function alertsHTML(issues) {
+  if (!issues || !issues.length) {
+    return alertBox("green", "check", "<b>Parâmetros suficientes para realizar a simulação.</b> Os cálculos abaixo refletem os dados informados.");
+  }
+  return issues.map((i) => alertBox(i.tipo === "red" ? "red" : "yellow", i.tipo === "red" ? "alert" : "alert", i.msg)).join("");
+}
+
+function renderDashboard(root) {
+  const r = computeAll();
+  const e = state.empresa;
+  root.appendChild(el("div", { class: "section-head", html:
+    '<div><h2>Dashboard</h2><p class="sub">Visão geral da simulação tributária' + (e.nome ? " — " + e.nome : "") + '</p></div>' +
+    '<div class="section-actions">' + badge("Simulação", "blue", "info") + (r.issues.length ? badge("Atenção", "yellow", "alert") : badge("Calculado", "green", "check")) + "</div>" }));
+
+  root.appendChild(el("div", { html: alertsHTML(r.issues) }));
+
+  const kpiWrap = el("div", { class: "grid grid-4" });
+  kpiWrap.innerHTML =
+    kpiCard("wallet", "Faturamento mensal", fmtBRL(e.faturamentoMensal), "12 meses considerados", false) +
+    kpiCard("trending", "RBT12", fmtBRL(r.rbt12), e.rbt12Modo === "auto" ? "Calculado automaticamente" : "Informado manualmente", e.rbt12Modo === "auto") +
+    kpiCard("landmark", "Regime simulado", "Simples Nacional", ANEXOS[r.simples.anexoUsado].nome, false) +
+    kpiCard("filetext", "Anexo aplicado", ANEXOS[r.simples.anexoUsado].nome.replace("Anexo ", ""), ANEXOS[r.simples.anexoUsado].desc, false) +
+    kpiCard("percent", "Fator R", r.simples.fatorR == null ? "Não aplicável" : fmtPct(r.simples.fatorR * 100), r.simples.fatorR == null ? "Anexo fixo (sem Fator R)" : (r.simples.fatorR >= 0.28 ? "≥ 28% · Anexo III" : "< 28% · Anexo V"), false) +
+    kpiCard("calculator", "Carga tributária efetiva", fmtPct(r.simples.cargaEfetivaPct), r.simples.faixaLabel + " de RBT12", false, true);
+  root.appendChild(kpiWrap);
+
+  const regimesWrap = el("div", { class: "grid grid-3" });
+  regimesWrap.innerHTML =
+    regimeCard("Simples Normal", r.simples.dasMensal, r.simples.cargaEfetivaPct, r.simples.dasAnual, ANEXOS[r.simples.anexoUsado].nome, true) +
+    regimeCard("Simples Híbrido", r.hibrido.totalMensal, r.hibrido.cargaEfetivaPct, r.hibrido.totalAnual, "DAS + IBS/CBS líquidos — ano " + r.hibrido.ano, false) +
+    regimeCard("Lucro Presumido", r.presumido.trimestre.totalTrimestre / 3, r.presumido.cargaEfetivaPct, r.presumido.totalAnual, r.presumido.trimestre.atividade, false);
+  root.appendChild(regimesWrap);
+
+  const chartCard = el("div", { class: "card", html:
+    '<div class="card-title">' + icon("chart") + "Custo tributário anual — comparação rápida<span class=\"grow\"></span></div>" +
+    '<div class="chart-box"><canvas id="chartDashboard"></canvas></div>' });
+  root.appendChild(chartCard);
+
+  root.appendChild(el("div", { class: "flex", style: "justify-content:flex-end", html:
+    '<button class="btn btn-primary" id="btnGotoRelatorio">' + icon("download") + "Gerar relatório</button>" }));
+  setTimeout(() => { const b = $("#btnGotoRelatorio"); if (b) b.onclick = () => setActive("relatorio"); }, 0);
+}
+
+function kpiCard(ic, label, value, sub, calcBadge, big) {
+  return '<div class="kpi">' +
+    '<div class="kpi-top"><div class="kpi-icon' + (big ? " green" : "") + '">' + icon(ic) + '</div>' + (calcBadge ? badge("Auto", "green") : "") + '</div>' +
+    '<div class="kpi-label">' + label + '</div>' +
+    '<div class="kpi-value' + (big ? " green" : "") + '">' + value + '</div>' +
+    '<div class="kpi-sub">' + sub + '</div></div>';
+}
+function regimeCard(nome, mensal, cargaPct, anual, sub, selected) {
+  return '<div class="regime-card' + (selected ? " selected" : "") + '">' +
+    '<div class="rh"><h3>' + nome + '</h3>' + (selected ? badge("Selecionado", "green", "check") : badge("Simulação", "blue")) + '</div>' +
+    '<div><div class="kpi-label">Custo tributário estimado / mês</div><div class="val">' + fmtBRL(mensal) + '</div></div>' +
+    '<div class="row"><span>Carga efetiva</span><b>' + fmtPct(cargaPct) + '</b></div>' +
+    '<div class="row"><span>Total anual</span><b>' + fmtBRL(anual) + '</b></div>' +
+    '<div class="row"><span>Detalhe</span><b>' + sub + '</b></div></div>';
+}
+// Card minimalista do "Resumo Executivo" — propositalmente NÃO mostra IRPJ,
+// CSLL, DAS, IBS, CBS ou qualquer detalhamento técnico: apenas o nome do
+// regime, o custo mensal (número grande) e a carga efetiva. O detalhamento
+// tributário completo fica só na opção "Detalhado".
+function resumoExecCard(nome, mensal, cargaPct, hl) {
+  return '<div class="regime-card' + (hl ? " selected" : "") + '" style="align-items:center;text-align:center;gap:8px">' +
+    (hl ? badge("Destaque", "green", "check") : "") +
+    '<h3 style="font-size:15px">' + nome + '</h3>' +
+    '<div><div class="kpi-label">Custo tributário / mês</div><div class="val" style="font-size:30px">' + fmtBRL(mensal) + '</div></div>' +
+    '<div class="row" style="border-top:none;justify-content:center;gap:8px;padding-top:0"><span>Carga efetiva</span><b>' + fmtPct(cargaPct) + '</b></div>' +
+    '</div>';
+}
+
+function renderContent() {
+  const c = $("#content");
+  c.innerHTML = "";
+  const wrap = el("div", { class: "section fade-in" });
+  c.appendChild(wrap);
+  RENDERERS[state.active](wrap);
+  destroyCharts();
+  wireCommonInputs(wrap);
+  if (state.active === "dashboard" || state.active === "comparativo") requestAnimationFrame(() => buildChartsForActive());
+}
+
+
+
+/* ---------------------------------------------------------------------------
+   RENDER: DADOS DA EMPRESA
+   --------------------------------------------------------------------------- */
+function renderEmpresa(root) {
+  const e = state.empresa;
+  const rPre = computeAll();
+  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Dados da Empresa</h2><p class="sub">Informações usadas em todos os módulos de cálculo</p></div>' }));
+  root.appendChild(el("div", { html: alertsHTML(rPre.issues) }));
+
+  const grid = el("div", { class: "grid grid-2" });
+  grid.innerHTML =
+    '<div class="card">' +
+      '<div class="card-title">' + icon("building") + 'Identificação</div>' +
+      '<div class="field"><label for="fNome">Nome / Razão social</label><input type="text" id="fNome" placeholder="Ex.: Clínica Modelo Ltda." value="' + escAttr(e.nome) + '"></div>' +
+      '<div style="height:12px"></div>' +
+      '<div class="field"><label for="fCnpj">CNPJ</label><input type="text" id="fCnpj" placeholder="00.000.000/0000-00" value="' + escAttr(e.cnpj) + '"></div>' +
+      '<div style="height:12px"></div>' +
+      '<div class="field autocomplete"><label for="fCnae">Atividade (CNAE)</label>' +
+        '<input type="text" id="fCnae" autocomplete="off" placeholder="Busque por código ou descrição — ex.: promoção de vendas" value="' + (e.cnae ? escAttr(e.cnae.codigo + " — " + e.cnae.descricao) : "") + '">' +
+        '<div class="ac-list" id="acList" hidden></div>' +
+        '<span class="hint">' + cnaeHintHTML(e.cnae) + '</span>' +
+        '<div class="cnae-status">' + cnaeStatusBadgeHTML() + '<button type="button" class="btn btn-ghost btn-sm" id="btnImportCnae">' + icon("upload") + 'Importar base oficial (JSON/CSV)</button><input type="file" id="fCnaeImport" accept=".json,.csv" hidden></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-title">' + icon("wallet") + 'Faturamento e base de cálculo</div>' +
+      '<div class="field"><label for="fFat">Faturamento mensal</label><input type="text" inputmode="decimal" id="fFat" placeholder="R$ 18.000,00" value="' + fmtInput(e.faturamentoMensal) + '"></div>' +
+      '<div style="height:12px"></div>' +
+      '<div class="field"><label>RBT12 — Receita Bruta dos últimos 12 meses</label>' +
+        '<div class="radio-pills">' +
+          '<button type="button" class="radio-pill' + (e.rbt12Modo === "auto" ? " active" : "") + '" data-rbt12mode="auto">Automático (fat. × 12)</button>' +
+          '<button type="button" class="radio-pill' + (e.rbt12Modo === "manual" ? " active" : "") + '" data-rbt12mode="manual">Informar manualmente</button>' +
+        '</div>' +
+        (e.rbt12Modo === "auto"
+          ? '<div style="margin-top:10px" class="field-row">' + badge("Calculado automaticamente", "green", "check") + '<span class="num" style="font-weight:700;color:var(--navy)">' + fmtBRL(rbt12Atual()) + '</span></div>'
+          : '<div style="margin-top:10px"><input type="text" inputmode="decimal" id="fRbt12" value="' + fmtInput(e.rbt12Manual) + '"></div>') +
+      '</div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-title">' + icon("percent") + 'Folha de pagamento (para Fator R)</div>' +
+      '<div class="field"><label for="fFolha">Folha de salários dos últimos 12 meses</label><input type="text" inputmode="decimal" id="fFolha" placeholder="Inclui pró-labore, encargos, 13º e férias" value="' + fmtInput(e.folha12m) + '"><span class="hint">Necessário apenas para atividades sujeitas ao Fator R (Anexo III/V).</span></div>' +
+      '<div style="height:12px"></div>' +
+      '<div class="field"><label for="fProlabore">Pró-labore mensal dos sócios</label><input type="text" inputmode="decimal" id="fProlabore" value="' + fmtInput(e.proLabore) + '"><span class="hint">Já deve estar incluído na folha de 12 meses acima.</span></div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-title">' + icon("filetext") + 'Ano da análise</div>' +
+      '<div class="field"><label for="fAno">Ano-calendário</label><select id="fAno">' +
+        [2025, 2026, 2027].map((y) => '<option value="' + y + '"' + (e.anoAnalise === y ? " selected" : "") + '>' + y + '</option>').join("") +
+      '</select><span class="hint">Define o cronograma de IBS/CBS considerado na aba Simples Híbrido.</span></div>' +
+    '</div>';
+  root.appendChild(grid);
+
+  root.appendChild(el("div", { class: "flex", style: "justify-content:flex-end;gap:10px", html:
+    '<button class="btn btn-secondary" id="btnLimpar">Limpar dados</button>' +
+    '<button class="btn btn-success" id="btnCalcular">' + icon("calculator") + 'Calcular análise</button>' }));
+
+  const resultHolder = el("div", { id: "resultHolder" });
+  root.appendChild(resultHolder);
+  if (state.calculated) renderResultBanner(resultHolder);
+
+  setTimeout(() => {
+    $("#btnCalcular").onclick = () => { computeAll(); state.calculated = true; saveDraft(); renderResultBanner(resultHolder); resultHolder.scrollIntoView({ behavior: "smooth", block: "start" }); };
+    $("#btnLimpar").onclick = () => { if (confirm2("Limpar todos os dados informados?")) resetState(); };
+    $$('[data-rbt12mode]').forEach((b) => b.onclick = () => { state.empresa.rbt12Modo = b.dataset.rbt12mode; renderContent(); });
+    $("#fNome").onchange = (ev) => { state.empresa.nome = ev.target.value; saveDraft(); };
+    $("#fCnpj").onchange = (ev) => { state.empresa.cnpj = ev.target.value; saveDraft(); };
+    $("#fFat").onchange = (ev) => { state.empresa.faturamentoMensal = parseNum(ev.target.value); renderContent(); };
+    const rbt12Input = $("#fRbt12"); if (rbt12Input) rbt12Input.onchange = (ev) => { state.empresa.rbt12Manual = parseNum(ev.target.value); renderContent(); };
+    $("#fFolha").onchange = (ev) => { state.empresa.folha12m = parseNum(ev.target.value); renderContent(); };
+    $("#fProlabore").onchange = (ev) => { state.empresa.proLabore = parseNum(ev.target.value); saveDraft(); };
+    $("#fAno").onchange = (ev) => { state.empresa.anoAnalise = parseInt(ev.target.value, 10); renderContent(); };
+    setupCnaeAutocomplete();
+  }, 0);
+}
+function confirm2(msg) { try { return window.confirm(msg); } catch (err) { return true; } }
+function fmtInput(v) { return (v || 0).toString().replace(".", ","); }
+function escAttr(s) { return (s || "").replace(/"/g, "&quot;"); }
+
+function cnaeHintHTML(cnae) {
+  if (!cnae) return "Não selecionado. O CNAE é uma classificação oficial (CONCLA/IBGE) e não define automaticamente o Anexo do Simples Nacional — o enquadramento tributário é feito na aba Simples Nacional.";
+  const h = cnaeHierarquia(cnae);
+  const parts = [];
+  if (cnae.secao) parts.push("Seção " + cnae.secao + (h && h.secao ? " — " + h.secao.descricao : ""));
+  if (cnae.divisao) parts.push("Divisão " + cnae.divisao);
+  if (cnae.grupo) parts.push("Grupo " + cnae.grupo);
+  if (cnae.classe) parts.push("Classe " + cnae.classe);
+  return (parts.length ? parts.join(" · ") + ". " : "") + "Classificação oficial — não define automaticamente o Anexo do Simples Nacional.";
+}
+function cnaeStatusBadgeHTML() {
+  if (CNAE_STATUS.estado === "ok") return badge("Base carregada — " + CNAE_STATUS.registros + " CNAEs (atualizado em " + fmtDateBR(CNAE_STATUS.atualizadoEm) + ")", "green", "check");
+  if (CNAE_STATUS.estado === "erro") return badge("Base indisponível — " + CNAE_STATUS.mensagem, "yellow", "alert");
+  return badge("Carregando base de CNAEs...", "blue", "info");
+}
+
+function setupCnaeAutocomplete() {
+  const input = $("#fCnae"), list = $("#acList");
+  if (input) {
+    function renderList(items, query) {
+      if (CNAE_STATUS.estado === "erro") {
+        list.innerHTML = '<div class="ac-item ac-empty">Base de CNAEs indisponível no momento. Use "Importar base oficial" para carregar um arquivo JSON/CSV.</div>';
+        list.hidden = false;
+        return;
+      }
+      if (CNAE_STATUS.estado !== "ok" || !CNAE_DATA) {
+        list.innerHTML = '<div class="ac-item ac-empty">Carregando base de CNAEs...</div>';
+        list.hidden = false;
+        return;
+      }
+      if (!items.length) {
+        list.innerHTML = '<div class="ac-item ac-empty">Nenhum CNAE encontrado para "' + escHtml(query) + '". Confira o código/descrição ou tente outra palavra-chave.</div>';
+        list.hidden = false;
+        return;
+      }
+      list.innerHTML = items.map((x) =>
+        '<div class="ac-item" data-c="' + escAttr(x.codigo) + '"><span class="code">' + escHtml(x.codigo) + '</span>' + (x.secao ? '<span class="tag">Seção ' + escHtml(x.secao) + '</span>' : "") + '<div class="desc">' + escHtml(x.descricao) + '</div></div>'
+      ).join("");
+      list.hidden = false;
+      $$(".ac-item[data-c]", list).forEach((it) => it.onclick = () => {
+        const found = CNAE_DATA.subclasses.find((c) => c.codigo === it.dataset.c);
+        if (found) state.empresa.cnae = found;
+        list.hidden = true;
+        renderContent();
+      });
+    }
+    input.addEventListener("input", () => {
+      const q = input.value.trim();
+      if (!q) { list.hidden = true; return; }
+      renderList(cnaeSearch(q, 12), q);
+    });
+    input.addEventListener("focus", () => { if (input.value.trim()) input.dispatchEvent(new Event("input")); });
+    document.addEventListener("click", (ev) => { if (!ev.target.closest(".autocomplete")) list.hidden = true; }, { once: false });
+  }
+  const importBtn = $("#btnImportCnae"), importInput = $("#fCnaeImport");
+  if (importBtn && importInput) {
+    importBtn.onclick = () => importInput.click();
+    importInput.onchange = (ev) => { const f = ev.target.files && ev.target.files[0]; if (f) importCnaeFile(f); };
+  }
+}
+
+function renderResultBanner(holder) {
+  const r = state.result || computeAll();
+  holder.innerHTML =
+    '<div class="result-banner fade-in">' +
+      '<div class="rb-head">' + icon("check") + '<h3>Análise concluída</h3></div>' +
+      '<div class="result-grid">' +
+        resultItem("Faturamento", fmtBRL(state.empresa.faturamentoMensal)) +
+        resultItem("RBT12", fmtBRL(r.rbt12)) +
+        resultItem("Anexo", ANEXOS[r.simples.anexoUsado].nome.replace("Anexo ", "")) +
+        resultItem("Fator R", r.simples.fatorR == null ? "Não aplicável" : fmtPct(r.simples.fatorR * 100)) +
+        resultItem("Custo tributário estimado", fmtBRL(r.simples.dasMensal) + "/mês") +
+        resultItem("Carga efetiva", fmtPct(r.simples.cargaEfetivaPct)) +
+      '</div>' +
+      '<div><button class="btn btn-secondary" id="btnVerMemoria" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.3);color:#fff">' + icon("filetext") + 'Ver memória de cálculo</button></div>' +
+    '</div>';
+  setTimeout(() => { const b = $("#btnVerMemoria"); if (b) b.onclick = () => setActive("memoria"); }, 0);
+}
+function resultItem(l, v) { return '<div class="result-item"><span class="l">' + l + '</span><span class="v">' + v + '</span></div>'; }
+
+/* ---------------------------------------------------------------------------
+   RENDER: SIMPLES NACIONAL
+   --------------------------------------------------------------------------- */
+function renderSimples(root) {
+  const r = computeAll();
+  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Simples Nacional</h2><p class="sub">Enquadramento, faixas e partilha detalhada do DAS</p></div>' + badge("Fonte oficial", "blue", "info") }));
+
+  const opts = [
+    { k: "III_V", label: "Serviços — conforme Fator R (III/V)" },
+    { k: "I", label: "Anexo I — Comércio" },
+    { k: "II", label: "Anexo II — Indústria" },
+    { k: "III", label: "Anexo III — Serviços (fixo)" },
+    { k: "IV", label: "Anexo IV — Serviços (fixo)" },
+    { k: "V", label: "Anexo V — Serviços (fixo)" },
+  ];
+  const modo = anexoKeyAtual();
+
+  const card1 = el("div", { class: "card" });
+  card1.innerHTML =
+    '<div class="card-title">' + icon("calculator") + 'Enquadramento<span class="grow"></span>' + badge(state.simples.anexoModo === "auto" ? "Automático (Fator R)" : "Manual", state.simples.anexoModo === "auto" ? "green" : "blue") + '</div>' +
+    '<div class="field"><label>Anexo utilizado na simulação</label><div class="radio-pills" id="anexoPills">' +
+      opts.map((o) => '<button type="button" class="radio-pill' + (modo === o.k ? " active" : "") + '" data-anexo="' + o.k + '">' + o.label + '</button>').join("") +
+    '</div><span class="hint">Selecionar um anexo manualmente fixa o Anexo; o modo automático aplica a regra do Fator R (Anexo III ou V conforme a folha de pagamento).</span></div>';
+  root.appendChild(card1);
+
+  root.appendChild(el("div", { html: alertsHTML(r.issues) }));
+
+  const resumo = el("div", { class: "grid grid-4" });
+  resumo.innerHTML =
+    kpiCard("filetext", "Anexo aplicado", ANEXOS[r.simples.anexoUsado].nome, ANEXOS[r.simples.anexoUsado].desc, false) +
+    kpiCard("trending", "Faixa de RBT12", r.simples.faixaLabel, fmtBRL(FAIXAS_LIMITES[r.simples.faixaIndex - 1].min) + " a " + fmtBRL(FAIXAS_LIMITES[r.simples.faixaIndex - 1].max), false) +
+    kpiCard("percent", "Alíquota efetiva", fmtPct(r.simples.cargaEfetivaPct), "Nominal " + fmtPct(r.simples.aliqNominal * 100) + " · dedução " + fmtBRL(r.simples.parcelaDeduzir), false, true) +
+    kpiCard("wallet", "DAS estimado", fmtBRL(r.simples.dasMensal) + "/mês", "Anual: " + fmtBRL(r.simples.dasAnual), false);
+  root.appendChild(resumo);
+
+  const tableCard = el("div", { class: "card" });
+  tableCard.innerHTML = '<div class="card-title">' + icon("filetext") + 'Tabela completa — ' + ANEXOS[r.simples.anexoUsado].nome + ' (' + ANEXOS[r.simples.anexoUsado].desc + ')</div>' +
+    '<div class="table-wrap"><table><thead><tr><th>Faixa</th><th class="num">RBT12 até</th><th class="num">Alíquota nominal</th><th class="num">Parcela a deduzir</th></tr></thead><tbody>' +
+    ANEXOS[r.simples.anexoUsado].faixas.map((f, i) => '<tr class="' + (i + 1 === r.simples.faixaIndex ? "hl" : "") + '"><td>' + (i + 1) + 'ª faixa</td><td class="num">' + fmtBRL(FAIXAS_LIMITES[i].max) + '</td><td class="num">' + fmtPct(f.aliq * 100) + '</td><td class="num">' + fmtBRL(f.ded) + '</td></tr>').join("") +
+    '</tbody></table></div>';
+  root.appendChild(tableCard);
+
+  const partilhaCard = el("div", { class: "card" });
+  const partilhaKeys = Object.keys(r.simples.partilha);
+  partilhaCard.innerHTML = '<div class="card-title">' + icon("chart") + 'Partilha do DAS na faixa atual</div>' +
+    '<div class="table-wrap"><table><thead><tr><th>Tributo</th><th class="num">% da partilha</th><th class="num">Valor mensal estimado</th></tr></thead><tbody>' +
+    partilhaKeys.map((k) => '<tr><td>' + k + '</td><td class="num">' + fmtPct(r.simples.partilha[k]) + '</td><td class="num">' + fmtBRL(r.simples.partilhaValores[k]) + '</td></tr>').join("") +
+    '<tr class="total"><td>Total (DAS)</td><td class="num">100,00%</td><td class="num">' + fmtBRL(r.simples.dasMensal) + '</td></tr>' +
+    '</tbody></table></div><p class="tiny muted" style="margin-top:10px">Partilha de referência conforme LC 123/2006 — determina a distribuição interna do DAS entre os tributos abrangidos; não altera o valor total pago.</p>';
+  root.appendChild(partilhaCard);
+
+  setTimeout(() => {
+    $$("[data-anexo]", card1).forEach((b) => b.onclick = () => {
+      state.simples.anexoManual = b.dataset.anexo;
+      state.simples.anexoModo = "manual";
+      renderContent();
+    });
+  }, 0);
+}
+
+/* ---------------------------------------------------------------------------
+   RENDER: FATOR R
+   --------------------------------------------------------------------------- */
+function renderFatorR(root) {
+  const e = state.empresa;
+  const rbt12 = rbt12Atual();
+  const fatorR = calcFatorR(e.folha12m, rbt12);
+  const simIII = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey: "III" });
+  const simV = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey: "V" });
+  const enquadrado = fatorR >= 0.28 ? "III" : "V";
+
+  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Fator R</h2><p class="sub">Compara o enquadramento em Anexo III e Anexo V conforme a folha de pagamento</p></div>' }));
+
+  const inputCard = el("div", { class: "card" });
+  inputCard.innerHTML = '<div class="card-title">' + icon("percent") + 'Parâmetros</div>' +
+    '<div class="grid grid-3">' +
+    '<div class="field"><label for="frFat">Faturamento mensal</label><input type="text" inputmode="decimal" id="frFat" value="' + fmtInput(e.faturamentoMensal) + '"></div>' +
+    '<div class="field"><label for="frRbt">RBT12</label><input type="text" inputmode="decimal" id="frRbt" value="' + fmtInput(rbt12) + '"></div>' +
+    '<div class="field"><label for="frFolha">Folha de salários (12m, com pró-labore)</label><input type="text" inputmode="decimal" id="frFolha" value="' + fmtInput(e.folha12m) + '"></div>' +
+    '</div>';
+  root.appendChild(inputCard);
+
+  root.appendChild(el("div", { html:
+    alertBox("blue", "info", "<b>Fator R = " + fmtPct(fatorR * 100) + "</b> · Folha (12m) ÷ RBT12 = " + fmtBRL(e.folha12m) + " ÷ " + fmtBRL(rbt12) + ". " + (fatorR >= 0.28 ? "Igual ou acima de 28% → enquadramento no Anexo III." : "Abaixo de 28% → enquadramento no Anexo V.")) }));
+
+  const cmp = el("div", { class: "grid grid-2" });
+  cmp.innerHTML =
+    fatorRRegimeCard("Anexo III", simIII, enquadrado === "III") +
+    fatorRRegimeCard("Anexo V", simV, enquadrado === "V");
+  root.appendChild(cmp);
+
+  const diffCard = el("div", { class: "card" });
+  const diffMensal = simV.dasMensal - simIII.dasMensal;
+  diffCard.innerHTML = '<div class="card-title">' + icon("scale") + 'Diferença de custo tributário</div>' +
+    '<div class="table-wrap"><table><thead><tr><th>Comparação</th><th class="num">Anexo III</th><th class="num">Anexo V</th><th class="num">Diferença</th></tr></thead><tbody>' +
+    '<tr><td>Alíquota efetiva</td><td class="num">' + fmtPct(simIII.cargaEfetivaPct) + '</td><td class="num">' + fmtPct(simV.cargaEfetivaPct) + '</td><td class="num">' + fmtPct(simV.cargaEfetivaPct - simIII.cargaEfetivaPct) + '</td></tr>' +
+    '<tr class="total"><td>DAS mensal</td><td class="num">' + fmtBRL(simIII.dasMensal) + '</td><td class="num">' + fmtBRL(simV.dasMensal) + '</td><td class="num">' + fmtBRL(diffMensal) + '</td></tr>' +
+    '</tbody></table></div>' +
+    '<p class="tiny muted" style="margin-top:10px">O enquadramento correto depende do Fator R apurado mês a mês — este comparativo é referencial para planejamento.</p>';
+  root.appendChild(diffCard);
+
+  setTimeout(() => {
+    $("#frFat").onchange = (ev) => { state.empresa.faturamentoMensal = parseNum(ev.target.value); if (state.empresa.rbt12Modo === "auto") {} renderContent(); };
+    $("#frRbt").onchange = (ev) => { state.empresa.rbt12Modo = "manual"; state.empresa.rbt12Manual = parseNum(ev.target.value); renderContent(); };
+    $("#frFolha").onchange = (ev) => { state.empresa.folha12m = parseNum(ev.target.value); renderContent(); };
+  }, 0);
+}
+function fatorRRegimeCard(nome, sim, ativo) {
+  return '<div class="regime-card' + (ativo ? " selected" : "") + '">' +
+    '<div class="rh"><h3>' + nome + '</h3>' + (ativo ? badge("Enquadramento atual", "green", "check") : badge("Alternativo", "blue")) + '</div>' +
+    '<div><div class="kpi-label">Custo tributário estimado / mês</div><div class="val">' + fmtBRL(sim.dasMensal) + '</div></div>' +
+    '<div class="row"><span>Carga efetiva</span><b>' + fmtPct(sim.cargaEfetivaPct) + '</b></div>' +
+    '<div class="row"><span>Total anual</span><b>' + fmtBRL(sim.dasAnual) + '</b></div>' +
+    '<div class="row"><span>Faixa</span><b>' + sim.faixaLabel + '</b></div></div>';
+}
+
+/* ---------------------------------------------------------------------------
+   RENDER: SIMPLES HÍBRIDO / IBS-CBS
+   --------------------------------------------------------------------------- */
+function renderHibrido(root) {
+  const r = computeAll();
+  const h = r.hibrido;
+  const ano = state.hibrido.anoProjecao;
+  const cronoAno = IBS_CBS_CRONOGRAMA.find((c) => c.ano === ano) || IBS_CBS_CRONOGRAMA[IBS_CBS_CRONOGRAMA.length - 1];
+
+  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Simples Híbrido — IBS/CBS</h2><p class="sub">Composição separada de DAS, IBS e CBS — mecanismo de apuração à parte (EC 132/2023, LC 214/2025)</p></div>' + badge("Fonte oficial", "blue", "info") }));
+
+  root.appendChild(el("div", { html:
+    alertBox(ano === 2026 ? "blue" : "yellow", "info",
+      "<b>" + ano + ":</b> " + cronoAno.nota + (ano === 2026 ? "" : " Valores de anos futuros são projeções baseadas na legislação vigente e podem ser ajustados por regulamentação complementar.")) }));
+
+  // ---- Composição do Híbrido (item 2/3/4 da especificação) ----
+  const compCard = el("div", { class: "card" });
+  compCard.innerHTML =
+    '<div class="card-title">' + icon("layers") + 'Composição do Simples Híbrido<span class="grow"></span>' + badge("Ano " + ano, "blue") + '</div>' +
+    '<div class="grid grid-3">' +
+      '<div class="field"><label for="hibAno">Ano de referência (alíquota IBS/CBS)</label><select id="hibAno">' +
+        IBS_CBS_CRONOGRAMA.map((c) => '<option value="' + c.ano + '"' + (ano === c.ano ? " selected" : "") + '>' + c.ano + ' — CBS ' + fmtPct(c.cbs, 1) + ' + IBS ' + fmtPct(c.ibs, 1) + '</option>').join("") +
+      '</select></div>' +
+      '<div class="field"><label for="hibCredIbs">Crédito de IBS apurado (% do débito)</label><input type="text" inputmode="decimal" id="hibCredIbs" value="' + fmtInput(state.hibrido.creditoIbsPct) + '"><span class="hint">Parâmetro de simulação — depende dos insumos/compras com direito a crédito.</span></div>' +
+      '<div class="field"><label for="hibCredCbs">Crédito de CBS apurado (% do débito)</label><input type="text" inputmode="decimal" id="hibCredCbs" value="' + fmtInput(state.hibrido.creditoCbsPct) + '"><span class="hint">Crédito de IBS não é compensado contra débito de CBS (apurados separadamente).</span></div>' +
+    '</div>' +
+    '<div style="height:14px"></div>' +
+    '<div class="table-wrap"><table><tbody>' +
+      '<tr><td>DAS sem IBS/CBS</td><td class="num">' + fmtBRL(h.dasSemIbsCbs) + '</td></tr>' +
+      '<tr><td>(+) IBS (débito)</td><td class="num">' + fmtBRL(h.ibsDebito) + '</td></tr>' +
+      '<tr><td>(+) CBS (débito)</td><td class="num">' + fmtBRL(h.cbsDebito) + '</td></tr>' +
+      '<tr><td>(−) Crédito IBS</td><td class="num">− ' + fmtBRL(h.creditoIbs) + '</td></tr>' +
+      '<tr><td>(−) Crédito CBS</td><td class="num">− ' + fmtBRL(h.creditoCbs) + '</td></tr>' +
+      '<tr class="total"><td>= TOTAL LÍQUIDO (mensal)</td><td class="num">' + fmtBRL(h.totalMensal) + '</td></tr>' +
+    '</tbody></table></div>' +
+    '<p class="tiny muted" style="margin-top:10px">Carga efetiva do Híbrido: ' + fmtPct(h.cargaEfetivaPct) + ' · Total anual: ' + fmtBRL(h.totalAnual) + ' · Para comparação, o DAS integral do Simples Normal é ' + fmtBRL(r.simples.dasMensal) + '/mês.</p>' +
+    '<div class="accordion" id="hibComposicaoAcc" style="margin-top:14px">' +
+      '<div class="acc-head"><span class="step-badge">i</span><strong>Ver composição — memória de cálculo do Híbrido</strong>' + icon("chevron", "chev") + '</div>' +
+      '<div class="acc-body"><div class="acc-body-inner">' +
+        '<div class="formula">DAS sem IBS/CBS = DAS total − parcela de ' + (h.tributoConsumo || "ICMS/ISS") + ' (' + fmtBRL(h.parcelaIbsNoDas) + ') − parcela de PIS/COFINS (' + fmtBRL(h.parcelaCbsNoDas) + ') = ' + fmtBRL(r.simples.dasMensal) + ' − ' + fmtBRL(h.parcelaConsumoDas) + ' = ' + fmtBRL(h.dasSemIbsCbs) + '</div>' +
+        '<div class="formula">IBS débito = Faturamento × ' + fmtPct(h.ibsPct, 2) + ' = ' + fmtBRL(h.ibsDebito) + '  |  CBS débito = Faturamento × ' + fmtPct(h.cbsPct, 2) + ' = ' + fmtBRL(h.cbsDebito) + '</div>' +
+        '<div class="formula">IBS líquido = ' + fmtBRL(h.ibsDebito) + ' − ' + fmtBRL(h.creditoIbs) + ' = ' + fmtBRL(h.ibsLiquido) + '  |  CBS líquido = ' + fmtBRL(h.cbsDebito) + ' − ' + fmtBRL(h.creditoCbs) + ' = ' + fmtBRL(h.cbsLiquido) + '</div>' +
+        '<div class="formula">Total Híbrido = DAS sem IBS/CBS + IBS líquido + CBS líquido = ' + fmtBRL(h.dasSemIbsCbs) + ' + ' + fmtBRL(h.ibsLiquido) + ' + ' + fmtBRL(h.cbsLiquido) + ' = ' + fmtBRL(h.totalMensal) + '</div>' +
+        '<p class="small muted">Os percentuais de crédito de IBS e de CBS são parâmetros de simulação informados acima — não são alíquotas legais e não é assumido crédito integral por padrão. A memória completa também está disponível na aba Memória de Cálculo.</p>' +
+      '</div></div>' +
+    '</div>';
+  root.appendChild(compCard);
+
+  const cronoCard = el("div", { class: "card" });
+  cronoCard.innerHTML = '<div class="card-title">' + icon("chart") + 'Cronograma de transição (2026–2033)</div>' +
+    '<div class="table-wrap"><table><thead><tr><th>Ano</th><th class="num">CBS</th><th class="num">IBS</th><th>O que muda</th></tr></thead><tbody>' +
+    IBS_CBS_CRONOGRAMA.map((c) => '<tr class="' + (c.ano === ano ? "hl" : "") + '"><td>' + c.ano + (c.ano === ano ? "  " + badge("Selecionado", "green") : "") + '</td><td class="num">' + fmtPct(c.cbs, 2) + '</td><td class="num">' + fmtPct(c.ibs, 2) + '</td><td class="small">' + c.nota + '</td></tr>').join("") +
+    '</tbody></table></div>';
+  root.appendChild(cronoCard);
+
+  const mecCard = el("div", { class: "card" });
+  mecCard.innerHTML = '<div class="card-title">' + icon("layers") + 'Mecanismo de apuração à parte (a partir de 2027)</div>' +
+    '<p class="small" style="line-height:1.7">A partir de 2027, quando o CBS entrar em vigor de forma plena, a legislação prevê que o optante do Simples Nacional possa <b>optar por apurar e recolher o IBS/CBS de determinadas operações por fora do DAS</b>, à alíquota cheia e em regime não cumulativo. Essa opção permite que o tomador de serviços/mercadorias não optante aproveite crédito sobre essas operações, em vez do crédito limitado hoje embutido na partilha do Simples. A contrapartida é que a empresa passa a recolher, sobre essas operações, um valor adicional correspondente à alíquota cheia de IBS/CBS.</p>' +
+    '<div style="height:8px"></div>' + alertBox("yellow", "alert", "Mecanismo ainda em regulamentação — trate os valores desta aba como estimativa de planejamento, não como obrigação vigente em " + ano + ".");
+  root.appendChild(mecCard);
+
+  // ---- CONTRATANTE (item 7 da especificação) ----
+  const impCard = el("div", { class: "card" });
+  impCard.innerHTML = '<div class="card-title">' + icon("briefcase") + 'Impacto para o contratante — simulador de crédito</div>' +
+    '<div class="grid grid-2">' +
+    '<div class="field"><label for="hibValor">Valor da contratação (anual)</label><input type="text" inputmode="decimal" id="hibValor" value="' + fmtInput(state.hibrido.valorContratoAnual) + '"></div>' +
+    '<div class="field"><label for="hibCredContratante">Crédito efetivamente aproveitável pelo contratante (%)</label><input type="text" inputmode="decimal" id="hibCredContratante" value="' + fmtInput(state.hibrido.creditoContratanteHibridoPct) + '"><span class="hint">O mecanismo é desenhado para crédito integral, mas o aproveitamento efetivo depende das condições legais aplicáveis a cada operação — ajuste conforme o caso.</span></div>' +
+    '</div>';
+  root.appendChild(impCard);
+
+  const credContratante = calcCreditoContratante({
+    valorContrato: state.hibrido.valorContratoAnual,
+    creditoPct: state.hibrido.creditoContratanteHibridoPct,
+    ibsPct: h.ibsPct, cbsPct: h.cbsPct,
+  });
+  const resCard = el("div", { class: "card" });
+  resCard.innerHTML = '<div class="card-title">' + icon("scale") + 'Resultado da simulação para o contratante — ' + ano + '</div>' +
+    '<div class="table-wrap"><table><tbody>' +
+    '<tr><td>Valor da contratação</td><td class="num">' + fmtBRL(state.hibrido.valorContratoAnual) + '</td></tr>' +
+    '<tr><td>Crédito IBS potencial (' + fmtPct(h.ibsPct, 2) + ' × ' + fmtPct(state.hibrido.creditoContratanteHibridoPct, 1) + ')</td><td class="num">' + fmtBRL(credContratante.creditoIbs) + '</td></tr>' +
+    '<tr><td>Crédito CBS potencial (' + fmtPct(h.cbsPct, 2) + ' × ' + fmtPct(state.hibrido.creditoContratanteHibridoPct, 1) + ')</td><td class="num">' + fmtBRL(credContratante.creditoCbs) + '</td></tr>' +
+    '<tr><td>Crédito total</td><td class="num">' + fmtBRL(credContratante.creditoTotal) + '</td></tr>' +
+    '<tr class="total"><td>Custo líquido estimado</td><td class="num">' + fmtBRL(credContratante.custoLiquido) + '</td></tr>' +
+    '</tbody></table></div>' +
+    '<div style="height:10px"></div>' +
+    alertBox("yellow", "alert", "Não é assumido crédito integral automaticamente — o percentual acima é um parâmetro de simulação ajustável. O aproveitamento efetivo do crédito de IBS/CBS depende das condições legais aplicáveis à operação e ao regime do contratante.") +
+    '<p class="tiny muted" style="margin-top:10px">Simulação de planejamento tributário para operações no ano de referência selecionado. Não representa cálculo de obrigação corrente.</p>';
+  root.appendChild(resCard);
+
+  setTimeout(() => {
+    $("#hibAno").onchange = (ev) => { state.hibrido.anoProjecao = parseInt(ev.target.value, 10); renderContent(); };
+    $("#hibCredIbs").onchange = (ev) => { state.hibrido.creditoIbsPct = parseNum(ev.target.value); renderContent(); };
+    $("#hibCredCbs").onchange = (ev) => { state.hibrido.creditoCbsPct = parseNum(ev.target.value); renderContent(); };
+    $("#hibValor").onchange = (ev) => { state.hibrido.valorContratoAnual = parseNum(ev.target.value); renderContent(); };
+    $("#hibCredContratante").onchange = (ev) => { state.hibrido.creditoContratanteHibridoPct = parseNum(ev.target.value); renderContent(); };
+    const acc = $("#hibComposicaoAcc");
+    if (acc) acc.querySelector(".acc-head").onclick = () => {
+      const open = acc.classList.contains("open");
+      acc.classList.toggle("open");
+      const body = acc.querySelector(".acc-body");
+      body.style.maxHeight = open ? "0px" : body.scrollHeight + "px";
+    };
+  }, 0);
+}
+
+/* ---------------------------------------------------------------------------
+   RENDER: LUCRO PRESUMIDO
+   --------------------------------------------------------------------------- */
+function renderPresumido(root) {
+  const r = computeAll();
+  const t = r.presumido.trimestre;
+  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Lucro Presumido</h2><p class="sub">IRPJ e CSLL (trimestrais) · ' + (t.substituidoPorCbs ? "CBS, IBS e ISS" : "PIS, COFINS e ISS") + ' (mensais)</p></div>' + badge("Fonte oficial", "blue", "info") }));
+
+  const inputCard = el("div", { class: "card" });
+  inputCard.innerHTML = '<div class="card-title">' + icon("receipt") + 'Parâmetros da atividade</div>' +
+    '<div class="grid grid-2">' +
+    '<div class="field"><label for="lpAtiv">Atividade (presunção)</label><select id="lpAtiv">' +
+      Object.keys(PRESUNCAO).map((k) => '<option value="' + k + '"' + (state.presumido.atividade === k ? " selected" : "") + '>' + PRESUNCAO[k].label + ' (IRPJ ' + PRESUNCAO[k].irpj + '% · CSLL ' + PRESUNCAO[k].csll + '%)</option>').join("") +
+    '</select></div>' +
+    '<div class="field"><label for="lpReceita">Receita trimestral</label><input type="text" inputmode="decimal" id="lpReceita" value="' + fmtInput(state.empresa.faturamentoMensal * 3) + '"><span class="hint">Padrão: faturamento mensal × 3. Ajuste se a receita for sazonal.</span></div>' +
+    '</div>' +
+    '<div style="height:12px"></div>' +
+    '<div class="field"><label for="lpAno">Ano de projeção (Reforma Tributária — IBS/CBS)</label><select id="lpAno">' +
+      IBS_CBS_CRONOGRAMA.map((c) => '<option value="' + c.ano + '"' + (state.presumido.anoProjecao === c.ano ? " selected" : "") + '>' + c.ano + (c.ano >= 2027 ? " — CBS " + fmtPct(c.cbs, 1) + " + IBS " + fmtPct(c.ibs, 1) : " — ano-teste (PIS/COFINS mantidos)") + '</option>').join("") +
+    '</select><span class="hint">A partir de 2027, PIS e COFINS são extintos e substituídos pela CBS; o ISS é reduzido gradualmente e substituído pelo IBS — mesmo cronograma usado na aba Simples Híbrido ' + badge("Oficial (LC 214/2025)", "blue") + '</span></div>' +
+    '<div style="height:12px"></div>' +
+    '<div class="grid grid-3">' +
+    (t.substituidoPorCbs
+      ? '<div class="field"><label>CBS (%) — ano ' + t.ano + '</label><input type="text" value="' + fmtInput(t.crono.cbs) + '" disabled><span class="hint">Substitui PIS/COFINS a partir de 2027</span></div>' +
+        '<div class="field"><label>IBS (%) — ano ' + t.ano + '</label><input type="text" value="' + fmtInput(t.crono.ibs) + '" disabled></div>'
+      : '<div class="field"><label for="lpPis">PIS (%)</label><input type="text" inputmode="decimal" id="lpPis" value="' + fmtInput(state.presumido.pisAliq) + '"></div>' +
+        '<div class="field"><label for="lpCofins">COFINS (%)</label><input type="text" inputmode="decimal" id="lpCofins" value="' + fmtInput(state.presumido.cofinsAliq) + '"></div>'
+    ) +
+    '<div class="field"><label for="lpIss">ISS municipal (%)</label><input type="text" inputmode="decimal" id="lpIss" value="' + fmtInput(state.presumido.issAliq) + '">' + badge("Parâmetro do usuário", "yellow", "alert") +
+      (t.fatorRemanescenteIss < 1 ? '<span class="hint">Alíquota efetiva em ' + t.ano + ': ' + fmtPct(t.issAliqEfetivaPct) + ' (' + fmtPct(t.fatorRemanescenteIss * 100, 0) + ' da alíquota informada — cronograma de redução do ISS)</span>' : '<span class="hint">Aplicada integralmente até 2028; reduzida gradualmente a partir de 2029.</span>') +
+    '</div>' +
+    '</div>' +
+    '<div style="height:10px"></div>' +
+    '<label class="checkbox-row"><input type="checkbox" id="lpMaj"' + (state.presumido.majoracao ? " checked" : "") + '> Aplicar majoração de 10% da presunção acima de R$ 1.250.000/trimestre (IN RFB 2.305/2025 e 2.306/2026) ' + badge("Verificar", "yellow") + '</label>';
+  root.appendChild(inputCard);
+
+  if (t.notaMajoracao) root.appendChild(el("div", { html: alertBox("yellow", "alert", "Majoração aplicada sobre " + fmtBRL(t.notaMajoracao.parteMajorada) + " da receita (parcela acima de R$ 1.250.000,00) — presunção IRPJ ajustada para " + fmtPct(t.notaMajoracao.irpjMajPct) + " nessa faixa.") }));
+  if (t.substituidoPorCbs) root.appendChild(el("div", { html: alertBox("blue", "info", "A partir de 2027, PIS e COFINS são extintos e substituídos pela CBS (Lei Complementar 214/2025). Os percentuais de CBS e IBS usados vêm do mesmo cronograma de transição da aba Simples Híbrido — ano selecionado: " + t.ano + ".") }));
+
+  const kpis = el("div", { class: "grid grid-4" });
+  kpis.innerHTML =
+    kpiCard("receipt", "IRPJ (trimestral)", fmtBRL(t.irpjTotal), "Normal " + fmtBRL(t.irpjNormal) + " + adicional " + fmtBRL(t.irpjAdicional), false) +
+    kpiCard("landmark", "CSLL (trimestral)", fmtBRL(t.csllTotal), fmtPct(t.csllPctUsado) + " sobre base presumida", false) +
+    kpiCard("wallet", (t.substituidoPorCbs ? "CBS + IBS + ISS" : "PIS + COFINS + ISS") + " (mensal)", fmtBRL(t.consumoTotal / 3), "Equivalente por mês", false) +
+    kpiCard("calculator", "Carga efetiva", fmtPct(t.cargaEfetivaPct), "Total anual: " + fmtBRL(r.presumido.totalAnual), false, true);
+  root.appendChild(kpis);
+
+  const tableCard = el("div", { class: "card" });
+  tableCard.innerHTML = '<div class="card-title">' + icon("filetext") + 'Memória — ' + t.atividade + ' (ano ' + t.ano + ')</div>' +
+    '<p class="tiny muted" style="margin:-6px 0 10px">Tributos trimestrais (IRPJ/CSLL) e mensais (' + (t.substituidoPorCbs ? "CBS/IBS" : "PIS/COFINS") + '/ISS) são apurados separadamente, como na prática contábil.</p>' +
+    '<div class="table-wrap"><table><thead><tr><th colspan="2">Tributos trimestrais</th></tr></thead><tbody>' +
+    '<tr><td>Base de presunção IRPJ (' + fmtPct(t.irpjPctUsado) + ' × receita)</td><td class="num">' + fmtBRL(t.baseIRPJ) + '</td></tr>' +
+    '<tr><td>IRPJ normal (15%)</td><td class="num">' + fmtBRL(t.irpjNormal) + '</td></tr>' +
+    '<tr><td>IRPJ adicional (10% sobre excedente a R$ 60.000)</td><td class="num">' + fmtBRL(t.irpjAdicional) + '</td></tr>' +
+    '<tr><td>Base de presunção CSLL (' + fmtPct(t.csllPctUsado) + ' × receita)</td><td class="num">' + fmtBRL(t.baseCSLL) + '</td></tr>' +
+    '<tr><td>CSLL (9%)</td><td class="num">' + fmtBRL(t.csllTotal) + '</td></tr>' +
+    '<tr class="total"><td>Total de tributos trimestrais</td><td class="num">' + fmtBRL(t.irpjTotal + t.csllTotal) + '</td></tr>' +
+    '</tbody></table></div>' +
+    '<div style="height:14px"></div>' +
+    '<div class="table-wrap"><table><thead><tr><th colspan="2">Tributos mensais (valores do trimestre)</th></tr></thead><tbody>' +
+    (t.substituidoPorCbs
+      ? '<tr><td>CBS (' + fmtPct(t.crono.cbs, 2) + ') <span class="tiny muted">— substitui PIS/COFINS</span></td><td class="num">' + fmtBRL(t.cbs) + '</td></tr>' +
+        '<tr><td>IBS (' + fmtPct(t.crono.ibs, 2) + ')</td><td class="num">' + fmtBRL(t.ibs) + '</td></tr>'
+      : '<tr><td>PIS (' + fmtPct(state.presumido.pisAliq) + ')</td><td class="num">' + fmtBRL(t.pis) + '</td></tr>' +
+        '<tr><td>COFINS (' + fmtPct(state.presumido.cofinsAliq) + ')</td><td class="num">' + fmtBRL(t.cofins) + '</td></tr>') +
+    '<tr><td>ISS (' + fmtPct(t.issAliqEfetivaPct) + (t.fatorRemanescenteIss < 1 ? ' — ' + fmtPct(t.fatorRemanescenteIss * 100, 0) + ' da alíquota informada' : '') + ')</td><td class="num">' + fmtBRL(t.iss) + '</td></tr>' +
+    '<tr class="total"><td>Total de tributos mensais (no trimestre)</td><td class="num">' + fmtBRL(t.consumoTotal) + '</td></tr>' +
+    '</tbody></table></div>' +
+    '<div style="height:14px"></div>' +
+    '<div class="table-wrap"><table><tbody>' +
+    '<tr class="total"><td>Total do trimestre (trimestrais + mensais)</td><td class="num">' + fmtBRL(t.totalTrimestre) + '</td></tr>' +
+    '<tr class="total"><td>Total mensal equivalente</td><td class="num">' + fmtBRL(t.totalTrimestre / 3) + '</td></tr>' +
+    '<tr class="total"><td>Total anual</td><td class="num">' + fmtBRL(r.presumido.totalAnual) + '</td></tr>' +
+    '</tbody></table></div>';
+  root.appendChild(tableCard);
+
+  setTimeout(() => {
+    $("#lpAtiv").onchange = (ev) => { state.presumido.atividade = ev.target.value; renderContent(); };
+    $("#lpReceita").onchange = (ev) => {
+      const v = parseNum(ev.target.value);
+      state.empresa.faturamentoMensal = v / 3;
+      if (state.empresa.rbt12Modo === "auto") {}
+      renderContent();
+    };
+    $("#lpAno").onchange = (ev) => { state.presumido.anoProjecao = parseInt(ev.target.value, 10); renderContent(); };
+    if ($("#lpPis")) $("#lpPis").onchange = (ev) => { state.presumido.pisAliq = parseNum(ev.target.value); renderContent(); };
+    if ($("#lpCofins")) $("#lpCofins").onchange = (ev) => { state.presumido.cofinsAliq = parseNum(ev.target.value); renderContent(); };
+    $("#lpIss").onchange = (ev) => { state.presumido.issAliq = parseNum(ev.target.value); renderContent(); };
+    $("#lpMaj").onchange = (ev) => { state.presumido.majoracao = ev.target.checked; renderContent(); };
+  }, 0);
+}
+
+/* ---------------------------------------------------------------------------
+   RENDER: COMPARATIVO
+   --------------------------------------------------------------------------- */
+function cmpCell(value, note, isPct) {
+  if (value == null) return note ? '<span class="tiny muted">' + note + '</span>' : '<span class="muted">—</span>';
+  const s = isPct ? fmtPct(value) : fmtBRL(value);
+  return s + (note ? ' <span class="tiny muted">(' + note + ')</span>' : "");
+}
+function cmpRow(label, cells, strong) {
+  return '<tr' + (strong ? ' class="total"' : '') + '><td>' + label + '</td>' +
+    cells.map((c) => '<td class="num">' + cmpCell(c.v, c.note, c.pct) + '</td>').join("") + '</tr>';
+}
+function renderComparativo(root) {
+  const r = computeAll();
+  const h = r.hibrido;
+  const pv = r.simples.partilhaValores;
+  const t = r.presumido.trimestre;
+  const NO_DAS = "no DAS";
+  const view = state.comparativo.view;
+
+  root.appendChild(el("div", { class: "section-head", html:
+    '<div><h2>Comparativo</h2><p class="sub">Simples Normal × Simples Híbrido × Lucro Presumido</p></div>' +
+    '<div class="radio-pills" id="cmpViewPills">' +
+      '<button type="button" class="radio-pill' + (view === "resumo" ? " active" : "") + '" data-cmpview="resumo">Resumo Executivo</button>' +
+      '<button type="button" class="radio-pill' + (view === "detalhado" ? " active" : "") + '" data-cmpview="detalhado">Detalhado</button>' +
+    '</div>' }));
+
+  if (view === "resumo") {
+    const cards = el("div", { class: "grid grid-3" });
+    cards.innerHTML =
+      resumoExecCard("Simples Normal", r.simples.dasMensal, r.simples.cargaEfetivaPct, false) +
+      resumoExecCard("Simples Híbrido", h.totalMensal, h.cargaEfetivaPct, true) +
+      resumoExecCard("Lucro Presumido", t.totalTrimestre / 3, r.presumido.cargaEfetivaPct, false);
+    root.appendChild(cards);
+
+    const chartCard = el("div", { class: "card" });
+    chartCard.innerHTML = '<div class="card-title">' + icon("chart") + 'Custo mensal — três cenários</div><div class="chart-box"><canvas id="chartComparativo"></canvas></div>';
+    root.appendChild(chartCard);
+
+    root.appendChild(el("div", { html: alertBox("blue", "info", "Visão simplificada para apresentação ao cliente — mostra apenas custo mensal e carga efetiva. O detalhamento tributário completo está disponível na opção \"Detalhado\".") }));
+  } else {
+    const tableCard = el("div", { class: "card" });
+    tableCard.innerHTML = '<div class="card-title">' + icon("chart") + 'Comparação detalhada (valores mensais, salvo indicado)</div>' +
+      '<div class="table-wrap"><table><thead><tr><th>Item</th><th class="num">Simples Normal</th><th class="num">Simples Híbrido</th><th class="num">Presumido</th></tr></thead><tbody>' +
+      cmpRow("DAS", [{ v: r.simples.dasMensal }, { v: h.dasSemIbsCbs, note: "sem IBS/CBS" }, { v: null }]) +
+      cmpRow("IRPJ", [{ v: pv.IRPJ || 0, note: NO_DAS }, { v: pv.IRPJ || 0, note: NO_DAS }, { v: t.irpjTotal / 3 }]) +
+      cmpRow("CSLL", [{ v: pv.CSLL || 0, note: NO_DAS }, { v: pv.CSLL || 0, note: NO_DAS }, { v: t.csllTotal / 3 }]) +
+      cmpRow("ISS", [{ v: pv.ISS != null ? pv.ISS : null, note: pv.ISS != null ? NO_DAS : null }, { v: null }, { v: t.iss / 3 }]) +
+      cmpRow("PIS + COFINS", [{ v: null }, { v: null }, { v: t.substituidoPorCbs ? null : (t.pis + t.cofins) / 3, note: t.substituidoPorCbs ? "extinto — substituído pela CBS a partir de 2027" : null }]) +
+      cmpRow("IBS", [{ v: (pv.ICMS || 0) + (pv.ISS || 0), note: NO_DAS }, { v: h.ibsDebito }, { v: t.substituidoPorCbs ? t.ibs / 3 : null, note: t.substituidoPorCbs ? null : "não aplicável antes de 2027" }]) +
+      cmpRow("CBS", [{ v: (pv.COFINS || 0) + (pv.PIS || 0), note: NO_DAS }, { v: h.cbsDebito }, { v: t.substituidoPorCbs ? t.cbs / 3 : null, note: t.substituidoPorCbs ? null : "não aplicável antes de 2027" }]) +
+      cmpRow("Crédito IBS", [{ v: null }, { v: -h.creditoIbs }, { v: null }]) +
+      cmpRow("Crédito CBS", [{ v: null }, { v: -h.creditoCbs }, { v: null }]) +
+      cmpRow("Total mensal", [{ v: r.simples.dasMensal }, { v: h.totalMensal }, { v: t.totalTrimestre / 3 }], true) +
+      cmpRow("Total anual", [{ v: r.simples.dasAnual }, { v: h.totalAnual }, { v: r.presumido.totalAnual }], true) +
+      cmpRow("Carga efetiva", [{ v: r.simples.cargaEfetivaPct, pct: true }, { v: h.cargaEfetivaPct, pct: true }, { v: r.presumido.cargaEfetivaPct, pct: true }], true) +
+      '</tbody></table></div>' +
+      '<p class="tiny muted" style="margin-top:10px">"(' + NO_DAS + ')" indica que o valor já está embutido no DAS do Simples — não é um pagamento adicional. No Híbrido, IRPJ/CSLL permanecem no DAS; IBS e CBS são apurados à parte, com créditos conforme parâmetros informados na aba Simples Híbrido (ano de referência: ' + h.ano + '). O Lucro Presumido não possui DAS; a partir de 2027 (ano de projeção selecionado na aba Lucro Presumido: ' + t.ano + '), PIS e COFINS são substituídos pela CBS e o IBS passa a incidir, pelo mesmo cronograma de transição usado no Simples Híbrido — antes de 2027, mantém PIS/COFINS/ISS pelas regras vigentes.</p>';
+    root.appendChild(tableCard);
+
+    const chartsGrid = el("div", { class: "grid grid-2" });
+    chartsGrid.innerHTML =
+      '<div class="card"><div class="card-title">' + icon("chart") + 'Custo mensal — três cenários</div><div class="chart-box"><canvas id="chartComparativo"></canvas></div></div>' +
+      '<div class="card"><div class="card-title">' + icon("layers") + 'Composição do Híbrido</div><div class="chart-box"><canvas id="chartHibridoComposicao"></canvas></div></div>';
+    root.appendChild(chartsGrid);
+
+    root.appendChild(el("div", { html: alertBox("blue", "info", "Este resultado considera as premissas informadas nas abas Dados da Empresa, Fator R, Lucro Presumido e Simples Híbrido.") }));
+  }
+
+  setTimeout(() => {
+    $$('[data-cmpview]').forEach((b) => b.onclick = () => { state.comparativo.view = b.dataset.cmpview; renderContent(); });
+  }, 0);
+}
+
+/* ---------------------------------------------------------------------------
+   RENDER: PONTO DE EQUILÍBRIO
+   --------------------------------------------------------------------------- */
+function renderEquilibrio(root) {
+  const r = computeAll();
+  const pe = calcPontoEquilibrio({ custosFixosMensais: state.equilibrio.custosFixos, custosVariaveisPct: state.equilibrio.custosVariaveisPct, cargaTributariaPct: r.simples.cargaEfetivaPct });
+
+  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Ponto de Equilíbrio</h2><p class="sub">Receita mínima mensal e cálculo inverso de contrato</p></div>' }));
+
+  const peCard = el("div", { class: "card" });
+  peCard.innerHTML = '<div class="card-title">' + icon("scale") + 'Ponto de equilíbrio mensal</div>' +
+    '<div class="grid grid-3">' +
+    '<div class="field"><label for="peFixos">Custos fixos mensais</label><input type="text" inputmode="decimal" id="peFixos" value="' + fmtInput(state.equilibrio.custosFixos) + '"></div>' +
+    '<div class="field"><label for="peVar">Custos variáveis (% da receita)</label><input type="text" inputmode="decimal" id="peVar" value="' + fmtInput(state.equilibrio.custosVariaveisPct) + '"></div>' +
+    '<div class="field"><label>Carga tributária efetiva</label><input type="text" value="' + fmtPct(r.simples.cargaEfetivaPct) + '" disabled></div>' +
+    '</div>';
+  root.appendChild(peCard);
+
+  if (!pe.valido) {
+    root.appendChild(el("div", { html: alertBox("red", "alert", "Custos variáveis + carga tributária somam 100% ou mais da receita — não há ponto de equilíbrio possível com os parâmetros informados.") }));
+  } else {
+    const kpis = el("div", { class: "grid grid-3" });
+    kpis.innerHTML =
+      kpiCard("scale", "Receita de equilíbrio", fmtBRL(pe.receitaEquilibrio), "Por mês", false, true) +
+      kpiCard("percent", "Margem de contribuição", fmtPct(pe.margemContribuicaoPct), "Após custos variáveis e tributos", false) +
+      kpiCard("trending", "Distância do faturamento atual", fmtBRL(state.empresa.faturamentoMensal - pe.receitaEquilibrio), state.empresa.faturamentoMensal >= pe.receitaEquilibrio ? "Acima do equilíbrio" : "Abaixo do equilíbrio", false);
+    root.appendChild(kpis);
+  }
+
+  const invCard = el("div", { class: "card" });
+  invCard.innerHTML = '<div class="card-title">' + icon("swap") + 'Cálculo inverso de contrato (bruto × líquido)</div>' +
+    '<p class="small muted" style="margin-bottom:14px">Converte valores brutos e líquidos usando a carga tributária efetiva do Simples Normal (' + fmtPct(r.simples.cargaEfetivaPct) + ').</p>' +
+    '<div class="grid grid-2">' +
+    '<div class="field"><label for="invBruto">Valor bruto do contrato</label><input type="text" inputmode="decimal" id="invBruto" value="' + fmtInput(state.equilibrio.contratoBruto) + '"><span class="hint">Líquido resultante: <b class="num">' + fmtBRL(calcBrutoParaLiquido(state.equilibrio.contratoBruto, r.simples.cargaEfetivaPct)) + '</b></span></div>' +
+    '<div class="field"><label for="invLiquido">Valor líquido desejado</label><input type="text" inputmode="decimal" id="invLiquido" value="' + fmtInput(state.equilibrio.contratoLiquido) + '"><span class="hint">Bruto necessário: <b class="num">' + fmtBRL(calcLiquidoParaBruto(state.equilibrio.contratoLiquido, r.simples.cargaEfetivaPct) || 0) + '</b></span></div>' +
+    '</div>';
+  root.appendChild(invCard);
+
+  // ---- PRESTADORA × CONTRATANTE — Simples Normal x Híbrido (item 8) ----
+  // Dois cálculos distintos e não misturados: a PRESTADORA olha para o
+  // próprio resultado (faturamento − custos − tributos); o CONTRATANTE olha
+  // para o custo líquido de contratar essa empresa, dado o crédito de
+  // IBS/CBS que consegue aproveitar.
+  root.appendChild(el("div", { class: "section-head", html: '<div><h3 style="font-size:17px">Simples Normal × Simples Híbrido no Ponto de Equilíbrio</h3><p class="sub">Dois cálculos separados — não misturar os conceitos de prestadora e contratante</p></div>' }));
+
+  const pp = r.pePrestadora;
+  const prestCard = el("div", { class: "card" });
+  prestCard.innerHTML = '<div class="card-title">' + icon("building") + 'PRESTADORA — manter o mesmo resultado no Híbrido</div>' +
+    '<div class="table-wrap"><table><tbody>' +
+    '<tr><td>Valor atual do contrato (faturamento mensal)</td><td class="num">' + fmtBRL(pp.valorAtualContrato) + '</td></tr>' +
+    '<tr><td>Resultado atual (após custos fixos, variáveis e DAS do Simples Normal)</td><td class="num">' + fmtBRL(pp.resultadoAtual) + '</td></tr>' +
+    (pp.valido
+      ? '<tr class="total"><td>Valor necessário no Híbrido para manter o mesmo resultado</td><td class="num">' + fmtBRL(pp.receitaNecessariaHibrido) + '</td></tr>' +
+        '<tr><td>Diferença em relação ao faturamento atual</td><td class="num">' + fmtBRL(pp.receitaNecessariaHibrido - pp.valorAtualContrato) + '</td></tr>'
+      : '<tr><td colspan="2" class="muted">Custos variáveis + carga tributária do Híbrido somam 100% ou mais da receita — não há valor de equilíbrio possível com os parâmetros informados.</td></tr>') +
+    '</tbody></table></div>' +
+    '<p class="tiny muted" style="margin-top:10px">Usa os custos fixos/variáveis informados acima e a carga efetiva do Híbrido calculada na aba Simples Híbrido (ano ' + r.hibrido.ano + ', ' + fmtPct(r.hibrido.cargaEfetivaPct) + ').</p>';
+  root.appendChild(prestCard);
+
+  const pc = r.peContratante;
+  const contCard = el("div", { class: "card" });
+  contCard.innerHTML = '<div class="card-title">' + icon("briefcase") + 'CONTRATANTE — custo líquido hoje × equivalente no Híbrido</div>' +
+    '<div class="field" style="max-width:360px;margin-bottom:14px"><label for="peCredAtual">Crédito aproveitável hoje sobre o contrato (%)</label><input type="text" inputmode="decimal" id="peCredAtual" value="' + fmtInput(state.equilibrio.creditoContratanteAtualPct) + '"><span class="hint">Parâmetro de simulação — no Simples Normal, o crédito ao tomador é limitado/embutido na partilha do DAS; ajuste conforme a regra aplicável ao caso.</span></div>' +
+    '<div class="table-wrap"><table><tbody>' +
+    '<tr><td>Valor atual do contrato</td><td class="num">' + fmtBRL(pc.valorAtualContrato) + '</td></tr>' +
+    '<tr><td>Crédito atual (' + fmtPct(pc.creditoAtualPct, 1) + ')</td><td class="num">' + fmtBRL(pc.creditoAtual) + '</td></tr>' +
+    '<tr class="total"><td>Custo líquido atual</td><td class="num">' + fmtBRL(pc.custoLiquidoAtual) + '</td></tr>' +
+    '<tr><td>Valor de contrato equivalente no Híbrido (mesmo custo líquido)</td><td class="num">' + (pc.valorEquivalenteHibrido != null ? fmtBRL(pc.valorEquivalenteHibrido) : '<span class="muted">—</span>') + '</td></tr>' +
+    '</tbody></table></div>' +
+    '<div style="height:10px"></div>' +
+    alertBox("yellow", "alert", "Não é assumido crédito integral automaticamente. O crédito efetivo de IBS/CBS no Híbrido usa o percentual informado na aba Simples Híbrido (" + fmtPct(state.hibrido.creditoContratanteHibridoPct, 1) + ") e depende das condições legais aplicáveis a cada operação.");
+  root.appendChild(contCard);
+
+  setTimeout(() => {
+    $("#peFixos").onchange = (ev) => { state.equilibrio.custosFixos = parseNum(ev.target.value); renderContent(); };
+    $("#peVar").onchange = (ev) => { state.equilibrio.custosVariaveisPct = parseNum(ev.target.value); renderContent(); };
+    $("#invBruto").onchange = (ev) => { state.equilibrio.contratoBruto = parseNum(ev.target.value); renderContent(); };
+    $("#invLiquido").onchange = (ev) => { state.equilibrio.contratoLiquido = parseNum(ev.target.value); renderContent(); };
+    $("#peCredAtual").onchange = (ev) => { state.equilibrio.creditoContratanteAtualPct = parseNum(ev.target.value); renderContent(); };
+  }, 0);
+}
+
+/* ---------------------------------------------------------------------------
+   RENDER: MEMÓRIA DE CÁLCULO
+   --------------------------------------------------------------------------- */
+function renderMemoria(root) {
+  computeAll();
+  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Memória de Cálculo</h2><p class="sub">Passo a passo de todas as fórmulas aplicadas na simulação atual</p></div>' }));
+  const wrap = el("div");
+  state.memoria.forEach((step, i) => {
+    const acc = el("div", { class: "accordion" + (i === 0 ? " open" : "") });
+    acc.innerHTML =
+      '<div class="acc-head"><span class="step-badge">' + (i + 1) + '</span><strong>' + step.titulo + '</strong>' + icon("chevron", "chev") + '</div>' +
+      '<div class="acc-body"><div class="acc-body-inner"><div class="formula">' + step.formula + '</div><p class="small muted">' + step.detalhe + '</p></div></div>';
+    acc.querySelector(".acc-head").onclick = () => {
+      const open = acc.classList.contains("open");
+      acc.classList.toggle("open");
+      const body = acc.querySelector(".acc-body");
+      body.style.maxHeight = open ? "0px" : body.scrollHeight + "px";
+    };
+    wrap.appendChild(acc);
+  });
+  root.appendChild(wrap);
+  setTimeout(() => $$(".accordion.open .acc-body").forEach((b) => (b.style.maxHeight = b.scrollHeight + "px")), 0);
+}
+
+/* ---------------------------------------------------------------------------
+   RENDER: FONTES
+   --------------------------------------------------------------------------- */
+function renderFontes(root) {
+  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Fontes</h2><p class="sub">Base legal e origem de cada parâmetro utilizado nos cálculos</p></div>' }));
+  const card = el("div", { class: "card" });
+  card.innerHTML = FONTES.map((f) => '<div class="source-row"><div><div class="name">' + f.nome + '</div><div class="desc">' + f.fonte + '</div></div><div class="right">' + badge(f.status === "oficial" ? "Fonte oficial" : "Parâmetro pendente", f.status === "oficial" ? "blue" : "yellow", f.status === "oficial" ? "check" : "alert") + '<span class="date">' + f.data + '</span></div></div>').join("");
+  root.appendChild(card);
+  root.appendChild(el("div", { html: alertBox("blue", "info", "As tabelas do Simples Nacional (Anexos I a V) têm redação vigente desde janeiro/2018 e permanecem aplicáveis em 2026. Parâmetros marcados como \"pendente\" dependem de confirmação específica do caso (ISS municipal) ou de regulamentação ainda em curso (reforma tributária, majoração de presunção).") }));
+}
+
+/* ---------------------------------------------------------------------------
+   RENDER: RELATÓRIO PDF
+   --------------------------------------------------------------------------- */
+function renderRelatorio(root) {
+  const r = computeAll();
+  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Relatório PDF</h2><p class="sub">Apresentação em slides (16:9), pronta para enviar ou apresentar ao cliente</p></div>' }));
+
+  const card = el("div", { class: "card" });
+  card.innerHTML =
+    '<div class="card-title">' + icon("building") + 'Identidade do relatório</div>' +
+    '<div class="grid grid-2">' +
+    '<div><div class="field"><label>Logo da empresa</label></div><div class="logo-slot">[ LOGO DA EMPRESA ]<br>substituir por imagem</div></div>' +
+    '<div class="field"><label for="pdfCliente">Cliente / destinatário</label><input type="text" id="pdfCliente" placeholder="Nome do cliente" value="' + escAttr(state.empresa.nome) + '"></div>' +
+    '</div>';
+  root.appendChild(card);
+
+  const viewCard = el("div", { class: "card" });
+  viewCard.innerHTML = '<div class="card-title">' + icon("layers") + 'Estilo do slide "Comparativo"</div>' +
+    '<div class="radio-pills" id="pdfViewPills">' +
+      '<button type="button" class="radio-pill' + (pdfComparativoView === "resumo" ? " active" : "") + '" data-pdfview="resumo">Resumo Executivo</button>' +
+      '<button type="button" class="radio-pill' + (pdfComparativoView === "detalhado" ? " active" : "") + '" data-pdfview="detalhado">Detalhado</button>' +
+    '</div>' +
+    '<p class="small muted" style="margin-top:10px">Resumo Executivo (padrão) mostra apenas custo mensal e carga efetiva dos três cenários — recomendado para enviar ao cliente. Detalhado mostra a análise técnica completa (DAS, IRPJ, CSLL, ISS, IBS, CBS).</p>';
+  root.appendChild(viewCard);
+
+  const previewCard = el("div", { class: "card" });
+  const defs = buildPptxSlideDefs(r);
+  previewCard.innerHTML = '<div class="card-title">' + icon("filetext") + 'Estrutura da apresentação (' + defs.length + ' slides · 16:9)</div>' +
+    '<ol class="small muted" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;column-count:2;column-gap:28px">' +
+    defs.map((d) => '<li>' + escHtml(d.title) + '</li>').join("") +
+    '</ol>' +
+    '<div style="height:14px"></div>' +
+    alertBox("blue", "info", "Formato widescreen 16:9 — cada página do PDF é um slide. Use a pré-visualização para revisar antes de exportar.") +
+    '<div style="height:16px"></div>' +
+    '<div id="pdfStatus"></div>' +
+    '<div class="flex gap-10" style="flex-wrap:wrap">' +
+    '<button class="btn btn-secondary" id="btnPreviewPdf">' + icon("layers") + 'Pré-visualizar apresentação</button>' +
+    '<button class="btn btn-success" id="btnGerarPdf">' + icon("download") + 'Exportar PDF</button>' +
+    '</div>';
+  root.appendChild(previewCard);
+
+  setTimeout(() => {
+    $("#btnGerarPdf").onclick = () => exportPptxPdf();
+    $("#btnPreviewPdf").onclick = () => openPptxPreview();
+    $$('[data-pdfview]').forEach((b) => b.onclick = () => { pdfComparativoView = b.dataset.pdfview; renderContent(); });
+  }, 0);
+}
+function slugify(s) { return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40); }
+
+/* ---------------------------------------------------------------------------
+   RELATÓRIO PDF — apresentação em slides (16:9)
+   O relatório passou de "impressão do dashboard" para uma apresentação de
+   slides widescreen, com pré-visualização navegável antes da exportação.
+   Reaproveita exclusivamente os dados já calculados por computeAll() —
+   nenhuma regra tributária é recalculada ou alterada aqui. O visual é fixo
+   em tema claro (paleta própria, independente do modo claro/escuro do
+   sistema) e usa a mesma identidade (azul + verde + Inter) do restante do
+   produto.
+   --------------------------------------------------------------------------- */
+const PPTX_W = 1280, PPTX_H = 720; // 16:9 (equivalente a 13.333in × 7.5in em 96dpi / 960×540pt)
+const PPTX = {
+  navy: "#0F2747", blueDeep: "#123B63", blueMed: "#1769AA", blueLight: "#EAF4FB",
+  green: "#10A36A", greenDark: "#087A50", greenLight: "#E8F7F1",
+  bg: "#F5F7FA", white: "#FFFFFF", text: "#334155", textSec: "#64748B",
+  border: "#E2E8F0", yellow: "#966000", yellowLight: "#FEF6E4",
+};
+const pptxState = { index: 0, total: 0, open: false };
+let pptxChartInstances = [];
+// Estilo do slide "Comparativo" no PDF — "resumo" (padrão, enviado ao
+// cliente) mostra só custo mensal + carga efetiva dos 3 cenários;
+// "detalhado" mostra a análise técnica completa (DAS, IRPJ, CSLL, ISS, IBS,
+// CBS). Escolhido pelo usuário na aba Relatório PDF.
+let pdfComparativoView = "resumo";
+
+const PPTX_CSS = "" +
+".pptx-host{position:fixed;top:0;left:-4000px;width:" + PPTX_W + "px;height:" + PPTX_H + "px;z-index:1;pointer-events:none}" +
+".pptx-host.pptx-open{left:50%;top:50%;transform:translate(-50%,-50%) scale(var(--pptx-scale,1));z-index:1201;pointer-events:auto;box-shadow:0 24px 70px rgba(0,0,0,.55);border-radius:10px;overflow:hidden}" +
+".pptx-slide{position:absolute;top:0;left:0;width:" + PPTX_W + "px;height:" + PPTX_H + "px;background:" + PPTX.white + ";color:" + PPTX.text + ";font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;overflow:hidden;z-index:1}" +
+".pptx-slide.pptx-active{z-index:5}" +
+".pptx-slide *{box-sizing:border-box}" +
+".pptx-cover{position:absolute;inset:0;background:linear-gradient(135deg," + PPTX.navy + "," + PPTX.blueMed + ");display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 90px}" +
+".pptx-cover .k{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8CE0B8;margin-bottom:14px}" +
+".pptx-cover h1{font-size:46px;font-weight:800;color:#fff;letter-spacing:-.01em;margin-bottom:10px}" +
+".pptx-cover .sub{font-size:16px;color:#BFD6EA;margin-bottom:34px;max-width:820px}" +
+".pptx-cover .bar{width:64px;height:4px;background:" + PPTX.green + ";border-radius:4px;margin-bottom:34px}" +
+".pptx-cover .empresa{font-size:22px;font-weight:700;color:#fff}" +
+".pptx-cover .cnpj{font-size:13.5px;color:#BFD6EA;margin-top:6px}" +
+".pptx-cover .ano{font-size:13px;color:#8CE0B8;margin-top:20px;font-weight:600;letter-spacing:.03em}" +
+".pptx-head{height:104px;background:linear-gradient(135deg," + PPTX.navy + "," + PPTX.blueMed + ");display:flex;flex-direction:column;justify-content:center;padding:0 56px;position:relative}" +
+".pptx-head::after{content:'';position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg," + PPTX.green + ",transparent 62%)}" +
+".pptx-kicker{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#8CE0B8;margin-bottom:5px}" +
+".pptx-title{font-size:28px;font-weight:800;color:#fff;letter-spacing:-.01em}" +
+".pptx-body{position:absolute;top:104px;left:0;right:0;bottom:44px;padding:32px 56px;overflow:hidden}" +
+".pptx-foot{position:absolute;left:0;right:0;bottom:0;height:44px;background:" + PPTX.bg + ";border-top:1px solid " + PPTX.border + ";display:flex;align-items:center;justify-content:space-between;padding:0 56px;font-size:11.5px;color:" + PPTX.textSec + "}" +
+".pptx-foot b{color:" + PPTX.text + ";font-weight:700}" +
+".pptx-foot-dark{background:rgba(255,255,255,.06);border-top:1px solid rgba(255,255,255,.14);color:#BFD6EA}" +
+".pptx-foot-dark b{color:#fff}" +
+".pptx-grid{display:grid;gap:16px}" +
+".pptx-grid-2{grid-template-columns:repeat(2,1fr)}" +
+".pptx-grid-3{grid-template-columns:repeat(3,1fr)}" +
+".pptx-grid-4{grid-template-columns:repeat(4,1fr)}" +
+".pptx-stat{background:" + PPTX.bg + ";border:1px solid " + PPTX.border + ";border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:5px;min-width:0}" +
+".pptx-stat.pptx-hl{background:" + PPTX.greenLight + ";border-color:#BFE9D8}" +
+".pptx-stat-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:" + PPTX.textSec + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+".pptx-stat-value{font-size:24px;font-weight:800;color:" + PPTX.navy + ";letter-spacing:-.01em;line-height:1.2;overflow-wrap:anywhere}" +
+".pptx-stat.pptx-hl .pptx-stat-value{color:" + PPTX.greenDark + "}" +
+".pptx-stat-sub{font-size:11.5px;color:" + PPTX.textSec + ";overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}" +
+".pptx-card{background:" + PPTX.white + ";border:1px solid " + PPTX.border + ";border-radius:14px;padding:16px 18px}" +
+".pptx-card-title{font-size:12.5px;font-weight:700;color:" + PPTX.navy + ";margin-bottom:8px}" +
+".pptx-table{border:1px solid " + PPTX.border + ";border-radius:10px;overflow:hidden}" +
+".pptx-table table{width:100%;border-collapse:collapse;font-size:12.5px}" +
+".pptx-table thead th{background:" + PPTX.navy + ";color:#fff;text-align:left;font-weight:700;padding:7px 12px;font-size:10.5px}" +
+".pptx-table thead th.n,.pptx-table tbody td.n{text-align:right}" +
+".pptx-table tbody td{padding:6.5px 12px;border-top:1px solid " + PPTX.border + ";color:" + PPTX.text + "}" +
+".pptx-table tbody tr:nth-child(even){background:#FAFBFD}" +
+".pptx-table tbody tr.total td{background:" + PPTX.greenLight + ";font-weight:700;color:" + PPTX.greenDark + ";border-top:2px solid " + PPTX.green + "}" +
+".pptx-kv{display:flex;justify-content:space-between;gap:14px;padding:7.5px 0;border-bottom:1px dashed " + PPTX.border + ";font-size:13px}" +
+".pptx-kv .k{color:" + PPTX.textSec + "}" +
+".pptx-kv .v{color:" + PPTX.text + ";font-weight:700;text-align:right}" +
+".pptx-regime{background:" + PPTX.white + ";border:1px solid " + PPTX.border + ";border-top:3px solid " + PPTX.blueDeep + ";border-radius:14px;padding:15px 17px}" +
+".pptx-regime.hl{border-top-color:" + PPTX.green + "}" +
+".pptx-regime h4{font-size:13.5px;font-weight:700;color:" + PPTX.navy + ";margin-bottom:8px}" +
+".pptx-regime .val{font-size:21px;font-weight:800;color:" + PPTX.navy + "}" +
+".pptx-regime .row{display:flex;justify-content:space-between;font-size:11.5px;color:" + PPTX.textSec + ";padding:5px 0;border-top:1px dashed " + PPTX.border + "}" +
+".pptx-regime .row b{color:" + PPTX.text + "}" +
+".pptx-flow{display:flex;align-items:stretch;justify-content:center;gap:0;margin:2px 0 18px}" +
+".pptx-flow-box{width:146px;background:" + PPTX.blueLight + ";border:1px solid #CFE6F5;border-radius:12px;padding:13px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}" +
+".pptx-flow-box .fl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:" + PPTX.blueDeep + "}" +
+".pptx-flow-box .fv{font-size:16.5px;font-weight:800;color:" + PPTX.navy + "}" +
+".pptx-flow-total{width:190px;background:linear-gradient(135deg," + PPTX.blueDeep + "," + PPTX.green + ");border:none}" +
+".pptx-flow-total .fl{color:" + PPTX.greenLight + "}" +
+".pptx-flow-total .fv{color:#fff;font-size:20px}" +
+".pptx-flow-op{width:32px;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:800;color:" + PPTX.textSec + "}" +
+".pptx-chart-box{position:relative;width:100%;height:100%}" +
+".pptx-alert{border-radius:10px;padding:11px 14px;font-size:12px;line-height:1.5;border:1px solid transparent}" +
+".pptx-alert-yellow{background:" + PPTX.yellowLight + ";color:#7A5200;border-color:#F3DFA3}" +
+".pptx-alert-blue{background:" + PPTX.blueLight + ";color:" + PPTX.blueDeep + ";border-color:#CFE6F5}" +
+".pptx-badge{display:inline-flex;align-items:center;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:100px;white-space:nowrap}" +
+".pptx-badge-blue{background:" + PPTX.blueLight + ";color:" + PPTX.blueDeep + "}" +
+".pptx-badge-yellow{background:" + PPTX.yellowLight + ";color:#7A5200}" +
+".pptx-src{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-top:1px solid " + PPTX.border + ";font-size:11px}" +
+".pptx-src:first-child{border-top:none}" +
+".pptx-src .n{color:" + PPTX.text + ";font-weight:600}" +
+".pptx-src .f{color:" + PPTX.textSec + ";font-size:10px;margin-top:1px}" +
+".pptx-overlay{position:fixed;inset:0;background:rgba(8,12,20,.88);z-index:1200}" +
+".pptx-controls{position:fixed;left:0;right:0;bottom:0;z-index:1202;display:flex;align-items:center;justify-content:center;gap:14px;padding:18px;background:linear-gradient(0deg,rgba(8,12,20,.85),transparent)}" +
+".pptx-controls button{border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:inherit}" +
+".pptx-controls button:hover{background:rgba(255,255,255,.18)}" +
+".pptx-controls button:disabled{opacity:.35;cursor:not-allowed}" +
+".pptx-controls button.pptx-primary{background:" + PPTX.green + ";border-color:" + PPTX.green + "}" +
+".pptx-controls button.pptx-primary:hover{background:" + PPTX.greenDark + "}" +
+".pptx-counter{color:#fff;font-size:13px;font-weight:600;min-width:64px;text-align:center}" +
+".pptx-close{position:fixed;top:18px;right:22px;z-index:1202;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}" +
+".pptx-close:hover{background:rgba(255,255,255,.2)}" +
+".pptx-close svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2}" +
+"@media (max-width:900px){.pptx-controls{gap:8px;padding:12px}.pptx-controls button{padding:8px 12px;font-size:12px}}";
+
+function ensurePptxStyles() {
+  if ($("#pptxStyles")) return;
+  const style = document.createElement("style");
+  style.id = "pptxStyles";
+  style.textContent = PPTX_CSS;
+  document.head.appendChild(style);
+}
+
+/* ---- componentes visuais dos slides (strings HTML) ---- */
+function pptxStat(label, value, sub, hl) {
+  return '<div class="pptx-stat' + (hl ? " pptx-hl" : "") + '"><div class="pptx-stat-label">' + escHtml(label) + '</div><div class="pptx-stat-value">' + value + '</div>' + (sub ? '<div class="pptx-stat-sub">' + escHtml(sub) + '</div>' : "") + '</div>';
+}
+function pptxKV(label, value) {
+  return '<div class="pptx-kv"><span class="k">' + escHtml(label) + '</span><span class="v">' + value + '</span></div>';
+}
+function pptxRegime(nome, mensal, cargaPct, anual, sub, hl) {
+  return '<div class="pptx-regime' + (hl ? " hl" : "") + '"><h4>' + escHtml(nome) + '</h4>' +
+    '<div class="val">' + fmtBRL(mensal) + '<span style="font-size:10.5px;font-weight:600;color:' + PPTX.textSec + '"> /mês</span></div>' +
+    '<div class="row"><span>Carga efetiva</span><b>' + fmtPct(cargaPct) + '</b></div>' +
+    '<div class="row"><span>Total anual</span><b>' + fmtBRL(anual) + '</b></div>' +
+    '<div class="row" style="border-top:none;padding-top:2px"><span>' + escHtml(sub) + '</span></div></div>';
+}
+// Versão minimalista do card de regime — usada apenas no slide "Comparativo"
+// em modo Resumo Executivo: nome, custo mensal (grande) e carga efetiva, sem
+// nenhuma linha técnica adicional (nada de IRPJ/CSLL/DAS/IBS/CBS).
+function pptxRegimeSimple(nome, mensal, cargaPct, anual, hl) {
+  return '<div class="pptx-regime' + (hl ? " hl" : "") + '"><h4>' + escHtml(nome) + '</h4>' +
+    '<div class="val">' + fmtBRL(mensal) + '<span style="font-size:10.5px;font-weight:600;color:' + PPTX.textSec + '"> /mês</span></div>' +
+    '<div class="row"><span>Carga efetiva</span><b>' + fmtPct(cargaPct) + '</b></div>' +
+    '<div class="row" style="border-top:none;padding-top:2px"><span>Total anual</span><b>' + fmtBRL(anual) + '</b></div></div>';
+}
+function pptxFlowBox(label, value, total) {
+  return '<div class="pptx-flow-box' + (total ? " pptx-flow-total" : "") + '"><div class="fl">' + escHtml(label) + '</div><div class="fv">' + value + '</div></div>';
+}
+function pptxFlowOp(op) { return '<div class="pptx-flow-op">' + op + '</div>'; }
+function pptxTable(head, rows) {
+  return '<div class="pptx-table"><table><thead><tr>' +
+    head.map((hd, i) => '<th' + (i > 0 ? ' class="n"' : "") + '>' + hd + '</th>').join("") +
+    '</tr></thead><tbody>' +
+    rows.map((row) => '<tr' + (row.total ? ' class="total"' : "") + '>' + row.cells.map((c, i) => '<td' + (i > 0 ? ' class="n"' : "") + '>' + c + '</td>').join("") + '</tr>').join("") +
+    '</tbody></table></div>';
+}
+function pptxSlideShell(idx, total, kicker, title, bodyHtml, opts) {
+  opts = opts || {};
+  const empresaNome = state.empresa.nome ? escHtml(state.empresa.nome) : "Empresa não identificada";
+  const footer = '<div class="pptx-foot' + (opts.dark ? " pptx-foot-dark" : "") + '">' +
+    '<span><b>' + empresaNome + '</b> · Elaborado em ' + todayBR() + '</span>' +
+    '<span>Slide ' + String(idx + 1).padStart(2, "0") + ' de ' + total + '</span>' +
+    '</div>';
+  if (opts.cover) return bodyHtml + footer;
+  return '<div class="pptx-head"><div class="pptx-kicker">' + escHtml(kicker || "") + '</div><div class="pptx-title">' + escHtml(title || "") + '</div></div>' +
+    '<div class="pptx-body">' + bodyHtml + '</div>' + footer;
+}
+
+/* ---- gráficos dos slides (paleta clara fixa, animação desligada para
+   captura instantânea via html2canvas; instâncias isoladas do CHARTS do
+   dashboard/comparativo — não interferem com as demais abas) ---- */
+function pptxDestroyCharts() {
+  pptxChartInstances.forEach((c) => { try { c.destroy(); } catch (e) {} });
+  pptxChartInstances = [];
+}
+function pptxBuildChartVisaoGeral(canvas, r) {
+  return new Chart(canvas, {
+    type: "bar",
+    data: { labels: ["Simples Normal", "Simples Híbrido", "Lucro Presumido"], datasets: [{ data: [r.simples.dasAnual, r.hibrido.totalAnual, r.presumido.totalAnual], backgroundColor: [PPTX.navy, PPTX.blueMed, PPTX.green], borderRadius: 6, maxBarThickness: 70 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { y: { ticks: { callback: (v) => fmtBRL(v), color: PPTX.textSec, font: { size: 10.5 } }, grid: { color: PPTX.border } },
+        x: { ticks: { color: PPTX.text, font: { weight: 600, size: 11.5 } }, grid: { display: false } } } },
+  });
+}
+function pptxBuildChartComparativo(canvas, r) {
+  return new Chart(canvas, {
+    type: "bar",
+    data: { labels: ["Simples Normal", "Simples Híbrido", "Lucro Presumido"], datasets: [{ data: [r.simples.dasMensal, r.hibrido.totalMensal, r.presumido.trimestre.totalTrimestre / 3], backgroundColor: [PPTX.navy, PPTX.blueMed, PPTX.green], borderRadius: 6, maxBarThickness: 70 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { y: { ticks: { callback: (v) => fmtBRL(v), color: PPTX.textSec, font: { size: 10.5 } }, grid: { color: PPTX.border } },
+        x: { ticks: { color: PPTX.text, font: { weight: 600, size: 11.5 } }, grid: { display: false } } } },
+  });
+}
+function pptxBuildChartHibrido(canvas, r) {
+  const h = r.hibrido;
+  return new Chart(canvas, {
+    type: "doughnut",
+    data: { labels: ["DAS sem IBS/CBS", "IBS líquido", "CBS líquido"], datasets: [{ data: [h.dasSemIbsCbs, h.ibsLiquido, h.cbsLiquido], backgroundColor: [PPTX.navy, PPTX.blueMed, PPTX.green], borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { position: "bottom", labels: { color: PPTX.text, font: { size: 10.5 }, boxWidth: 10, padding: 8 } }, tooltip: { enabled: false } } },
+  });
+}
+
+/* ---- definição dos 12 slides — apenas leitura de state.result (computeAll);
+   nenhuma regra de cálculo é alterada aqui. ---- */
+function buildPptxSlideDefs(r) {
+  r = r || computeAll();
+  const e = state.empresa;
+  const anexo = ANEXOS[r.simples.anexoUsado];
+  const h = r.hibrido;
+  const t = r.presumido.trimestre;
+  const pv = r.simples.partilhaValores;
+  const defs = [];
+
+  defs.push({ title: "Capa", cover: true, dark: true,
+    body: '<div class="pptx-cover">' +
+      '<div class="k">Análise Tributária</div>' +
+      '<h1>ANÁLISE TRIBUTÁRIA</h1>' +
+      '<div class="sub">Simulação e comparação de regimes — Simples Nacional, Simples Híbrido (IBS/CBS) e Lucro Presumido</div>' +
+      '<div class="bar"></div>' +
+      '<div class="empresa">' + escHtml(e.nome || "Empresa não identificada") + '</div>' +
+      (e.cnpj ? '<div class="cnpj">CNPJ ' + escHtml(e.cnpj) + '</div>' : "") +
+      '<div class="ano">Ano-calendário ' + e.anoAnalise + ' · Elaborado em ' + todayBR() + '</div>' +
+      '</div>' });
+
+  const cnaeLabel = e.cnae ? e.cnae.codigo + " — " + e.cnae.descricao : "Não informado";
+  defs.push({ kicker: "Perfil da empresa", title: "Dados considerados na simulação",
+    body: '<div class="pptx-grid pptx-grid-3">' +
+      pptxStat("CNAE", '<span style="font-size:15px">' + escHtml(cnaeLabel) + '</span>', "Classificação CONCLA/IBGE — informativa") +
+      pptxStat("Regime simulado", "Simples Nacional", anexo.nome + " — " + anexo.desc) +
+      pptxStat("Fator R", r.simples.fatorR == null ? "Não aplicável" : fmtPct(r.simples.fatorR * 100), r.simples.fatorR == null ? "Anexo fixo" : (r.simples.fatorR >= 0.28 ? "≥ 28% → Anexo III" : "< 28% → Anexo V")) +
+      pptxStat("Faturamento mensal", fmtBRL(e.faturamentoMensal), "Base para RBT12 e DAS", true) +
+      pptxStat("RBT12", fmtBRL(r.rbt12), e.rbt12Modo === "auto" ? "Calculado automaticamente (fat. × 12)" : "Informado manualmente") +
+      pptxStat("Carga tributária efetiva", fmtPct(r.simples.cargaEfetivaPct), anexo.nome + " — " + r.simples.faixaLabel + " de RBT12") +
+      '</div>' });
+
+  defs.push({ kicker: "Visão geral", title: "Simples Normal, Híbrido e Presumido",
+    body: '<div class="pptx-grid pptx-grid-3" style="margin-bottom:16px">' +
+      pptxRegime("Simples Normal", r.simples.dasMensal, r.simples.cargaEfetivaPct, r.simples.dasAnual, anexo.nome, false) +
+      pptxRegime("Simples Híbrido", h.totalMensal, h.cargaEfetivaPct, h.totalAnual, "DAS + IBS/CBS líquidos — ano " + h.ano, true) +
+      pptxRegime("Lucro Presumido", t.totalTrimestre / 3, r.presumido.cargaEfetivaPct, r.presumido.totalAnual, t.atividade, false) +
+      '</div>' +
+      '<div class="pptx-card" style="height:238px"><div class="pptx-card-title">Custo tributário anual — comparação rápida</div><div class="pptx-chart-box" style="height:196px"><canvas id="pptxC1"></canvas></div></div>',
+    charts: [{ id: "pptxC1", build: pptxBuildChartVisaoGeral }] });
+
+  defs.push({ kicker: "Simples Nacional", title: "Composição e custo — " + anexo.nome,
+    body: '<div class="pptx-grid pptx-grid-3" style="margin-bottom:16px">' +
+      pptxStat("DAS mensal estimado", fmtBRL(r.simples.dasMensal), r.simples.faixaLabel + " de RBT12", true) +
+      pptxStat("Carga efetiva", fmtPct(r.simples.cargaEfetivaPct), "Alíquota nominal " + fmtPct(r.simples.aliqNominal * 100)) +
+      pptxStat("Total anual", fmtBRL(r.simples.dasAnual), "DAS mensal × 12") +
+      '</div>' +
+      '<div class="pptx-card"><div class="pptx-card-title">Partilha do DAS — ' + anexo.desc + '</div>' +
+      pptxTable(["Tributo", "% partilha", "Valor mensal"], Object.keys(r.simples.partilha).map((k) => ({ cells: [k, fmtPct(r.simples.partilha[k]), fmtBRL(r.simples.partilhaValores[k])] }))) +
+      '</div>' });
+
+  defs.push({ kicker: "Simples Híbrido — IBS/CBS", title: "DAS + IBS + CBS − créditos = total líquido",
+    body: '<div class="pptx-flow">' +
+      pptxFlowBox("DAS (sem IBS/CBS)", fmtBRL(h.dasSemIbsCbs)) + pptxFlowOp("+") +
+      pptxFlowBox("IBS", fmtBRL(h.ibsDebito)) + pptxFlowOp("+") +
+      pptxFlowBox("CBS", fmtBRL(h.cbsDebito)) + pptxFlowOp("−") +
+      pptxFlowBox("Créditos (IBS+CBS)", fmtBRL(h.creditoIbs + h.creditoCbs)) + pptxFlowOp("=") +
+      pptxFlowBox("Total líquido", fmtBRL(h.totalMensal), true) +
+      '</div>' +
+      '<div class="pptx-grid pptx-grid-2">' +
+      '<div class="pptx-card">' + pptxTable(["Item", "Valor"], [
+        { cells: ["DAS sem IBS/CBS", fmtBRL(h.dasSemIbsCbs)] },
+        { cells: ["(+) IBS débito", fmtBRL(h.ibsDebito)] },
+        { cells: ["(+) CBS débito", fmtBRL(h.cbsDebito)] },
+        { cells: ["(−) Crédito IBS", "− " + fmtBRL(h.creditoIbs)] },
+        { cells: ["(−) Crédito CBS", "− " + fmtBRL(h.creditoCbs)] },
+        { cells: ["Total líquido (mensal)", fmtBRL(h.totalMensal)], total: true },
+      ]) + '</div>' +
+      '<div class="pptx-card"><div class="pptx-card-title">Composição do Híbrido — ano ' + h.ano + '</div><div class="pptx-chart-box" style="height:148px"><canvas id="pptxC2"></canvas></div>' +
+      '<p style="font-size:10.5px;color:' + PPTX.textSec + ';margin-top:6px">Carga efetiva: ' + fmtPct(h.cargaEfetivaPct) + ' · Créditos são parâmetro de simulação (IBS ' + fmtPct(h.creditoIbsPct, 1) + ' · CBS ' + fmtPct(h.creditoCbsPct, 1) + ')</p></div>' +
+      '</div>',
+    charts: [{ id: "pptxC2", build: pptxBuildChartHibrido }] });
+
+  defs.push({ kicker: "Lucro Presumido", title: (t.substituidoPorCbs ? "CBS + IBS + ISS" : "PIS + COFINS + ISS") + " (mensais) e IRPJ + CSLL (trimestrais) — " + t.atividade,
+    body: '<div class="pptx-grid pptx-grid-4" style="margin-bottom:16px">' +
+      pptxStat("IRPJ (trimestral)", fmtBRL(t.irpjTotal), "Normal + adicional") +
+      pptxStat("CSLL (trimestral)", fmtBRL(t.csllTotal), fmtPct(t.csllPctUsado) + " sobre base presumida") +
+      pptxStat((t.substituidoPorCbs ? "CBS + IBS + ISS" : "PIS + COFINS + ISS") + " (mensal)", fmtBRL(t.consumoTotal / 3), "Equivalente por mês") +
+      pptxStat("Carga efetiva", fmtPct(t.cargaEfetivaPct), "Total anual " + fmtBRL(r.presumido.totalAnual), true) +
+      '</div>' +
+      '<div class="pptx-grid pptx-grid-2">' +
+      '<div class="pptx-card">' + pptxTable(["Tributos trimestrais", "Valor"], [
+        { cells: ["IRPJ normal (15%)", fmtBRL(t.irpjNormal)] },
+        { cells: ["IRPJ adicional (10% s/ excedente a R$ 60.000)", fmtBRL(t.irpjAdicional)] },
+        { cells: ["CSLL (9%)", fmtBRL(t.csllTotal)] },
+        { cells: ["Total trimestral", fmtBRL(t.irpjTotal + t.csllTotal)], total: true },
+      ]) + '</div>' +
+      '<div class="pptx-card">' + pptxTable(["Tributos mensais", "Valor"], (
+        t.substituidoPorCbs
+          ? [{ cells: ["CBS (" + fmtPct(t.crono.cbs, 2) + ")", fmtBRL(t.cbs)] }, { cells: ["IBS (" + fmtPct(t.crono.ibs, 2) + ")", fmtBRL(t.ibs)] }]
+          : [{ cells: ["PIS (" + fmtPct(state.presumido.pisAliq) + ")", fmtBRL(t.pis)] }, { cells: ["COFINS (" + fmtPct(state.presumido.cofinsAliq) + ")", fmtBRL(t.cofins)] }]
+      ).concat([
+        { cells: ["ISS (" + fmtPct(t.issAliqEfetivaPct) + ")", fmtBRL(t.iss)] },
+        { cells: ["Total mensal (no trimestre)", fmtBRL(t.consumoTotal)], total: true },
+      ])) + '</div>' +
+      '</div>' +
+      '<p style="font-size:10.5px;color:' + PPTX.textSec + ';margin-top:8px">Total do trimestre: ' + fmtBRL(t.totalTrimestre) + ' · Total mensal equivalente: ' + fmtBRL(t.totalTrimestre / 3) + ' · Total anual: ' + fmtBRL(r.presumido.totalAnual) + (t.substituidoPorCbs ? ' · Ano de projeção IBS/CBS: ' + t.ano : '') + '</p>' });
+
+  if (pdfComparativoView === "detalhado") {
+    defs.push({ kicker: "Comparativo — detalhado", title: "Custo mensal, anual e carga efetiva",
+      body: '<div class="pptx-card" style="margin-bottom:12px">' + pptxTable(
+        ["Item", "Simples Normal", "Simples Híbrido", "Presumido"],
+        [
+          { cells: ["DAS", fmtBRL(r.simples.dasMensal), fmtBRL(h.dasSemIbsCbs) + " (sem IBS/CBS)", "—"] },
+          { cells: ["IBS", fmtBRL((pv.ICMS || 0) + (pv.ISS || 0)) + " (no DAS)", fmtBRL(h.ibsDebito), t.substituidoPorCbs ? fmtBRL(t.ibs / 3) : "não aplicável antes de 2027"] },
+          { cells: ["CBS", fmtBRL((pv.COFINS || 0) + (pv.PIS || 0)) + " (no DAS)", fmtBRL(h.cbsDebito), t.substituidoPorCbs ? fmtBRL(t.cbs / 3) : "não aplicável antes de 2027"] },
+          { cells: ["PIS + COFINS", "—", "—", t.substituidoPorCbs ? "extinto (CBS a partir de 2027)" : fmtBRL((t.pis + t.cofins) / 3)] },
+          { cells: ["Créditos IBS/CBS", "—", "− " + fmtBRL(h.creditoIbs + h.creditoCbs), "—"] },
+          { cells: ["Total mensal", fmtBRL(r.simples.dasMensal), fmtBRL(h.totalMensal), fmtBRL(t.totalTrimestre / 3)], total: true },
+          { cells: ["Total anual", fmtBRL(r.simples.dasAnual), fmtBRL(h.totalAnual), fmtBRL(r.presumido.totalAnual)], total: true },
+          { cells: ["Carga efetiva", fmtPct(r.simples.cargaEfetivaPct), fmtPct(h.cargaEfetivaPct), fmtPct(r.presumido.cargaEfetivaPct)], total: true },
+        ]
+      ) + '</div>' +
+        '<div class="pptx-card" style="height:158px"><div class="pptx-card-title">Custo mensal — três cenários</div><div class="pptx-chart-box" style="height:118px"><canvas id="pptxC3"></canvas></div></div>',
+      charts: [{ id: "pptxC3", build: pptxBuildChartComparativo }] });
+  } else {
+    defs.push({ kicker: "Comparativo", title: "Quanto custa cada cenário — resumo executivo",
+      body: '<div class="pptx-grid pptx-grid-3" style="margin-bottom:20px">' +
+        pptxRegimeSimple("Simples Normal", r.simples.dasMensal, r.simples.cargaEfetivaPct, r.simples.dasAnual, false) +
+        pptxRegimeSimple("Simples Híbrido", h.totalMensal, h.cargaEfetivaPct, h.totalAnual, true) +
+        pptxRegimeSimple("Lucro Presumido", t.totalTrimestre / 3, r.presumido.cargaEfetivaPct, r.presumido.totalAnual, false) +
+        '</div>' +
+        '<div class="pptx-card" style="height:238px"><div class="pptx-card-title">Custo mensal — três cenários</div><div class="pptx-chart-box" style="height:196px"><canvas id="pptxC3"></canvas></div></div>',
+      charts: [{ id: "pptxC3", build: pptxBuildChartComparativo }] });
+  }
+
+  const rbt12 = r.rbt12;
+  const simIII = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey: "III" });
+  const simV = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey: "V" });
+  const folhaNecessaria = calcFolhaNecessariaFatorR(rbt12);
+  defs.push({ kicker: "Fator R", title: "Enquadramento Anexo III × Anexo V",
+    body: '<div class="pptx-grid pptx-grid-3" style="margin-bottom:16px">' +
+      pptxStat("Fator R atual", r.simples.fatorR == null ? "—" : fmtPct(r.simples.fatorR * 100), "Meta para Anexo III: 28,00%", true) +
+      pptxStat("Enquadramento atual", r.simples.anexoUsado === "III" ? "Anexo III" : (r.simples.anexoUsado === "V" ? "Anexo V" : anexo.nome), r.simples.fatorR == null ? "Anexo fixo (sem Fator R)" : (r.simples.fatorR >= 0.28 ? "Fator R ≥ 28%" : "Fator R < 28%")) +
+      pptxStat("Folha (12m) necessária p/ 28%", fmtBRL(folhaNecessaria), "Folha atual informada: " + fmtBRL(e.folha12m)) +
+      '</div>' +
+      '<div class="pptx-card">' + pptxTable(["Comparação", "Anexo III", "Anexo V", "Diferença"], [
+        { cells: ["Carga efetiva", fmtPct(simIII.cargaEfetivaPct), fmtPct(simV.cargaEfetivaPct), fmtPct(simV.cargaEfetivaPct - simIII.cargaEfetivaPct)] },
+        { cells: ["DAS mensal", fmtBRL(simIII.dasMensal), fmtBRL(simV.dasMensal), fmtBRL(simV.dasMensal - simIII.dasMensal)], total: true },
+      ]) + '<p style="font-size:11px;color:' + PPTX.textSec + ';margin-top:10px">Pró-labore mensal informado: ' + fmtBRL(e.proLabore) + ' · A folha necessária é referência de planejamento — o enquadramento correto depende do Fator R apurado mês a mês.</p></div>' });
+
+  const pp = r.pePrestadora, pc = r.peContratante;
+  defs.push({ kicker: "Ponto de equilíbrio", title: "Prestadora e contratante — Simples Normal × Híbrido",
+    body: '<div class="pptx-grid pptx-grid-2">' +
+      '<div class="pptx-card"><div class="pptx-card-title">Prestadora — manter o mesmo resultado</div>' +
+      pptxKV("Valor atual do contrato", fmtBRL(pp.valorAtualContrato)) +
+      pptxKV("Resultado atual (Simples Normal)", fmtBRL(pp.resultadoAtual)) +
+      (pp.valido ? pptxKV("Necessário no Híbrido", '<b style="color:' + PPTX.greenDark + '">' + fmtBRL(pp.receitaNecessariaHibrido) + '</b>') : pptxKV("Necessário no Híbrido", "Sem solução")) +
+      '</div>' +
+      '<div class="pptx-card"><div class="pptx-card-title">Contratante — custo líquido equivalente</div>' +
+      pptxKV("Valor atual do contrato", fmtBRL(pc.valorAtualContrato)) +
+      pptxKV("Custo líquido atual (" + fmtPct(pc.creditoAtualPct, 1) + " créd.)", fmtBRL(pc.custoLiquidoAtual)) +
+      pptxKV("Equivalente no Híbrido", pc.valorEquivalenteHibrido != null ? '<b style="color:' + PPTX.greenDark + '">' + fmtBRL(pc.valorEquivalenteHibrido) + '</b>' : "—") +
+      '</div>' +
+      '</div>' +
+      '<div style="height:14px"></div>' +
+      '<div class="pptx-alert pptx-alert-blue">Dois cálculos separados, sem misturar os conceitos: a prestadora avalia o próprio resultado; a contratante avalia o custo líquido de contratar, dado o crédito de IBS/CBS aproveitável.</div>' });
+
+  const credC = calcCreditoContratante({ valorContrato: state.hibrido.valorContratoAnual, creditoPct: state.hibrido.creditoContratanteHibridoPct, ibsPct: h.ibsPct, cbsPct: h.cbsPct });
+  defs.push({ kicker: "Simples Híbrido", title: "Impacto para o contratante",
+    body: '<div class="pptx-grid pptx-grid-3" style="margin-bottom:14px">' +
+      pptxStat("Valor da contratação (anual)", fmtBRL(state.hibrido.valorContratoAnual), "Ano de referência " + h.ano) +
+      pptxStat("Crédito IBS potencial", fmtBRL(credC.creditoIbs), fmtPct(h.ibsPct, 2) + " × " + fmtPct(state.hibrido.creditoContratanteHibridoPct, 1)) +
+      pptxStat("Crédito CBS potencial", fmtBRL(credC.creditoCbs), fmtPct(h.cbsPct, 2) + " × " + fmtPct(state.hibrido.creditoContratanteHibridoPct, 1)) +
+      '</div>' +
+      '<div class="pptx-grid pptx-grid-2" style="margin-bottom:14px">' +
+      pptxStat("Crédito total", fmtBRL(credC.creditoTotal), "Soma dos créditos de IBS e CBS") +
+      pptxStat("Custo líquido estimado", fmtBRL(credC.custoLiquido), "Valor da contratação − crédito total", true) +
+      '</div>' +
+      '<div class="pptx-alert pptx-alert-yellow">Não é assumido crédito integral automaticamente. O percentual de crédito é um parâmetro de simulação ajustável e o aproveitamento efetivo depende das condições legais aplicáveis à operação.</div>' });
+
+  defs.push({ kicker: "Premissas", title: "Dados utilizados na simulação",
+    body: '<div class="pptx-grid pptx-grid-2">' +
+      '<div>' +
+      pptxKV("Faturamento mensal", fmtBRL(e.faturamentoMensal)) +
+      pptxKV("RBT12", fmtBRL(r.rbt12) + (e.rbt12Modo === "auto" ? " (automático)" : " (manual)")) +
+      pptxKV("Folha de salários (12m)", fmtBRL(e.folha12m)) +
+      pptxKV("Pró-labore mensal", fmtBRL(e.proLabore)) +
+      pptxKV("Ano-calendário", String(e.anoAnalise)) +
+      pptxKV("Enquadramento Simples", state.simples.anexoModo === "manual" ? "Manual — " + anexo.nome : "Automático (Fator R)") +
+      '</div>' +
+      '<div>' +
+      pptxKV("Atividade — Lucro Presumido", PRESUNCAO[state.presumido.atividade].label) +
+      pptxKV("Ano de projeção — Presumido", String(t.ano) + (t.substituidoPorCbs ? " (CBS/IBS)" : " (PIS/COFINS)")) +
+      pptxKV(t.substituidoPorCbs ? "CBS / IBS / ISS" : "PIS / COFINS / ISS", (t.substituidoPorCbs ? fmtPct(t.crono.cbs, 2) + " / " + fmtPct(t.crono.ibs, 2) : fmtPct(state.presumido.pisAliq) + " / " + fmtPct(state.presumido.cofinsAliq)) + " / " + fmtPct(state.presumido.issAliq)) +
+      pptxKV("Ano de referência — Híbrido", String(state.hibrido.anoProjecao)) +
+      pptxKV("Crédito IBS / CBS (simulação)", fmtPct(state.hibrido.creditoIbsPct, 1) + " / " + fmtPct(state.hibrido.creditoCbsPct, 1)) +
+      pptxKV("Custos fixos / variáveis (equilíbrio)", fmtBRL(state.equilibrio.custosFixos) + " / " + fmtPct(state.equilibrio.custosVariaveisPct, 1)) +
+      '</div>' +
+      '</div>' +
+      '<div style="height:12px"></div>' +
+      '<div class="pptx-alert pptx-alert-blue">Percentuais de crédito de IBS/CBS são parâmetros de simulação informados pelo usuário — não são alíquotas legais e não assumem crédito integral.</div>' });
+
+  const half = Math.ceil(FONTES.length / 2);
+  const pptxSrcCol = (arr) => arr.map((f) => '<div class="pptx-src"><div><div class="n">' + escHtml(f.nome) + '</div><div class="f">' + escHtml(f.fonte) + '</div></div><span class="pptx-badge pptx-badge-' + (f.status === "oficial" ? "blue" : "yellow") + '">' + (f.status === "oficial" ? "Oficial" : "Verificar") + '</span></div>').join("");
+  defs.push({ kicker: "Fontes", title: "Bases legais e datas de consulta",
+    body: '<div class="pptx-grid pptx-grid-2">' +
+      '<div class="pptx-card">' + pptxSrcCol(FONTES.slice(0, half)) + '</div>' +
+      '<div class="pptx-card">' + pptxSrcCol(FONTES.slice(half)) + '</div>' +
+      '</div>' });
+
+  return defs;
+}
+
+/* ---- montagem do "deck" (DOM) — usado tanto pela pré-visualização quanto
+   pela exportação, garantindo que o PDF exportado seja idêntico ao que foi
+   revisado na tela. ---- */
+function getPptxHost() {
+  let host = $("#pptxHost");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "pptxHost";
+    host.className = "pptx-host";
+    document.body.appendChild(host);
+  }
+  return host;
+}
+function mountPptxDeck() {
+  ensurePptxStyles();
+  const r = computeAll();
+  pptxDestroyCharts();
+  const host = getPptxHost();
+  host.innerHTML = "";
+  const defs = buildPptxSlideDefs(r);
+  const total = defs.length;
+  defs.forEach((d, i) => {
+    const slideEl = document.createElement("div");
+    slideEl.className = "pptx-slide" + (i === 0 ? " pptx-active" : "");
+    slideEl.dataset.index = String(i);
+    slideEl.innerHTML = pptxSlideShell(i, total, d.kicker, d.title, d.body, { cover: d.cover, dark: d.dark });
+    host.appendChild(slideEl);
+    (d.charts || []).forEach((c) => {
+      const canvas = slideEl.querySelector("#" + c.id);
+      if (canvas && typeof Chart !== "undefined") {
+        try { pptxChartInstances.push(c.build(canvas, r)); } catch (e) {}
+      }
+    });
+  });
+  pptxState.total = total;
+  pptxState.index = 0;
+  return { host, total };
+}
+
+/* ---- pré-visualização navegável (tela cheia) ---- */
+function pptxUpdateScale() {
+  const host = $("#pptxHost");
+  if (!host) return;
+  const availW = window.innerWidth - 48;
+  const availH = window.innerHeight - 140;
+  const scale = Math.max(0.2, Math.min(availW / PPTX_W, availH / PPTX_H, 1));
+  host.style.setProperty("--pptx-scale", String(scale));
+}
+function pptxShowSlide(i) {
+  const host = $("#pptxHost");
+  if (!host) return;
+  const slides = $$(".pptx-slide", host);
+  if (!slides.length) return;
+  const n = Math.max(0, Math.min(i, slides.length - 1));
+  slides.forEach((s, idx) => s.classList.toggle("pptx-active", idx === n));
+  pptxState.index = n;
+  const counter = $("#pptxCounter");
+  if (counter) counter.textContent = (n + 1) + " / " + slides.length;
+  const prevBtn = $("#pptxPrev"), nextBtn = $("#pptxNext");
+  if (prevBtn) prevBtn.disabled = n === 0;
+  if (nextBtn) nextBtn.disabled = n === slides.length - 1;
+}
+function pptxKeyHandler(ev) {
+  if (ev.key === "ArrowRight") pptxShowSlide(pptxState.index + 1);
+  else if (ev.key === "ArrowLeft") pptxShowSlide(pptxState.index - 1);
+  else if (ev.key === "Escape") closePptxPreview();
+}
+function ensurePptxOverlayDOM() {
+  if ($("#pptxOverlay")) return;
+  document.body.appendChild(el("div", { class: "pptx-overlay", id: "pptxOverlay", onclick: closePptxPreview }));
+  document.body.appendChild(el("button", { class: "pptx-close", id: "pptxClose", "aria-label": "Fechar apresentação", html: icon("x"), onclick: closePptxPreview }));
+  const controls = el("div", { class: "pptx-controls", id: "pptxControls" });
+  controls.innerHTML =
+    '<button type="button" id="pptxPrev">‹ Anterior</button>' +
+    '<span class="pptx-counter" id="pptxCounter">1 / 1</span>' +
+    '<button type="button" id="pptxNext">Próximo ›</button>' +
+    '<button type="button" id="pptxExport" class="pptx-primary">' + icon("download") + 'Exportar PDF</button>';
+  document.body.appendChild(controls);
+  $("#pptxPrev").onclick = () => pptxShowSlide(pptxState.index - 1);
+  $("#pptxNext").onclick = () => pptxShowSlide(pptxState.index + 1);
+  $("#pptxExport").onclick = () => exportPptxPdf();
+}
+function openPptxPreview() {
+  mountPptxDeck();
+  ensurePptxOverlayDOM();
+  const host = getPptxHost();
+  host.classList.add("pptx-open");
+  pptxUpdateScale();
+  pptxState.open = true;
+  pptxShowSlide(0);
+  document.addEventListener("keydown", pptxKeyHandler);
+  window.addEventListener("resize", pptxUpdateScale);
+}
+function closePptxPreview() {
+  const host = $("#pptxHost");
+  if (host) { host.classList.remove("pptx-open"); host.innerHTML = ""; }
+  const overlay = $("#pptxOverlay"); if (overlay) overlay.remove();
+  const close = $("#pptxClose"); if (close) close.remove();
+  const controls = $("#pptxControls"); if (controls) controls.remove();
+  document.removeEventListener("keydown", pptxKeyHandler);
+  window.removeEventListener("resize", pptxUpdateScale);
+  pptxState.open = false;
+  pptxDestroyCharts();
+}
+
+/* ---- exportação — captura cada slide (html2canvas) e monta um PDF
+   widescreen (16:9), um slide por página. ---- */
+async function exportPptxPdf() {
+  const statusEl = $("#pdfStatus");
+  const wasOpen = pptxState.open;
+  const exportBtn = $("#pptxExport"), genBtn = $("#btnGerarPdf");
+  if (statusEl) statusEl.innerHTML = '<div class="loading" style="margin-bottom:12px"><span class="spinner"></span> Gerando apresentação em PDF…</div>';
+  if (exportBtn) exportBtn.disabled = true;
+  if (genBtn) genBtn.disabled = true;
+  try {
+    if (!window.jspdf) throw new Error("Biblioteca de PDF não carregada.");
+    if (typeof html2canvas === "undefined") throw new Error("Biblioteca de captura de slides não carregada.");
+    if (!wasOpen) mountPptxDeck();
+    const host = $("#pptxHost");
+    const slides = $$(".pptx-slide", host);
+    if (!slides.length) throw new Error("Nenhum slide para exportar.");
+    const { jsPDF } = window.jspdf;
+    let doc = null;
+    for (let i = 0; i < slides.length; i++) {
+      const canvas = await html2canvas(slides[i], { width: PPTX_W, height: PPTX_H, scale: 1.5, backgroundColor: "#ffffff", useCORS: true, logging: false });
+      // JPEG em vez de PNG: os slides têm gradientes/sombras que geram PNGs
+      // muito grandes (dezenas de MB); em qualidade alta o JPEG fica visualmente
+      // idêntico para texto/gráficos e reduz drasticamente tamanho e tempo de
+      // geração — importante para um arquivo que será baixado/enviado por e-mail.
+      const img = canvas.toDataURL("image/jpeg", 0.92);
+      if (!doc) doc = new jsPDF({ unit: "pt", format: [PPTX_W, PPTX_H], orientation: "landscape", compress: true });
+      else doc.addPage([PPTX_W, PPTX_H], "landscape");
+      doc.addImage(img, "JPEG", 0, 0, PPTX_W, PPTX_H);
+    }
+    const blob = doc.output("blob");
+    const downloads = (window.claude && window.claude.use) ? await window.claude.use("downloads") : null;
+    const filename = "analise-tributaria-apresentacao-" + (state.empresa.nome ? slugify(state.empresa.nome) + "-" : "") + new Date().toISOString().slice(0, 10) + ".pdf";
+    if (downloads) {
+      const res = await downloads.save({ filename, data: blob });
+      if (statusEl) statusEl.innerHTML = alertBox("green", "check", res.status === "delivered" ? "Apresentação em PDF entregue com sucesso." : "Apresentação em PDF salva com sucesso.");
+    } else {
+      throw new Error("unavailable");
+    }
+  } catch (err) {
+    const code = err && err.code;
+    let msg = "Não foi possível gerar/entregar a apresentação automaticamente nesta visualização.";
+    if (code === "declined") msg = "O download foi cancelado.";
+    else if (code === "too_large") msg = "O arquivo gerado é muito grande para esta forma de entrega.";
+    if (statusEl) statusEl.innerHTML = alertBox("yellow", "alert", msg);
+  } finally {
+    if (exportBtn) exportBtn.disabled = false;
+    if (genBtn) genBtn.disabled = false;
+    if (!wasOpen) { pptxDestroyCharts(); const h = $("#pptxHost"); if (h) h.innerHTML = ""; }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   TEMA (claro / escuro / sistema)
+   Não altera nenhum cálculo — apenas a apresentação visual e a cor dos
+   gráficos (que precisam ser recriados porque o Chart.js desenha em canvas
+   e não reage sozinho a variáveis CSS).
+   --------------------------------------------------------------------------- */
+const THEME_KEY = "analise-tributaria-theme";
+function getStoredThemeChoice() {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return v === "light" || v === "dark" ? v : "system";
+  } catch (e) {
+    return "system";
+  }
+}
+function isDarkActive() {
+  const attr = document.documentElement.getAttribute("data-theme");
+  if (attr === "dark") return true;
+  if (attr === "light") return false;
+  return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+function updateThemeToggleUI(choice) {
+  $$(".theme-btn").forEach((b) => {
+    const isActive = b.dataset.themeChoice === choice;
+    b.classList.toggle("active", isActive);
+    b.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+}
+function applyThemeChoice(choice) {
+  document.documentElement.setAttribute("data-theme", choice);
+  try { localStorage.setItem(THEME_KEY, choice); } catch (e) {}
+  updateThemeToggleUI(choice);
+  renderContent(); // re-renderiza a aba atual só para re-temar os gráficos; nenhum dado/cálculo muda
+}
+function initTheme() {
+  const choice = getStoredThemeChoice();
+  updateThemeToggleUI(choice);
+  $$(".theme-btn").forEach((b) => { b.onclick = () => applyThemeChoice(b.dataset.themeChoice); });
+  if (window.matchMedia) {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onSystemChange = () => { if (getStoredThemeChoice() === "system") renderContent(); };
+    if (mq.addEventListener) mq.addEventListener("change", onSystemChange);
+    else if (mq.addListener) mq.addListener(onSystemChange);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   CHARTS (Chart.js)
+   --------------------------------------------------------------------------- */
+let CHARTS = {};
+function destroyCharts() { Object.keys(CHARTS).forEach((k) => { try { CHARTS[k].destroy(); } catch (e) {} }); CHARTS = {}; }
+function buildChartsForActive() {
+  if (typeof Chart === "undefined") return;
+  const r = state.result || computeAll();
+  const dark = isDarkActive();
+  const palette = dark
+    ? { navy: "#3B82F6", blue: "#60A5FA", green: "#22C55E" }
+    : { navy: "#0F2747", blue: "#1769AA", green: "#10A36A" };
+  const gridColor = dark ? "#24344D" : "#E2E8F0";
+  const tickColor = dark ? "#CBD5E1" : "#64748B";
+  const xTickColor = dark ? "#F8FAFC" : "#334155";
+  const tooltipBg = dark ? "#111C2E" : "#0F2747";
+  const tooltipBorder = dark ? "#3B82F6" : "transparent";
+  const labels = ["Simples Normal", "Simples Híbrido", "Lucro Presumido"];
+  const colors = [palette.navy, palette.blue, palette.green];
+  const barCfg = (data, label) => ({
+    type: "bar",
+    data: { labels, datasets: [{ label, data, backgroundColor: colors, borderRadius: 6, maxBarThickness: 74 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: tooltipBg, borderColor: tooltipBorder, borderWidth: dark ? 1 : 0,
+          titleColor: "#fff", bodyColor: "#fff",
+          callbacks: { label: (ctx) => fmtBRL(ctx.parsed.y) },
+        },
+      },
+      scales: {
+        y: { ticks: { callback: (v) => fmtBRL(v), color: tickColor }, grid: { color: gridColor } },
+        x: { ticks: { color: xTickColor, font: { weight: 600 } }, grid: { display: false } },
+      },
+    },
+  });
+  const cvDash = document.getElementById("chartDashboard");
+  if (cvDash) CHARTS.dashboard = new Chart(cvDash, barCfg([r.simples.dasAnual, r.hibrido.totalAnual, r.presumido.totalAnual], "Custo tributário anual (R$)"));
+  const cvCmp = document.getElementById("chartComparativo");
+  if (cvCmp) CHARTS.comparativo = new Chart(cvCmp, barCfg([r.simples.dasMensal, r.hibrido.totalMensal, r.presumido.trimestre.totalTrimestre / 3], "Custo tributário mensal (R$)"));
+
+  const cvComp = document.getElementById("chartHibridoComposicao");
+  if (cvComp) {
+    const h = r.hibrido;
+    CHARTS.hibridoComposicao = new Chart(cvComp, {
+      type: "doughnut",
+      data: {
+        labels: ["DAS sem IBS/CBS", "IBS líquido", "CBS líquido"],
+        datasets: [{ data: [h.dasSemIbsCbs, h.ibsLiquido, h.cbsLiquido], backgroundColor: [palette.navy, palette.blue, palette.green], borderWidth: 0 }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "bottom", labels: { color: xTickColor, font: { size: 11.5 }, boxWidth: 12, padding: 14 } },
+          tooltip: {
+            backgroundColor: tooltipBg, borderColor: tooltipBorder, borderWidth: dark ? 1 : 0,
+            titleColor: "#fff", bodyColor: "#fff",
+            callbacks: { label: (ctx) => ctx.label + ": " + fmtBRL(ctx.parsed) + " (" + fmtPct(h.totalMensal > 0 ? (ctx.parsed / h.totalMensal) * 100 : 0) + ")" },
+          },
+        },
+      },
+    });
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   PERSISTÊNCIA LOCAL (conveniência por visualizador — não sincroniza entre
+   dispositivos nem viewers, apenas evita perder o que foi digitado)
+   --------------------------------------------------------------------------- */
+function saveDraft() {
+  try {
+    const snap = { empresa: state.empresa, simples: state.simples, presumido: state.presumido, equilibrio: state.equilibrio, hibrido: state.hibrido, active: state.active, calculated: state.calculated };
+    localStorage.setItem("analise-tributaria-draft", JSON.stringify(snap));
+  } catch (e) {}
+}
+function migrateCnaeShape(empresa) {
+  // Rascunhos salvos antes desta etapa guardavam o CNAE no formato antigo
+  // {c,d,anexo,ativ}. Descarta esse valor (em vez de exibi-lo quebrado) —
+  // o usuário só precisa selecionar novamente na aba Empresa.
+  if (empresa && empresa.cnae && !empresa.cnae.codigo) empresa.cnae = null;
+}
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem("analise-tributaria-draft");
+    if (!raw) return;
+    const snap = JSON.parse(raw);
+    Object.assign(state.empresa, snap.empresa || {});
+    Object.assign(state.simples, snap.simples || {});
+    Object.assign(state.presumido, snap.presumido || {});
+    Object.assign(state.equilibrio, snap.equilibrio || {});
+    Object.assign(state.hibrido, snap.hibrido || {});
+    if (snap.active) state.active = snap.active;
+    state.calculated = !!snap.calculated;
+    migrateCnaeShape(state.empresa);
+  } catch (e) {}
+}
+function resetState() {
+  state.empresa = { nome: "", cnpj: "", cnae: null, faturamentoMensal: 18000, rbt12Modo: "auto", rbt12Manual: 216000, folha12m: 0, proLabore: 0, anoAnalise: 2026 };
+  state.simples = { anexoModo: "auto", anexoManual: "III" };
+  state.presumido = { atividade: "servicos_gerais", receitaTrimestre: 54000, pisAliq: 0.65, cofinsAliq: 3.0, issAliq: 3.0, majoracao: false, anoProjecao: 2027 };
+  state.equilibrio = { custosFixos: 6000, custosVariaveisPct: 10, contratoBruto: 10000, contratoLiquido: 8500, creditoContratanteAtualPct: 0 };
+  state.hibrido = { anoProjecao: 2033, valorContratoAnual: 216000, creditoIbsPct: 0, creditoCbsPct: 0, creditoContratanteHibridoPct: 100 };
+  state.comparativo = { view: "detalhado" };
+  state.calculated = false;
+  saveDraft();
+  renderContent();
+}
+
+function wireCommonInputs(root) {
+  $$('input[inputmode="decimal"]', root).forEach((inp) => {
+    inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") inp.blur(); });
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   INIT
+   --------------------------------------------------------------------------- */
+function boot(initialState) {
+  if (initialState) {
+    try {
+      Object.assign(state.empresa, initialState.empresa || {});
+      Object.assign(state.simples, initialState.simples || {});
+      Object.assign(state.presumido, initialState.presumido || {});
+      Object.assign(state.equilibrio, initialState.equilibrio || {});
+      Object.assign(state.hibrido, initialState.hibrido || {});
+      if (initialState.active) state.active = initialState.active;
+      state.calculated = !!initialState.calculated;
+      migrateCnaeShape(state.empresa);
+    } catch (e) {}
+  } else {
+    loadDraft();
+  }
+  $("#metaYear").textContent = state.empresa.anoAnalise;
+  $("#metaDate").textContent = todayBR();
+  $("#baseUpdateDate").textContent = todayBR();
+  renderNav();
+  renderContent();
+  initTheme();
+  loadCnaeBase();
+
+  $("#menuToggle").onclick = () => { $("#sidebar").classList.add("open"); $("#scrim").classList.add("open"); };
+  $("#scrim").onclick = closeSidebarMobile;
+}
+
+function currentSnapshot() {
+  return { empresa: state.empresa, simples: state.simples, presumido: state.presumido, equilibrio: state.equilibrio, hibrido: state.hibrido, active: state.active, calculated: state.calculated };
+}
+
+if (window.claude && window.claude.hot) {
+  window.claude.hot.snapshot(() => currentSnapshot());
+  if (window.claude.hot.ready) window.claude.hot.ready((data) => boot(data));
+  else boot(window.claude.hot.data);
+} else {
+  boot(null);
+}
+</script>
