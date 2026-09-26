@@ -32,11 +32,20 @@ const { chromium } = require("playwright");
   console.log("   -> #btnPreviewPdf existe:", hasPreviewBtn ? "OK" : "FALHOU");
   console.log("   -> #btnGerarPdf existe:", hasExportBtn ? "OK" : "FALHOU");
 
+  // Formato padrão é "Resumo Executivo": deck curto (2 páginas), não os 12
+  // slides do deck técnico completo — verificado aqui antes de alternar para
+  // "Detalhado", que é o formato que o restante deste arquivo testa a fundo.
+  const resumoDefsCheck = await page.evaluate(() => buildResumoExecutivoSlideDefs(computeAll()).length);
+  console.log("1b) Formato 'Resumo Executivo' (padrão) gera deck curto:", resumoDefsCheck, resumoDefsCheck <= 2 ? "OK" : "FALHOU");
+
+  await page.click('[data-pdfview="detalhado"]');
+  await page.waitForTimeout(200);
+
   const slideDefsCheck = await page.evaluate(() => {
     const defs = buildPptxSlideDefs(computeAll());
     return { total: defs.length, titles: defs.map((d) => d.title) };
   });
-  console.log("2) buildPptxSlideDefs() gera slides:", JSON.stringify(slideDefsCheck));
+  console.log("2) buildPptxSlideDefs() gera slides (formato Detalhado):", JSON.stringify(slideDefsCheck));
   console.log("   -> entre 10 e 12 slides:", slideDefsCheck.total >= 10 && slideDefsCheck.total <= 12 ? "OK" : "FALHOU");
 
   // ---- Abrir pré-visualização ----

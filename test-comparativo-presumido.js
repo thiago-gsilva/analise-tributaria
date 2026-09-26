@@ -121,8 +121,23 @@ const { chromium } = require("playwright");
 
   const slideListResumo = await page.$$eval("ol li", (els) => els.map((e) => e.textContent));
   console.log("16) Lista de slides (view Resumo):", JSON.stringify(slideListResumo));
-  console.log("    -> título do slide Comparativo é 'resumo executivo':", slideListResumo.some((t) => t.toLowerCase().includes("resumo executivo")) ? "OK" : "FALHOU");
-  console.log("    -> total de slides = 12:", slideListResumo.length === 12 ? "OK" : "FALHOU (" + slideListResumo.length + ")");
+  console.log("    -> total de slides = 2 (deck curto, não os 12 slides do Detalhado):", slideListResumo.length === 2 ? "OK" : "FALHOU (" + slideListResumo.length + ")");
+  console.log("    -> contém slide 'Quanto custa cada cenário':", slideListResumo.some((t) => t.toLowerCase().includes("quanto custa cada cenário")) ? "OK" : "FALHOU");
+  console.log("    -> contém slide de premissas ('Base da simulação'):", slideListResumo.some((t) => t.toLowerCase().includes("base da simulação")) ? "OK" : "FALHOU");
+
+  // Montar o deck curto e checar que ele NÃO contém o detalhamento técnico
+  // (IRPJ/CSLL/DAS/IBS/CBS linha a linha) — só o essencial + premissas.
+  const resumoDeckCheck = await page.evaluate(() => {
+    mountPptxDeck();
+    const slides = Array.from(document.querySelectorAll(".pptx-slide"));
+    const result = { totalSlides: slides.length, fullText: slides.map((s) => s.textContent).join(" | ") };
+    pptxDestroyCharts();
+    document.getElementById("pptxHost").innerHTML = "";
+    return result;
+  });
+  console.log("    -> deck montado (Resumo) tem 2 slides:", resumoDeckCheck.totalSlides === 2 ? "OK" : "FALHOU (" + resumoDeckCheck.totalSlides + ")");
+  console.log("    -> deck montado (Resumo) contém os 3 regimes:", ["Simples Normal", "Simples Híbrido", "Lucro Presumido"].every((n) => resumoDeckCheck.fullText.includes(n)) ? "OK" : "FALHOU");
+  console.log("    -> deck montado (Resumo) NÃO contém 'IRPJ' (sem detalhamento técnico):", !resumoDeckCheck.fullText.includes("IRPJ") ? "OK" : "FALHOU");
 
   await page.click('[data-pdfview="detalhado"]');
   await page.waitForTimeout(200);

@@ -1576,17 +1576,17 @@ function renderRelatorio(root) {
   root.appendChild(card);
 
   const viewCard = el("div", { class: "card" });
-  viewCard.innerHTML = '<div class="card-title">' + icon("layers") + 'Estilo do slide "Comparativo"</div>' +
+  viewCard.innerHTML = '<div class="card-title">' + icon("layers") + 'Formato da apresentação</div>' +
     '<div class="radio-pills" id="pdfViewPills">' +
       '<button type="button" class="radio-pill' + (pdfComparativoView === "resumo" ? " active" : "") + '" data-pdfview="resumo">Resumo Executivo</button>' +
       '<button type="button" class="radio-pill' + (pdfComparativoView === "detalhado" ? " active" : "") + '" data-pdfview="detalhado">Detalhado</button>' +
     '</div>' +
-    '<p class="small muted" style="margin-top:10px">Resumo Executivo (padrão) mostra apenas custo mensal e carga efetiva dos três cenários — recomendado para enviar ao cliente. Detalhado mostra a análise técnica completa (DAS, IRPJ, CSLL, ISS, IBS, CBS).</p>';
+    '<p class="small muted" style="margin-top:10px">Resumo Executivo (padrão) gera um PDF curto (2 páginas): custo mensal e carga efetiva dos três cenários + premissas da simulação — recomendado para enviar ao cliente. Detalhado gera a apresentação técnica completa (12 slides), com DAS, IRPJ, CSLL, ISS, IBS, CBS e memória de cálculo.</p>';
   root.appendChild(viewCard);
 
   const previewCard = el("div", { class: "card" });
-  const defs = buildPptxSlideDefs(r);
-  previewCard.innerHTML = '<div class="card-title">' + icon("filetext") + 'Estrutura da apresentação (' + defs.length + ' slides · 16:9)</div>' +
+  const defs = buildActivePptxSlideDefs(r);
+  previewCard.innerHTML = '<div class="card-title">' + icon("filetext") + 'Estrutura da apresentação (' + defs.length + ' ' + (defs.length === 1 ? "slide" : "slides") + ' · 16:9)</div>' +
     '<ol class="small muted" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;column-count:2;column-gap:28px">' +
     defs.map((d) => '<li>' + escHtml(d.title) + '</li>').join("") +
     '</ol>' +
@@ -1807,8 +1807,57 @@ function pptxBuildChartHibrido(canvas, r) {
   });
 }
 
-/* ---- definição dos 12 slides — apenas leitura de state.result (computeAll);
-   nenhuma regra de cálculo é alterada aqui. ---- */
+/* ---- deck curto (1-2 páginas) para a opção "Resumo Executivo" — pensado
+   para o cliente entender em poucos segundos quanto custa cada cenário, sem
+   o detalhamento técnico (IRPJ/CSLL/DAS/IBS/CBS) do deck completo. Mesma
+   fonte de dados (computeAll()); nenhuma regra de cálculo é alterada aqui. ---- */
+function buildResumoExecutivoSlideDefs(r) {
+  r = r || computeAll();
+  const e = state.empresa;
+  const anexo = ANEXOS[r.simples.anexoUsado];
+  const h = r.hibrido;
+  const t = r.presumido.trimestre;
+  const defs = [];
+
+  defs.push({ kicker: "Resumo Executivo", title: "Quanto custa cada cenário",
+    body: '<div class="pptx-card" style="margin-bottom:14px;padding:14px 18px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">' +
+      '<div><div style="font-size:16px;font-weight:800;color:' + PPTX.navy + '">' + escHtml(e.nome || "Empresa não identificada") + '</div>' +
+      (e.cnpj ? '<div style="font-size:11.5px;color:' + PPTX.textSec + '">CNPJ ' + escHtml(e.cnpj) + '</div>' : "") + '</div>' +
+      '<div style="font-size:12px;color:' + PPTX.textSec + ';text-align:right">Ano-calendário ' + e.anoAnalise + '<br>Elaborado em ' + todayBR() + '</div>' +
+      '</div></div>' +
+      '<div class="pptx-grid pptx-grid-3" style="margin-bottom:16px">' +
+      pptxRegimeSimple("Simples Normal", r.simples.dasMensal, r.simples.cargaEfetivaPct, r.simples.dasAnual, false) +
+      pptxRegimeSimple("Simples Híbrido", h.totalMensal, h.cargaEfetivaPct, h.totalAnual, true) +
+      pptxRegimeSimple("Lucro Presumido", t.totalTrimestre / 3, r.presumido.cargaEfetivaPct, r.presumido.totalAnual, false) +
+      '</div>' +
+      '<div class="pptx-card" style="height:238px"><div class="pptx-card-title">Custo mensal — três cenários</div><div class="pptx-chart-box" style="height:196px"><canvas id="pptxResC1"></canvas></div></div>',
+    charts: [{ id: "pptxResC1", build: pptxBuildChartComparativo }] });
+
+  defs.push({ kicker: "Premissas", title: "Base da simulação",
+    body: '<div class="pptx-grid pptx-grid-2">' +
+      '<div>' +
+      pptxKV("Faturamento mensal", fmtBRL(e.faturamentoMensal)) +
+      pptxKV("RBT12", fmtBRL(r.rbt12) + (e.rbt12Modo === "auto" ? " (automático)" : " (manual)")) +
+      pptxKV("Ano-calendário", String(e.anoAnalise)) +
+      pptxKV("Enquadramento Simples", state.simples.anexoModo === "manual" ? "Manual — " + anexo.nome : "Automático (Fator R) — " + anexo.nome) +
+      '</div>' +
+      '<div>' +
+      pptxKV("Atividade — Lucro Presumido", PRESUNCAO[state.presumido.atividade].label) +
+      pptxKV("Ano de projeção — Presumido", String(t.ano) + (t.substituidoPorCbs ? " (CBS/IBS)" : " (PIS/COFINS)")) +
+      pptxKV("Ano de referência — Híbrido", String(state.hibrido.anoProjecao)) +
+      pptxKV("Crédito IBS / CBS (simulação)", fmtPct(state.hibrido.creditoIbsPct, 1) + " / " + fmtPct(state.hibrido.creditoCbsPct, 1)) +
+      '</div>' +
+      '</div>' +
+      '<div style="height:14px"></div>' +
+      '<div class="pptx-alert pptx-alert-blue">Resultados de uma simulação, com base nos parâmetros acima e na legislação vigente/anunciada para os períodos indicados — não é uma apuração fiscal definitiva. Uma análise técnica completa (com o detalhamento tributário linha a linha, memória de cálculo e fontes legais) está disponível mediante solicitação.</div>' });
+
+  return defs;
+}
+
+/* ---- definição dos 12 slides do deck completo ("Detalhado") — apenas
+   leitura de state.result (computeAll); nenhuma regra de cálculo é alterada
+   aqui. ---- */
 function buildPptxSlideDefs(r) {
   r = r || computeAll();
   const e = state.empresa;
@@ -1906,33 +1955,25 @@ function buildPptxSlideDefs(r) {
       '</div>' +
       '<p style="font-size:10.5px;color:' + PPTX.textSec + ';margin-top:8px">Total do trimestre: ' + fmtBRL(t.totalTrimestre) + ' · Total mensal equivalente: ' + fmtBRL(t.totalTrimestre / 3) + ' · Total anual: ' + fmtBRL(r.presumido.totalAnual) + (t.substituidoPorCbs ? ' · Ano de projeção IBS/CBS: ' + t.ano : '') + '</p>' });
 
-  if (pdfComparativoView === "detalhado") {
-    defs.push({ kicker: "Comparativo — detalhado", title: "Custo mensal, anual e carga efetiva",
-      body: '<div class="pptx-card" style="margin-bottom:12px">' + pptxTable(
-        ["Item", "Simples Normal", "Simples Híbrido", "Presumido"],
-        [
-          { cells: ["DAS", fmtBRL(r.simples.dasMensal), fmtBRL(h.dasSemIbsCbs) + " (sem IBS/CBS)", "—"] },
-          { cells: ["IBS", fmtBRL((pv.ICMS || 0) + (pv.ISS || 0)) + " (no DAS)", fmtBRL(h.ibsDebito), t.substituidoPorCbs ? fmtBRL(t.ibs / 3) : "não aplicável antes de 2027"] },
-          { cells: ["CBS", fmtBRL((pv.COFINS || 0) + (pv.PIS || 0)) + " (no DAS)", fmtBRL(h.cbsDebito), t.substituidoPorCbs ? fmtBRL(t.cbs / 3) : "não aplicável antes de 2027"] },
-          { cells: ["PIS + COFINS", "—", "—", t.substituidoPorCbs ? "extinto (CBS a partir de 2027)" : fmtBRL((t.pis + t.cofins) / 3)] },
-          { cells: ["Créditos IBS/CBS", "—", "− " + fmtBRL(h.creditoIbs + h.creditoCbs), "—"] },
-          { cells: ["Total mensal", fmtBRL(r.simples.dasMensal), fmtBRL(h.totalMensal), fmtBRL(t.totalTrimestre / 3)], total: true },
-          { cells: ["Total anual", fmtBRL(r.simples.dasAnual), fmtBRL(h.totalAnual), fmtBRL(r.presumido.totalAnual)], total: true },
-          { cells: ["Carga efetiva", fmtPct(r.simples.cargaEfetivaPct), fmtPct(h.cargaEfetivaPct), fmtPct(r.presumido.cargaEfetivaPct)], total: true },
-        ]
-      ) + '</div>' +
-        '<div class="pptx-card" style="height:158px"><div class="pptx-card-title">Custo mensal — três cenários</div><div class="pptx-chart-box" style="height:118px"><canvas id="pptxC3"></canvas></div></div>',
-      charts: [{ id: "pptxC3", build: pptxBuildChartComparativo }] });
-  } else {
-    defs.push({ kicker: "Comparativo", title: "Quanto custa cada cenário — resumo executivo",
-      body: '<div class="pptx-grid pptx-grid-3" style="margin-bottom:20px">' +
-        pptxRegimeSimple("Simples Normal", r.simples.dasMensal, r.simples.cargaEfetivaPct, r.simples.dasAnual, false) +
-        pptxRegimeSimple("Simples Híbrido", h.totalMensal, h.cargaEfetivaPct, h.totalAnual, true) +
-        pptxRegimeSimple("Lucro Presumido", t.totalTrimestre / 3, r.presumido.cargaEfetivaPct, r.presumido.totalAnual, false) +
-        '</div>' +
-        '<div class="pptx-card" style="height:238px"><div class="pptx-card-title">Custo mensal — três cenários</div><div class="pptx-chart-box" style="height:196px"><canvas id="pptxC3"></canvas></div></div>',
-      charts: [{ id: "pptxC3", build: pptxBuildChartComparativo }] });
-  }
+  // Este deck completo (12 slides) é usado apenas na opção "Detalhado" —
+  // a opção "Resumo Executivo" usa buildResumoExecutivoSlideDefs(), um deck
+  // à parte, curto (1-2 páginas), e não passa por aqui.
+  defs.push({ kicker: "Comparativo — detalhado", title: "Custo mensal, anual e carga efetiva",
+    body: '<div class="pptx-card" style="margin-bottom:12px">' + pptxTable(
+      ["Item", "Simples Normal", "Simples Híbrido", "Presumido"],
+      [
+        { cells: ["DAS", fmtBRL(r.simples.dasMensal), fmtBRL(h.dasSemIbsCbs) + " (sem IBS/CBS)", "—"] },
+        { cells: ["IBS", fmtBRL((pv.ICMS || 0) + (pv.ISS || 0)) + " (no DAS)", fmtBRL(h.ibsDebito), t.substituidoPorCbs ? fmtBRL(t.ibs / 3) : "não aplicável antes de 2027"] },
+        { cells: ["CBS", fmtBRL((pv.COFINS || 0) + (pv.PIS || 0)) + " (no DAS)", fmtBRL(h.cbsDebito), t.substituidoPorCbs ? fmtBRL(t.cbs / 3) : "não aplicável antes de 2027"] },
+        { cells: ["PIS + COFINS", "—", "—", t.substituidoPorCbs ? "extinto (CBS a partir de 2027)" : fmtBRL((t.pis + t.cofins) / 3)] },
+        { cells: ["Créditos IBS/CBS", "—", "− " + fmtBRL(h.creditoIbs + h.creditoCbs), "—"] },
+        { cells: ["Total mensal", fmtBRL(r.simples.dasMensal), fmtBRL(h.totalMensal), fmtBRL(t.totalTrimestre / 3)], total: true },
+        { cells: ["Total anual", fmtBRL(r.simples.dasAnual), fmtBRL(h.totalAnual), fmtBRL(r.presumido.totalAnual)], total: true },
+        { cells: ["Carga efetiva", fmtPct(r.simples.cargaEfetivaPct), fmtPct(h.cargaEfetivaPct), fmtPct(r.presumido.cargaEfetivaPct)], total: true },
+      ]
+    ) + '</div>' +
+      '<div class="pptx-card" style="height:158px"><div class="pptx-card-title">Custo mensal — três cenários</div><div class="pptx-chart-box" style="height:118px"><canvas id="pptxC3"></canvas></div></div>',
+    charts: [{ id: "pptxC3", build: pptxBuildChartComparativo }] });
 
   const rbt12 = r.rbt12;
   const simIII = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey: "III" });
@@ -2012,6 +2053,15 @@ function buildPptxSlideDefs(r) {
   return defs;
 }
 
+/* ---- escolhe o deck conforme a opção do usuário: "resumo" → deck curto
+   (buildResumoExecutivoSlideDefs, 1-2 páginas); "detalhado" → deck completo
+   (buildPptxSlideDefs, 12 slides). Usado tanto pela lista de estrutura da
+   aba Relatório PDF quanto pela montagem real (preview/exportação), para
+   nunca divergirem. ---- */
+function buildActivePptxSlideDefs(r) {
+  return pdfComparativoView === "detalhado" ? buildPptxSlideDefs(r) : buildResumoExecutivoSlideDefs(r);
+}
+
 /* ---- montagem do "deck" (DOM) — usado tanto pela pré-visualização quanto
    pela exportação, garantindo que o PDF exportado seja idêntico ao que foi
    revisado na tela. ---- */
@@ -2031,7 +2081,7 @@ function mountPptxDeck() {
   pptxDestroyCharts();
   const host = getPptxHost();
   host.innerHTML = "";
-  const defs = buildPptxSlideDefs(r);
+  const defs = buildActivePptxSlideDefs(r);
   const total = defs.length;
   defs.forEach((d, i) => {
     const slideEl = document.createElement("div");
