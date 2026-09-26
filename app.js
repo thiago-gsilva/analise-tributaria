@@ -2147,19 +2147,57 @@ async function exportPptxPdf() {
       doc.addImage(img, "JPEG", 0, 0, PPTX_W, PPTX_H);
     }
     const blob = doc.output("blob");
-    const downloads = (window.claude && window.claude.use) ? await window.claude.use("downloads") : null;
-    const filename = "analise-tributaria-apresentacao-" + (state.empresa.nome ? slugify(state.empresa.nome) + "-" : "") + new Date().toISOString().slice(0, 10) + ".pdf";
-    if (downloads) {
-      const res = await downloads.save({ filename, data: blob });
+    // O nome do arquivo inclui a variante do slide "Comparativo" (resumo ou
+    // detalhado) e um horário (não só a data) para nunca colidir entre duas
+    // exportações no mesmo dia — sem isso, o navegador salva a segunda como
+    // "... (1).pdf" e é fácil reabrir por engano o arquivo antigo, dando a
+    // impressão de que a alternância de opção não teve efeito.
+    const now = new Date();
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const dataHora = now.toISOString().slice(0, 10) + "-" + pad2(now.getHours()) + pad2(now.getMinutes()) + pad2(now.getSeconds());
+    const sufixoView = pdfComparativoView === "detalhado" ? "detalhado" : "resumo";
+    const filename = "analise-tributaria-apresentacao-" + (state.empresa.nome ? slugify(state.empresa.nome) + "-" : "") + sufixoView + "-" + dataHora + ".pdf";
+
+    // Ambiente com a capability "downloads" do claude.ai disponível (artifact
+    // publicado e visualizado dentro do claude.ai): usa o fluxo nativo, que
+    // pede confirmação ao usuário antes de salvar/entregar o arquivo.
+    let claudeDownloads = null;
+    try {
+      claudeDownloads = (window.claude && typeof window.claude.use === "function") ? await window.claude.use("downloads") : null;
+    } catch (capErr) {
+      claudeDownloads = null;
+    }
+
+    if (claudeDownloads) {
+      const res = await claudeDownloads.save({ filename, data: blob });
       if (statusEl) statusEl.innerHTML = alertBox("green", "check", res.status === "delivered" ? "Apresentação em PDF entregue com sucesso." : "Apresentação em PDF salva com sucesso.");
-    } else {
-      throw new Error("unavailable");
+      return;
+    }
+
+    // Fora do claude.ai (arquivo aberto diretamente, hospedado no próprio
+    // site/GitHub Pages do escritório, etc.): não existe a capability acima,
+    // então usamos o download padrão do navegador (link temporário para um
+    // Blob local — nada é enviado a nenhum servidor).
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      if (statusEl) statusEl.innerHTML = alertBox("green", "check", "Apresentação em PDF baixada com sucesso (verifique a pasta de downloads do navegador).");
+    } catch (dlErr) {
+      throw new Error("Falha ao iniciar o download no navegador: " + (dlErr && dlErr.message ? dlErr.message : dlErr));
     }
   } catch (err) {
     const code = err && err.code;
-    let msg = "Não foi possível gerar/entregar a apresentação automaticamente nesta visualização.";
+    let msg = "Não foi possível gerar a apresentação em PDF.";
     if (code === "declined") msg = "O download foi cancelado.";
     else if (code === "too_large") msg = "O arquivo gerado é muito grande para esta forma de entrega.";
+    else if (err && err.message) msg = "Não foi possível gerar a apresentação em PDF (" + err.message + ").";
+    console.error("Falha ao exportar apresentação em PDF:", err);
     if (statusEl) statusEl.innerHTML = alertBox("yellow", "alert", msg);
   } finally {
     if (exportBtn) exportBtn.disabled = false;

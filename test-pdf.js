@@ -171,18 +171,28 @@ const { chromium } = require("playwright");
   console.log("    -> formato de página 16:9 (1280×720 pt):", pdfBuildCheck.pageW === 1280 && pdfBuildCheck.pageH === 720 ? "OK" : "FALHOU");
   console.log("    -> blob gerado com tamanho > 0:", pdfBuildCheck.blobSize > 0 ? "OK (" + (pdfBuildCheck.blobSize / 1024 / 1024).toFixed(2) + " MB)" : "FALHOU");
 
-  // ---- Fluxo de exportação real pelo botão (mensagem amigável esperada, já
-  //      que window.claude.use("downloads") não existe neste ambiente) ----
+  // ---- Fluxo de exportação real pelo botão. Sem window.claude (fora do
+  //      claude.ai) o código cai no fallback de download padrão do navegador
+  //      (Blob + <a download>) — verificamos que o evento de download do
+  //      Chromium realmente dispara, com um PDF de tamanho > 0. ----
   const exportT0 = Date.now();
-  await page.click("#btnGerarPdf");
+  const [download] = await Promise.all([
+    page.waitForEvent("download", { timeout: 30000 }),
+    page.click("#btnGerarPdf"),
+  ]);
+  console.log("(exportação via botão levou " + (Date.now() - exportT0) + "ms)");
+  console.log("13) Download disparado pelo botão 'Exportar PDF':", download ? "OK" : "FALHOU");
+  console.log("    -> nome do arquivo termina em .pdf:", /\.pdf$/.test(download.suggestedFilename()) ? "OK (" + download.suggestedFilename() + ")" : "FALHOU");
+  const dlPath = await download.path();
+  const dlSize = dlPath ? require("fs").statSync(dlPath).size : 0;
+  console.log("    -> arquivo baixado com tamanho > 0:", dlSize > 0 ? "OK (" + (dlSize / 1024 / 1024).toFixed(2) + " MB)" : "FALHOU");
   await page.waitForFunction(() => {
     const t = document.getElementById("pdfStatus").innerText;
     return t && !t.includes("Gerando");
-  }, { timeout: 30000 }).catch(() => {});
-  console.log("(exportação via botão levou " + (Date.now() - exportT0) + "ms)");
+  }, { timeout: 10000 }).catch(() => {});
   const statusAfterExport = await page.evaluate(() => document.getElementById("pdfStatus").innerText);
-  console.log("13) Status após clicar 'Exportar PDF' (sem downloads.save neste teste):", statusAfterExport);
-  console.log("    -> exibe mensagem (sucesso ou aviso amigável), sem travar a UI:", statusAfterExport && statusAfterExport.length > 0 ? "OK" : "FALHOU");
+  console.log("    -> mensagem de status pós-download:", statusAfterExport);
+  console.log("    -> exibe mensagem de sucesso, sem travar a UI:", /sucesso/i.test(statusAfterExport) ? "OK" : "FALHOU");
   const exportBtnEnabled = await page.evaluate(() => !document.getElementById("btnGerarPdf").disabled);
   console.log("    -> botão reabilitado após a tentativa:", exportBtnEnabled ? "OK" : "FALHOU");
 

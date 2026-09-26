@@ -92,18 +92,24 @@ const fs = require("fs");
   const peShown = await page.$eval("#content", (c) => c.textContent.includes("Receita de equilíbrio"));
   console.log("Ponto de equilíbrio exibido:", peShown);
 
-  // 8) Testar geração do PDF em slides (via downloads capability ausente -> deve
-  //    cair no catch e mostrar alerta amarelo, SEM travar). Cobertura completa
-  //    do fluxo de apresentação/slides está em test-pdf.js; aqui é só regressão.
+  // 8) Testar geração do PDF em slides (sem capability "downloads" do
+  //    claude.ai disponível neste teste -> cai no fallback de download padrão
+  //    do navegador). Cobertura completa do fluxo de apresentação/slides está
+  //    em test-pdf.js; aqui é só regressão, então tratamos o download como
+  //    best-effort dado o limite conhecido de CORS deste teste via file://.
   await (await page.$$(".nav-item"))[9].click();
   await page.waitForTimeout(150);
-  await page.click("#btnGerarPdf");
+  const [fullDownload] = await Promise.all([
+    page.waitForEvent("download", { timeout: 30000 }).catch(() => null),
+    page.click("#btnGerarPdf"),
+  ]);
   await page.waitForFunction(() => {
     const t = document.getElementById("pdfStatus").innerText;
     return t && !t.includes("Gerando");
   }, { timeout: 30000 }).catch(() => {});
   const pdfStatus = await page.$eval("#pdfStatus", (el) => el.textContent).catch(() => "N/A");
-  console.log("Status após gerar PDF (sem capability 'downloads' disponível neste teste):", pdfStatus);
+  console.log("Download dos slides disparado:", fullDownload ? "OK (" + fullDownload.suggestedFilename() + ")" : "não disparou (ambiente file:// / CORS)");
+  console.log("Status após gerar PDF:", pdfStatus);
 
   // 9) Testar geração pura do PDF em slides (html2canvas + jsPDF), chamando o
   //    deck diretamente (sem downloads.save)
