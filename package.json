@@ -6,7 +6,7 @@
   "scripts": {
     "build": "python3 build.py",
     "serve": "python3 -m http.server 8791",
-    "test": "node test-cnae.js && node test-hibrido.js && node test-pdf.js && node test-comparativo-presumido.js"
+    "test": "node test-cnae.js && node test-hibrido.js && node test-pdf.js && node test-comparativo-presumido.js && node test-classificacao-cnae.js"
   },
   "dependencies": {
     "chart.js": "4.4.4",

@@ -737,14 +737,17 @@ const PRESUNCAO = {
   construcao_com_material: { irpj: 8, csll: 12, label: "Construção civil (empreitada c/ material)" },
   servicos_gerais: { irpj: 32, csll: 32, label: "Serviços profissionais / gerais" },
   servicos_ate_120k: { irpj: 16, csll: 32, label: "Serviços gerais — RBAA até R$ 120 mil/ano" },
+  instituicoes_financeiras: { irpj: 16, csll: 12, label: "Instituições financeiras e equiparadas" },
 };
 
 // Base de CNAEs — classificação oficial CONCLA/IBGE (CNAE 2.3), carregada de
 // /data/cnaes.json (ou de um arquivo JSON/CSV oficial importado pelo usuário).
-// Esta base é puramente classificatória: NÃO determina automaticamente o
-// Anexo do Simples Nacional nem a atividade do Lucro Presumido — essas
-// definições usam exclusivamente a base tributária já existente no projeto
-// (ANEXOS, PRESUNCAO, motor de Fator R) e a escolha explícita do usuário.
+// A partir do complemento "CNAE → Atividade → Presunção → IBS/CBS" (pedido
+// explícito do usuário), esta base ALIMENTA automaticamente, quando possível
+// com confiança, o Anexo do Simples Nacional, a atividade do Lucro Presumido
+// e o tratamento de IBS/CBS — ver classificarPorCnae(), mais abaixo, e a
+// seção 7 (revisada) do CONTEXTO-PROJETO-ANALISE-TRIBUTARIA.md. O usuário
+// pode sempre substituir manualmente qualquer valor derivado.
 let CNAE_DATA = null; // { meta, secoes[], divisoes[], grupos[], classes[], subclasses[] }
 const CNAE_STATUS = {
   estado: "carregando", // "carregando" | "ok" | "erro"
@@ -981,17 +984,417 @@ const IBS_CBS_CRONOGRAMA = [
 ];
 const ALIQUOTA_REF_ESTIMADA = 26.5; // teto de referência (EC 132/2023); CGIBS estimou preliminarmente 27,91% — sujeito a resolução do Senado Federal, por isso tratado como hipótese.
 
+/* ---------------------------------------------------------------------------
+   TRATAMENTOS TRIBUTÁRIOS DIFERENCIADOS DE IBS/CBS (LC 214/2025)
+   ---------------------------------------------------------------------------
+   IBS e CBS não incidem sempre à alíquota de referência do cronograma
+   (IBS_CBS_CRONOGRAMA) — a LC 214/2025 prevê reduções de alíquota,
+   isenções (alíquota zero) e regimes específicos conforme a natureza da
+   operação/atividade/produto. Esta tabela representa CATEGORIAS de
+   tratamento, cada uma com um percentual de REDUÇÃO sobre a alíquota de
+   referência (nunca uma alíquota nova inventada). `reducaoPct: null` marca
+   os casos em que a redução não pode ser expressa como um percentual único
+   (regime específico) ou em que a regra ainda não pode ser determinada
+   automaticamente — nesses casos o sistema NUNCA assume um benefício por
+   conta própria; mantém a alíquota cheia até o usuário confirmar/ajustar
+   (ver aplicarTratamentoIbsCbs()). Cada entrada tem status "oficial" (base
+   legal clara e específica) ou "hipotese" (existência da regra é oficial,
+   mas o enquadramento exato do caso concreto exige confirmação).
+   --------------------------------------------------------------------------- */
+const IBS_CBS_TRATAMENTOS = {
+  padrao: {
+    label: "Regime padrão — sem redução",
+    tipo: "padrao",
+    reducaoPct: 0,
+    fonte: "Alíquota de referência do cronograma de transição do IBS/CBS (EC 132/2023, LC 214/2025)",
+    status: "oficial",
+    observacao: "Use quando a operação não se enquadra em nenhum regime diferenciado, de redução ou de isenção previsto na LC 214/2025.",
+  },
+  reducao60: {
+    label: "Redução de 60% da alíquota (Anexo II)",
+    tipo: "reducao",
+    reducaoPct: 60,
+    fonte: "LC 214/2025, art. 126 e Anexo II — serviços de saúde e planos de assistência à saúde, educação, dispositivos médicos e de acessibilidade, medicamentos de lista específica, insumos e produtos agropecuários/aquícolas, produções artísticas/culturais/jornalísticas nacionais, atividades desportivas, entre outros itens do Anexo II",
+    status: "oficial",
+    observacao: "Confirmar se a atividade/produto específico consta efetivamente da lista do Anexo II antes de aplicar — nem toda a atividade do setor está necessariamente incluída.",
+  },
+  reducao100_cesta: {
+    label: "Redução de 100% (alíquota zero) — Cesta Básica Nacional de Alimentos",
+    tipo: "isencao",
+    reducaoPct: 100,
+    fonte: "LC 214/2025, art. 125 e Anexo I — Cesta Básica Nacional de Alimentos",
+    status: "oficial",
+    observacao: "Aplicável apenas aos produtos efetivamente listados no Anexo I da LC 214/2025 (não ao CNAE/atividade da empresa como um todo).",
+  },
+  reducao100_outros: {
+    label: "Redução de 100% (alíquota zero) — outras hipóteses de isenção",
+    tipo: "isencao",
+    reducaoPct: 100,
+    fonte: "LC 214/2025 — hipóteses específicas de alíquota zero (ex.: dispositivos médicos e de acessibilidade para pessoas com deficiência, medicamentos de lista específica do Anexo XII, produtor rural pessoa física/segurado especial dentro dos limites legais)",
+    status: "hipotese",
+    observacao: "Regra recente, dependente de regulamentação infralegal complementar — confirmar o enquadramento exato antes de aplicar em casos reais.",
+  },
+  reducao30_liberal: {
+    label: "Redução de 30% — sociedade profissional / profissão intelectual regulamentada",
+    tipo: "reducao",
+    reducaoPct: 30,
+    fonte: "LC 214/2025 — regime específico para sociedades uniprofissionais e serviços prestados por profissional sujeito a fiscalização por conselho de classe (ex.: advocacia, contabilidade, engenharia, medicina, entre outras profissões regulamentadas)",
+    status: "hipotese",
+    observacao: "Percentual e abrangência exata dependem de regulamentação complementar e do enquadramento societário do prestador — confirmar antes de aplicar em casos reais.",
+  },
+  regime_especifico: {
+    label: "Regime específico (apuração própria) — combustíveis, serviços financeiros, planos de saúde, bens imóveis, entre outros",
+    tipo: "especifico",
+    reducaoPct: null,
+    fonte: "LC 214/2025 — regimes específicos com metodologia de apuração própria (não redutível a um percentual simples sobre a alíquota de referência)",
+    status: "hipotese",
+    observacao: "Estes regimes não seguem a lógica de \"alíquota padrão − redução\"; a apuração real exige metodologia própria, fora do escopo desta ferramenta. Até confirmação, o sistema mantém a alíquota cheia (sem redução) — trate o valor calculado aqui apenas como referência.",
+  },
+  outro_confirmar: {
+    label: "Não identificado automaticamente — confirmar tratamento aplicável",
+    tipo: "confirmar",
+    reducaoPct: null,
+    fonte: "Nenhuma regra automática aplicada — depende da análise do enquadramento específico da operação",
+    status: "hipotese",
+    observacao: "Selecione manualmente o tratamento aplicável acima, ou informe diretamente a alíquota efetiva, com base na análise da atividade/produto/operação. Até lá, o sistema mantém a alíquota cheia (sem redução) como premissa.",
+  },
+};
+
+// Aplica o tratamento tributário selecionado (redução/benefício/regime
+// específico) sobre a alíquota de REFERÊNCIA de um ano do cronograma
+// IBS_CBS_CRONOGRAMA, retornando a composição completa: alíquota de
+// referência, redução aplicada e alíquota efetiva de IBS e de CBS
+// separadamente. Função pura e genérica — usada tanto pelo Simples Híbrido
+// quanto pelo Lucro Presumido, para que a mesma regra de negócio nunca
+// divirja entre as duas telas. Se o usuário informar uma alíquota efetiva
+// TOTAL (IBS+CBS) manualmente, ela tem prioridade sobre o percentual de
+// redução do tratamento selecionado — mantendo a MESMA proporção relativa
+// entre IBS e CBS da alíquota de referência (não inventa uma nova
+// composição entre os dois tributos).
+function aplicarTratamentoIbsCbs(cronoAno, tratamento, aliquotaEfetivaManualPct) {
+  const trat = tratamento || IBS_CBS_TRATAMENTOS.padrao;
+  const ibsRefPct = (cronoAno && cronoAno.ibs) || 0;
+  const cbsRefPct = (cronoAno && cronoAno.cbs) || 0;
+  const refTotalPct = ibsRefPct + cbsRefPct;
+  const manual = aliquotaEfetivaManualPct != null && aliquotaEfetivaManualPct !== "" && isFinite(aliquotaEfetivaManualPct);
+  let ibsEfetivoPct, cbsEfetivoPct, reducaoAplicadaPct;
+  if (manual) {
+    const alvo = Math.max(parseFloat(aliquotaEfetivaManualPct), 0);
+    const fator = refTotalPct > 0 ? alvo / refTotalPct : 0;
+    ibsEfetivoPct = ibsRefPct * fator;
+    cbsEfetivoPct = cbsRefPct * fator;
+    reducaoAplicadaPct = refTotalPct > 0 ? Math.max(0, (1 - fator) * 100) : 0;
+  } else {
+    // Regimes "especifico"/"confirmar" não têm reducaoPct definido — sem
+    // confirmação do usuário, NUNCA assumimos benefício: tratamos como 0%
+    // de redução (alíquota cheia) até que o usuário ajuste manualmente.
+    reducaoAplicadaPct = trat.reducaoPct != null ? trat.reducaoPct : 0;
+    const fatorReducao = 1 - reducaoAplicadaPct / 100;
+    ibsEfetivoPct = ibsRefPct * fatorReducao;
+    cbsEfetivoPct = cbsRefPct * fatorReducao;
+  }
+  return {
+    tratamento: trat, ibsRefPct, cbsRefPct, refTotalPct,
+    ibsEfetivoPct, cbsEfetivoPct, efetivoTotalPct: ibsEfetivoPct + cbsEfetivoPct,
+    reducaoAplicadaPct, manual,
+  };
+}
+function tratamentoIbsCbsAtual() {
+  return IBS_CBS_TRATAMENTOS[tratamentoIbsCbsKeyAtual()] || IBS_CBS_TRATAMENTOS.padrao;
+}
+// NOTA: a antiga sugestão por palavras-chave (meramente informativa, nunca
+// aplicada automaticamente) foi substituída pelo motor de classificação por
+// CNAE abaixo (classificarPorCnae()), que aplica automaticamente quando a
+// classificação não estiver pendente de confirmação complementar — ver
+// seção 7 (revisada) do CONTEXTO-PROJETO-ANALISE-TRIBUTARIA.md.
+
+/* ---------------------------------------------------------------------------
+   CLASSIFICAÇÃO TRIBUTÁRIA AUTOMÁTICA A PARTIR DO CNAE
+   ---------------------------------------------------------------------------
+   Complemento solicitado explicitamente pelo usuário: a classificação
+   tributária deve ser o mais automática possível a partir do CNAE informado
+   (CNAE → Atividade → Presunção do Lucro Presumido → Tratamento IBS/CBS),
+   eliminando o preenchimento manual sempre que a informação puder ser obtida
+   de forma confiável. Isso substitui, por pedido explícito do usuário nesta
+   mensagem, a regra de desacoplamento anterior (documentada na seção 7 do
+   contexto do projeto) — ver CONTEXTO-PROJETO-ANALISE-TRIBUTARIA.md.
+
+   Princípios mantidos (nunca revertidos):
+   - Nenhuma classificação é inventada: cada resultado carrega sua fonte
+     legal e seu nível de confiança ("alta"/"media"/"baixa"), sempre visível
+     na interface, e pode ser substituído manualmente a qualquer momento.
+   - Quando a legislação exige uma informação que o CNAE, isoladamente, não
+     permite obter (ex.: empreitada com ou sem material; conceito restritivo
+     de "serviços hospitalares"), o sistema NUNCA assume uma resposta — ele
+     sinaliza a pendência (`pendencias`) e pede a confirmação complementar
+     objetiva definida em COMPLEMENTOS_CLASSIFICACAO. Enquanto não
+     respondida, o valor efetivo permanece o mesmo que já estava em uso
+     antes da seleção do CNAE (nunca um valor inventado).
+   --------------------------------------------------------------------------- */
+
+// Perguntas complementares objetivas — usadas apenas quando o CNAE,
+// isoladamente, não permite determinar a classificação com segurança.
+// Resposta do usuário fica registrada em state.classificacaoComplementos
+// (por id da pergunta) e é citada na memória de cálculo.
+const COMPLEMENTOS_CLASSIFICACAO = {
+  construcaoMaterial: {
+    pergunta: "A empreitada de construção civil inclui fornecimento de material pelo prestador?",
+    opcoes: [
+      { value: "com_material", label: "Sim — empreitada com fornecimento de material" },
+      { value: "sem_material", label: "Não — apenas mão de obra (empreitada de lavor/administração)" },
+    ],
+    explicacao: "A presunção de IRPJ/CSLL do Lucro Presumido é diferente conforme a empreitada inclua ou não o fornecimento de material pelo próprio prestador (Lei 9.249/1995, art. 15) — o CNAE de construção civil, isoladamente, não permite determinar isso.",
+  },
+  servicosHospitalares: {
+    pergunta: 'A atividade atende ao conceito restritivo de "serviços hospitalares" da Receita Federal (estrutura com internação, UTI, urgência, apoio diagnóstico/terapêutico etc.)?',
+    opcoes: [
+      { value: "sim_hospitalar", label: "Sim — atende à definição restritiva de serviços hospitalares" },
+      { value: "nao_consultorio", label: "Não — consultório/clínica simples, sem essa estrutura" },
+    ],
+    explicacao: 'A Receita Federal adota um conceito restritivo de "serviços hospitalares" para fins da presunção reduzida de 8%/12% — muitos consultórios e clínicas simples NÃO se enquadram e devem usar a presunção geral de serviços (32%/32%). O CNAE de atividades de saúde (Divisão 86), isoladamente, não permite essa distinção.',
+  },
+  transporteAquaviario: {
+    pergunta: "O transporte aquaviário realizado é de cargas ou de passageiros?",
+    opcoes: [
+      { value: "cargas", label: "Cargas" },
+      { value: "passageiros", label: "Passageiros" },
+    ],
+    explicacao: "A presunção de IRPJ do Lucro Presumido é diferente para transporte de cargas (8%) e de passageiros (16%) — o CNAE de transporte aquaviário, isoladamente, não permite essa distinção.",
+  },
+  profissaoRegulamentada: {
+    pergunta: "A empresa presta serviço como sociedade uniprofissional ou por profissional sujeito à fiscalização por conselho de classe (ex.: advocacia, contabilidade, engenharia, medicina, arquitetura)?",
+    opcoes: [
+      { value: "sim_regulamentada", label: "Sim" },
+      { value: "nao_regulamentada", label: "Não / não se aplica" },
+    ],
+    explicacao: "A eventual redução de 30% de IBS/CBS para profissões intelectuais regulamentadas (LC 214/2025) depende do enquadramento societário e profissional do prestador, que o CNAE, isoladamente, não permite confirmar.",
+  },
+  atividadeImobiliaria: {
+    pergunta: "Qual a natureza principal da atividade imobiliária?",
+    opcoes: [
+      { value: "venda_imoveis", label: "Compra e venda de imóveis próprios (loteamento/incorporação/revenda)" },
+      { value: "locacao_imoveis", label: "Locação de imóveis próprios" },
+      { value: "intermediacao", label: "Intermediação/administração de imóveis de terceiros" },
+    ],
+    explicacao: "O IBS/CBS possui regime específico próprio para operações com bens imóveis (LC 214/2025), e a presunção de IRPJ/CSLL do Lucro Presumido também varia conforme a operação seja venda, locação ou intermediação — o CNAE de atividades imobiliárias, isoladamente, não permite essa distinção.",
+  },
+};
+
+// Resolve um "aspecto" (presunção OU tratamento de IBS/CBS) de uma regra de
+// classificação: se a regra depende de uma pergunta complementar ainda não
+// respondida, retorna { pendente:true } (nenhum valor é assumido); caso
+// contrário, retorna o valor já resolvido com fonte/confiança.
+function resolverAspectoClassificacao(spec) {
+  if (!spec) return null;
+  if (spec.modo === "complemento") {
+    const resposta = state.classificacaoComplementos[spec.complemento];
+    if (resposta && spec.resolucoes[resposta]) return Object.assign({ pendente: false, complemento: spec.complemento }, spec.resolucoes[resposta]);
+    return { pendente: true, complemento: spec.complemento };
+  }
+  return { pendente: false, key: spec.key, confianca: spec.confianca, fonte: spec.fonte, motivo: spec.motivo };
+}
+
+function montaClassificacao(cnae, spec) {
+  const presuncao = resolverAspectoClassificacao(spec.presuncao);
+  const ibscbs = resolverAspectoClassificacao(spec.ibscbs);
+  const pendencias = [];
+  if (presuncao && presuncao.pendente) pendencias.push(Object.assign({ aspecto: "presuncao" }, COMPLEMENTOS_CLASSIFICACAO[presuncao.complemento], { id: presuncao.complemento }));
+  if (ibscbs && ibscbs.pendente) pendencias.push(Object.assign({ aspecto: "ibscbs" }, COMPLEMENTOS_CLASSIFICACAO[ibscbs.complemento], { id: ibscbs.complemento }));
+  return { cnae, hierarquia: cnaeHierarquia(cnae), natureza: spec.natureza, presuncao, ibscbs, pendencias };
+}
+
+// Regra de classificação por CNAE — resolvida a partir da Seção/Divisão/
+// Grupo/Classe do CNAE selecionado (mais específico prevalece sobre o
+// genérico da Seção). Cada regra é fundamentada e traz seu próprio nível de
+// confiança; nada aqui é uma alíquota nova — apenas a escolha, com fonte
+// explícita, de qual entrada de PRESUNCAO/IBS_CBS_TRATAMENTOS já existente
+// se aplica.
+function classificarPorCnae() {
+  const cnae = state.empresa.cnae;
+  if (!cnae) return null;
+  const secao = cnae.secao, divisao = cnae.divisao, grupo = cnae.grupo;
+  const classeDigits = (cnae.classe || "").replace(/\D/g, "").slice(0, 4);
+
+  // ---- Comércio varejista/atacadista de combustíveis (regra específica) ----
+  if (grupo === "473" || classeDigits === "4681") {
+    return montaClassificacao(cnae, {
+      natureza: "comercio",
+      presuncao: { modo: "direto", key: "revenda_combustiveis", confianca: "alta", fonte: 'Lei 9.249/1995, art. 15, §1º, I, "b"', motivo: "Grupo/classe de comércio de combustíveis — presunção reduzida de 1,6% de IRPJ." },
+      ibscbs: { modo: "direto", key: "regime_especifico", confianca: "media", fonte: "LC 214/2025 — combustíveis possuem regime monofásico próprio de IBS/CBS", motivo: "Combustíveis não seguem a lógica padrão de alíquota de referência menos redução — confirme a apuração específica aplicável antes de usar o valor calculado como definitivo." },
+    });
+  }
+  // ---- Transporte terrestre/aéreo de passageiros ----
+  if (grupo === "492" || grupo === "511" || grupo === "495") {
+    return montaClassificacao(cnae, {
+      natureza: "servico",
+      presuncao: { modo: "direto", key: "transporte_passageiros", confianca: "alta", fonte: 'Lei 9.249/1995, art. 15, §1º, II, "c"', motivo: "Grupo de transporte de passageiros." },
+      ibscbs: { modo: "direto", key: "padrao", confianca: "media", fonte: "LC 214/2025", motivo: "Nenhuma redução setorial identificada automaticamente para transporte de passageiros em geral — confirme eventual benefício específico (ex.: transporte público coletivo municipal)." },
+    });
+  }
+  // ---- Transporte terrestre/aéreo/dutoviário de cargas ----
+  if (grupo === "493" || grupo === "512" || grupo === "494") {
+    return montaClassificacao(cnae, {
+      natureza: "servico",
+      presuncao: { modo: "direto", key: "transporte_cargas", confianca: "alta", fonte: 'Lei 9.249/1995, art. 15, §1º, II, "c"', motivo: "Grupo de transporte de cargas." },
+      ibscbs: { modo: "direto", key: "padrao", confianca: "media", fonte: "LC 214/2025", motivo: "Nenhuma redução setorial identificada automaticamente para transporte de cargas em geral." },
+    });
+  }
+  // ---- Transporte aquaviário — ambíguo entre cargas e passageiros ----
+  if (divisao === "50") {
+    return montaClassificacao(cnae, {
+      natureza: "servico",
+      presuncao: { modo: "complemento", complemento: "transporteAquaviario", resolucoes: {
+        cargas: { key: "transporte_cargas", confianca: "alta", fonte: 'Lei 9.249/1995, art. 15, §1º, II, "c"', motivo: "Confirmado pelo usuário: transporte aquaviário de cargas." },
+        passageiros: { key: "transporte_passageiros", confianca: "alta", fonte: 'Lei 9.249/1995, art. 15, §1º, II, "c"', motivo: "Confirmado pelo usuário: transporte aquaviário de passageiros." },
+      } },
+      ibscbs: { modo: "direto", key: "padrao", confianca: "media", fonte: "LC 214/2025", motivo: "Nenhuma redução setorial identificada automaticamente." },
+    });
+  }
+  // ---- Saúde humana — Divisão 86 (conceito restritivo de "serviços hospitalares") ----
+  if (divisao === "86") {
+    return montaClassificacao(cnae, {
+      natureza: "servico",
+      presuncao: { modo: "complemento", complemento: "servicosHospitalares", resolucoes: {
+        sim_hospitalar: { key: "servicos_hospitalares", confianca: "alta", fonte: 'Lei 9.249/1995, art. 15, §1º, III, "a"; conceito de "serviços hospitalares" fixado por atos da Receita Federal e jurisprudência do CARF', motivo: "Confirmado pelo usuário: atividade atende à definição restritiva de serviços hospitalares." },
+        nao_consultorio: { key: "servicos_gerais", confianca: "alta", fonte: "Lei 9.249/1995, art. 15, caput", motivo: 'Confirmado pelo usuário: consultório/clínica simples, sem a estrutura de "serviços hospitalares" exigida pela Receita Federal.' },
+      } },
+      ibscbs: { modo: "direto", key: "reducao60", confianca: "media", fonte: "LC 214/2025, art. 126 e Anexo II — serviços de saúde", motivo: "Serviços de saúde humana, em regra, sujeitos à redução de 60% — confirme se o serviço específico consta do Anexo II antes de usar como definitivo." },
+    });
+  }
+  // ---- Assistência social / saúde integrada (Divisões 87-88) ----
+  if (divisao === "87" || divisao === "88") {
+    return montaClassificacao(cnae, {
+      natureza: "servico",
+      presuncao: { modo: "direto", key: "servicos_gerais", confianca: "media", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Assistência social — em regra tributada pela presunção geral de serviços (32%), salvo estrutura hospitalar/de saúde equiparada específica (confirme se for o caso)." },
+      ibscbs: { modo: "direto", key: "reducao60", confianca: "media", fonte: "LC 214/2025, art. 126 e Anexo II — assistência social", motivo: "Serviços de assistência social, em regra, sujeitos à redução de 60% — confirme o enquadramento específico." },
+    });
+  }
+  // ---- Construção civil (Seção F) — depende de fornecimento de material ----
+  if (secao === "F") {
+    return montaClassificacao(cnae, {
+      natureza: "servico",
+      presuncao: { modo: "complemento", complemento: "construcaoMaterial", resolucoes: {
+        com_material: { key: "construcao_com_material", confianca: "alta", fonte: 'Lei 9.249/1995, art. 15, §1º, III, "a"', motivo: "Confirmado pelo usuário: empreitada com fornecimento de material." },
+        sem_material: { key: "servicos_gerais", confianca: "alta", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Confirmado pelo usuário: empreitada apenas de mão de obra (sem fornecimento de material)." },
+      } },
+      ibscbs: { modo: "direto", key: "padrao", confianca: "baixa", fonte: "LC 214/2025", motivo: "A construção civil pode estar sujeita a regimes específicos de apuração (ex.: operações com bens imóveis) — confirme antes de aplicar o valor calculado como definitivo." },
+    });
+  }
+  // ---- Instituições financeiras (Seção K) ----
+  if (secao === "K") {
+    return montaClassificacao(cnae, {
+      natureza: "financeiro",
+      presuncao: { modo: "direto", key: "instituicoes_financeiras", confianca: "alta", fonte: "Lei 9.249/1995, art. 15, §1º, II", motivo: "Seção de atividades financeiras, de seguros e serviços relacionados." },
+      ibscbs: { modo: "direto", key: "regime_especifico", confianca: "alta", fonte: "LC 214/2025 — serviços financeiros possuem regime específico próprio de IBS/CBS", motivo: "Serviços financeiros não seguem a lógica padrão de alíquota de referência menos redução; a apuração real exige metodologia própria, fora do escopo desta ferramenta." },
+    });
+  }
+  // ---- Atividades profissionais/científicas/técnicas (Seção M, exceto veterinária) ----
+  if (secao === "M" && divisao !== "75") {
+    return montaClassificacao(cnae, {
+      natureza: "servico",
+      presuncao: { modo: "direto", key: "servicos_gerais", confianca: "alta", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Atividades profissionais, científicas e técnicas em geral — presunção geral de serviços (32%)." },
+      ibscbs: { modo: "complemento", complemento: "profissaoRegulamentada", resolucoes: {
+        sim_regulamentada: { key: "reducao30_liberal", confianca: "media", fonte: "LC 214/2025 — regime específico para sociedades uniprofissionais/profissões regulamentadas", motivo: "Confirmado pelo usuário: sociedade uniprofissional/profissão regulamentada." },
+        nao_regulamentada: { key: "padrao", confianca: "alta", fonte: "LC 214/2025", motivo: "Confirmado pelo usuário: não se trata de sociedade uniprofissional/profissão regulamentada — nenhuma redução específica identificada." },
+      } },
+    });
+  }
+  // ---- Atividades imobiliárias (Seção L) ----
+  if (secao === "L") {
+    return montaClassificacao(cnae, {
+      natureza: "servico",
+      presuncao: { modo: "complemento", complemento: "atividadeImobiliaria", resolucoes: {
+        venda_imoveis: { key: "comercio_industria", confianca: "media", fonte: "Lei 9.249/1995, art. 15, §4º — venda de imóveis (empresas que exploram a atividade)", motivo: "Confirmado pelo usuário: compra e venda de imóveis próprios." },
+        locacao_imoveis: { key: "servicos_gerais", confianca: "media", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Confirmado pelo usuário: locação de imóveis próprios." },
+        intermediacao: { key: "servicos_gerais", confianca: "alta", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Confirmado pelo usuário: intermediação/administração de imóveis de terceiros." },
+      } },
+      ibscbs: { modo: "direto", key: "regime_especifico", confianca: "media", fonte: "LC 214/2025 — operações com bens imóveis possuem regime específico próprio de IBS/CBS", motivo: "Operações com bens imóveis não seguem a lógica padrão de alíquota de referência menos redução." },
+    });
+  }
+  // ---- Educação (Seção P) ----
+  if (secao === "P") {
+    return montaClassificacao(cnae, {
+      natureza: "servico",
+      presuncao: { modo: "direto", key: "servicos_gerais", confianca: "alta", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Serviços de educação — presunção geral de serviços (32%); a lei não prevê percentual reduzido específico para educação." },
+      ibscbs: { modo: "direto", key: "reducao60", confianca: "media", fonte: "LC 214/2025, art. 126 e Anexo II — serviços de educação", motivo: "Serviços de educação, em regra, sujeitos à redução de 60% — confirme se o serviço específico consta do Anexo II antes de usar como definitivo." },
+    });
+  }
+  // ---- Comércio em geral (Seção G, exceto combustíveis já tratado acima) ----
+  if (secao === "G") {
+    return montaClassificacao(cnae, {
+      natureza: "comercio",
+      presuncao: { modo: "direto", key: "comercio_industria", confianca: "alta", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Comércio de mercadorias em geral." },
+      ibscbs: { modo: "direto", key: "padrao", confianca: "media", fonte: "LC 214/2025", motivo: "Nenhuma redução identificada automaticamente para o comércio em geral — confirme se o produto específico consta da Cesta Básica Nacional (Anexo I) ou de alguma hipótese do Anexo II." },
+    });
+  }
+  // ---- Indústria / extrativa / eletricidade e gás / água e saneamento ----
+  if (secao === "B" || secao === "C" || secao === "D" || secao === "E") {
+    return montaClassificacao(cnae, {
+      natureza: "industria",
+      presuncao: { modo: "direto", key: "comercio_industria", confianca: "alta", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Venda de produtos industrializados/extraídos — presunção geral de comércio/indústria (8%)." },
+      ibscbs: { modo: "direto", key: "padrao", confianca: "media", fonte: "LC 214/2025", motivo: "Nenhuma redução identificada automaticamente — confirme se o produto específico consta de alguma hipótese de redução (Anexo I ou II)." },
+    });
+  }
+  // ---- Agropecuária, pecuária, produção florestal, pesca e aquicultura (Seção A) ----
+  if (secao === "A") {
+    return montaClassificacao(cnae, {
+      natureza: "comercio",
+      presuncao: { modo: "direto", key: "comercio_industria", confianca: "media", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Produção e venda de produtos agropecuários por pessoa jurídica — presunção geral de comércio/indústria (8%); confirme se não se trata de atividade rural de pessoa física (regras próprias, fora do escopo desta ferramenta)." },
+      ibscbs: { modo: "direto", key: "reducao60", confianca: "media", fonte: "LC 214/2025, art. 126 e Anexo II — insumos e produtos agropecuários e aquícolas", motivo: "Produtos agropecuários, em regra, sujeitos à redução de 60% — confirme se o produto específico consta efetivamente do Anexo II (ou do Anexo I, com alíquota zero, no caso de itens da cesta básica)." },
+    });
+  }
+  // ---- Alojamento e alimentação (Seção I) ----
+  if (secao === "I") {
+    return montaClassificacao(cnae, {
+      natureza: "servico",
+      presuncao: { modo: "direto", key: "servicos_gerais", confianca: "alta", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Serviços de alojamento e alimentação — presunção geral de serviços (32%)." },
+      ibscbs: { modo: "direto", key: "padrao", confianca: "media", fonte: "LC 214/2025", motivo: "Nenhuma redução identificada automaticamente." },
+    });
+  }
+  // ---- Demais seções de serviços (J, N, O, Q-veterinária/75, R, S, T, U) — presunção
+  // geral de serviços, sem redução de IBS/CBS identificável automaticamente. ----
+  return montaClassificacao(cnae, {
+    natureza: "servico",
+    presuncao: { modo: "direto", key: "servicos_gerais", confianca: "media", fonte: "Lei 9.249/1995, art. 15, caput", motivo: "Prestação de serviços em geral, sem percentual reduzido específico previsto em lei para esta atividade — presunção geral de 32%." },
+    ibscbs: { modo: "direto", key: "padrao", confianca: "baixa", fonte: "LC 214/2025", motivo: "Nenhuma hipótese de redução/isenção identificada automaticamente para esta atividade — confirme eventual enquadramento específico antes de assumir tratamento diferenciado." },
+  });
+}
+
+// Valores efetivos (derivados) de atividade/tratamento IBS-CBS — nunca
+// mutam os campos brutos de state (mesmo padrão de anexoKeyAtual()): em
+// modo "manual", usam o valor escolhido pelo usuário; em modo "auto", usam
+// a classificação por CNAE quando ela não estiver pendente de confirmação
+// complementar, e caem no valor bruto (comportamento anterior, inalterado)
+// quando não houver CNAE selecionado ou a classificação estiver pendente.
+function atividadeKeyAtual() {
+  if (state.presumido.atividadeModo === "manual") return state.presumido.atividade;
+  const cls = classificarPorCnae();
+  if (cls && cls.presuncao && !cls.presuncao.pendente) return cls.presuncao.key;
+  return state.presumido.atividade;
+}
+function tratamentoIbsCbsKeyAtual() {
+  if (state.ibscbs.modo === "manual") return state.ibscbs.tratamento;
+  const cls = classificarPorCnae();
+  if (cls && cls.ibscbs && !cls.ibscbs.pendente) return cls.ibscbs.key;
+  return state.ibscbs.tratamento;
+}
+
 const FONTES = [
   { nome: "Tabelas de alíquotas e partilha — Simples Nacional (Anexos I a V)", fonte: "Lei Complementar 123/2006, redação vigente desde 01/2018 · Receita Federal do Brasil", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Regra do Fator R (limiar de 28%)", fonte: "Lei Complementar 123/2006, art. 18, §5º-J e §5º-M", data: "consultado em 09/2026", status: "oficial" },
-  { nome: "Percentuais de presunção — Lucro Presumido (IRPJ/CSLL)", fonte: "Lei 9.249/1995, art. 15 e 20 · Decreto 9.580/2018 (RIR)", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Percentuais de presunção — Lucro Presumido (IRPJ/CSLL, incl. instituições financeiras)", fonte: "Lei 9.249/1995, art. 15 (incl. §1º, II) e 20 · Decreto 9.580/2018 (RIR)", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Alíquotas PIS/COFINS cumulativo — Lucro Presumido", fonte: "Lei 9.718/1998 (0,65% e 3,00%)", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Adicional de IRPJ (10% sobre excedente trimestral)", fonte: "Lei 9.249/1995, art. 3º, §1º — limite de R$ 60.000/trimestre", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Majoração de 10% da presunção acima de R$ 1,25 mi/trimestre", fonte: "IN RFB nº 2.305/2025 e nº 2.306/2026 — regra recente, recomenda-se confirmação antes de aplicar em casos reais", data: "consultado em 09/2026", status: "hipotese" },
   { nome: "Alíquotas-teste CBS (0,9%) e IBS (0,1%) — ano-calendário 2026", fonte: "Lei Complementar 214/2025 e Emenda Constitucional 132/2023", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Cronograma de transição IBS/CBS 2027-2033", fonte: "Lei Complementar 214/2025 — alíquotas de CBS a partir de 2027 e implantação gradual do IBS", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Alíquota de referência combinada final (~26,5%)", fonte: "Estimativa preliminar do Comitê Gestor do IBS (CGIBS); valor final depende de resolução do Senado Federal com base na arrecadação efetiva", data: "consultado em 09/2026", status: "hipotese" },
+  { nome: "Redução de 60% de IBS/CBS — saúde, educação, agropecuária e demais itens do Anexo II", fonte: "Lei Complementar 214/2025, art. 126 e Anexo II", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Redução de 100% (alíquota zero) — Cesta Básica Nacional de Alimentos", fonte: "Lei Complementar 214/2025, art. 125 e Anexo I", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Outras hipóteses de alíquota zero (dispositivos médicos, medicamentos de lista específica, produtor rural)", fonte: "Lei Complementar 214/2025 — depende de regulamentação infralegal complementar", data: "consultado em 09/2026", status: "hipotese" },
+  { nome: "Redução de 30% — sociedades profissionais / profissões intelectuais regulamentadas", fonte: "Lei Complementar 214/2025 — regime específico, abrangência exata sujeita a regulamentação complementar", data: "consultado em 09/2026", status: "hipotese" },
   { nome: "ISS municipal", fonte: "Alíquota varia por município (2% a 5%) — informar manualmente por cliente", data: "parâmetro do usuário", status: "hipotese" },
+  { nome: "Classificação automática CNAE → Atividade → Presunção → IBS/CBS", fonte: "Estrutura CONCLA/IBGE (CNAE 2.3) combinada com Lei 9.249/1995 e LC 214/2025 — cada item traz confiança própria e, se insuficiente, exige confirmação do usuário", data: "consultado em 09/2026", status: "hipotese" },
   { id: "cnae", nome: "Base de CNAEs (classificação oficial)", fonte: "Carregando base de CNAEs (CONCLA/IBGE)...", data: "—", status: "hipotese" },
 ];
 updateFontesCnaeRow(); // aplica o estado inicial ("carregando") ao registro acima
@@ -1037,7 +1440,7 @@ function calcSimplesNacional({ faturamentoMensal, rbt12, anexoKey, folha12m }) {
   };
 }
 
-function calcLucroPresumidoTrimestral({ receitaTrimestre, atividade, pisAliq, cofinsAliq, issAliq, aplicarMajoracao2026, anoProjecao }) {
+function calcLucroPresumidoTrimestral({ receitaTrimestre, atividade, pisAliq, cofinsAliq, issAliq, aplicarMajoracao2026, anoProjecao, tratamentoIbsCbs, aliquotaEfetivaManualPct }) {
   const pres = PRESUNCAO[atividade];
   let irpjPct = pres.irpj, csllPct = pres.csll, baseIRPJ, baseCSLL, notaMajoracao = null;
   if (aplicarMajoracao2026 && receitaTrimestre > 1250000) {
@@ -1070,10 +1473,13 @@ function calcLucroPresumidoTrimestral({ receitaTrimestre, atividade, pisAliq, co
   const substituidoPorCbs = ano >= 2027;
   const fatorRemanescenteIss = crono.issIcmsFatorRemanescente != null ? crono.issIcmsFatorRemanescente : 1;
   const issAliqEfetiva = substituidoPorCbs ? issAliq * fatorRemanescenteIss : issAliq;
+  // ---- Tratamento tributário de IBS/CBS (alíquota padrão × redução/benefício
+  // aplicável à operação, conforme LC 214/2025 — ver IBS_CBS_TRATAMENTOS) ----
+  const aliqIbsCbs = aplicarTratamentoIbsCbs(crono, tratamentoIbsCbs, aliquotaEfetivaManualPct);
   let pis = 0, cofins = 0, cbs = 0, ibs = 0;
   if (substituidoPorCbs) {
-    cbs = receitaTrimestre * (crono.cbs / 100);
-    ibs = receitaTrimestre * (crono.ibs / 100);
+    cbs = receitaTrimestre * (aliqIbsCbs.cbsEfetivoPct / 100);
+    ibs = receitaTrimestre * (aliqIbsCbs.ibsEfetivoPct / 100);
   } else {
     pis = receitaTrimestre * pisAliq;
     cofins = receitaTrimestre * cofinsAliq;
@@ -1087,6 +1493,10 @@ function calcLucroPresumidoTrimestral({ receitaTrimestre, atividade, pisAliq, co
     pis, cofins, cbs, ibs, iss, consumoTotal,
     issAliqEfetivaPct: issAliqEfetiva * 100, fatorRemanescenteIss,
     ano, substituidoPorCbs, crono,
+    ibsRefPct: aliqIbsCbs.ibsRefPct, cbsRefPct: aliqIbsCbs.cbsRefPct,
+    ibsPctUsado: aliqIbsCbs.ibsEfetivoPct, cbsPctUsado: aliqIbsCbs.cbsEfetivoPct,
+    reducaoAplicadaPct: aliqIbsCbs.reducaoAplicadaPct, tratamentoIbsCbsManual: aliqIbsCbs.manual,
+    tratamentoIbsCbs: aliqIbsCbs.tratamento,
     totalTrimestre,
     cargaEfetivaPct: receitaTrimestre > 0 ? (totalTrimestre / receitaTrimestre) * 100 : 0, notaMajoracao,
   };
@@ -1122,7 +1532,7 @@ function calcLiquidoParaBruto(liquido, cargaPct) { const f = 1 - cargaPct / 100;
    sistema. Sem informação em contrário, tratamos o crédito como 0 (não
    assumido), nunca como integral.
    --------------------------------------------------------------------------- */
-function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaValores, cronoAno, creditoIbsPct, creditoCbsPct }) {
+function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaValores, cronoAno, creditoIbsPct, creditoCbsPct, tratamentoIbsCbs, aliquotaEfetivaManualPct }) {
   // Parcelas do DAS hoje embutidas que correspondem aos tributos sobre
   // consumo substituídos pela reforma: ICMS (Anexo I/II) ou ISS (Anexo
   // III/IV/V) → viram IBS; PIS e COFINS (federais) → viram CBS. É essa soma
@@ -1135,8 +1545,11 @@ function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaVa
   const parcelaConsumoDas = parcelaIbsNoDas + parcelaCbsNoDas;
   const dasSemIbsCbs = Math.max(dasMensal - parcelaConsumoDas, 0);
 
-  const ibsDebito = faturamentoMensal * ((cronoAno.ibs || 0) / 100);
-  const cbsDebito = faturamentoMensal * ((cronoAno.cbs || 0) / 100);
+  // ---- Tratamento tributário de IBS/CBS (alíquota padrão × redução/benefício
+  // aplicável à operação, conforme LC 214/2025 — ver IBS_CBS_TRATAMENTOS) ----
+  const aliqIbsCbs = aplicarTratamentoIbsCbs(cronoAno, tratamentoIbsCbs, aliquotaEfetivaManualPct);
+  const ibsDebito = faturamentoMensal * (aliqIbsCbs.ibsEfetivoPct / 100);
+  const cbsDebito = faturamentoMensal * (aliqIbsCbs.cbsEfetivoPct / 100);
   const creditoIbs = ibsDebito * ((creditoIbsPct || 0) / 100);
   const creditoCbs = cbsDebito * ((creditoCbsPct || 0) / 100);
   const ibsLiquido = Math.max(ibsDebito - creditoIbs, 0);
@@ -1145,7 +1558,10 @@ function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaVa
   const totalMensal = dasSemIbsCbs + totalIbsCbsLiquido;
 
   return {
-    ano: cronoAno.ano, ibsPct: cronoAno.ibs || 0, cbsPct: cronoAno.cbs || 0, tributoConsumo,
+    ano: cronoAno.ano, ibsPct: aliqIbsCbs.ibsEfetivoPct, cbsPct: aliqIbsCbs.cbsEfetivoPct, tributoConsumo,
+    ibsRefPct: aliqIbsCbs.ibsRefPct, cbsRefPct: aliqIbsCbs.cbsRefPct,
+    reducaoAplicadaPct: aliqIbsCbs.reducaoAplicadaPct, tratamentoIbsCbsManual: aliqIbsCbs.manual,
+    tratamentoIbsCbs: aliqIbsCbs.tratamento,
     parcelaIbsNoDas, parcelaCbsNoDas, parcelaConsumoDas, dasSemIbsCbs,
     ibsDebito, cbsDebito, creditoIbsPct: creditoIbsPct || 0, creditoCbsPct: creditoCbsPct || 0,
     creditoIbs, creditoCbs, ibsLiquido, cbsLiquido,
@@ -1215,10 +1631,35 @@ const state = {
     folha12m: 0, proLabore: 0,
     anoAnalise: 2026,
   },
+  // anexoModo "auto": em regra segue o Fator R (III/V); quando o CNAE
+  // selecionado identificar, com confiança, natureza de comércio ou
+  // indústria, o Anexo correspondente (I/II) é usado automaticamente — ver
+  // anexoKeyAtual(). "manual": usa sempre anexoManual, independente do CNAE.
   simples: { anexoModo: "auto", anexoManual: "III" },
-  presumido: { atividade: "servicos_gerais", receitaTrimestre: 54000, pisAliq: 0.65, cofinsAliq: 3.0, issAliq: 3.0, majoracao: false, anoProjecao: 2027 },
+  // atividadeModo "auto": a atividade (percentual de presunção do Lucro
+  // Presumido) é derivada do CNAE quando a classificação não estiver
+  // pendente de confirmação complementar — ver atividadeKeyAtual(). Caso
+  // contrário (sem CNAE, ou classificação pendente), usa `atividade` abaixo,
+  // exatamente como antes desta funcionalidade existir.
+  presumido: { atividade: "servicos_gerais", atividadeModo: "auto", receitaTrimestre: 54000, pisAliq: 0.65, cofinsAliq: 3.0, issAliq: 3.0, majoracao: false, anoProjecao: 2027 },
   equilibrio: { custosFixos: 6000, custosVariaveisPct: 10, contratoBruto: 10000, contratoLiquido: 8500, creditoContratanteAtualPct: 0 },
   hibrido: { anoProjecao: 2033, valorContratoAnual: 216000, creditoIbsPct: 0, creditoCbsPct: 0, creditoContratanteHibridoPct: 100 },
+  // Tratamento tributário de IBS/CBS aplicável à operação (compartilhado
+  // entre Simples Híbrido e Lucro Presumido — é a mesma empresa/operação em
+  // ambos). `tratamento` referencia uma chave de IBS_CBS_TRATAMENTOS;
+  // "padrao" (sem redução) é o padrão do sistema — nenhum benefício é
+  // assumido automaticamente quando não há CNAE ou quando `modo` é
+  // "manual". `modo` "auto": o tratamento é derivado do CNAE quando a
+  // classificação não estiver pendente de confirmação complementar — ver
+  // tratamentoIbsCbsKeyAtual(). `aliquotaEfetivaManualPct` é um override
+  // opcional (alíquota efetiva TOTAL de IBS+CBS informada diretamente pelo
+  // usuário), usado quando ele já sabe o valor exato e prioritário sobre o
+  // percentual de redução do tratamento selecionado (manual ou derivado).
+  ibscbs: { tratamento: "padrao", modo: "auto", aliquotaEfetivaManualPct: null, observacao: "" },
+  // Respostas do usuário às perguntas complementares de classificação (ver
+  // COMPLEMENTOS_CLASSIFICACAO), chaveadas pelo id da pergunta. Só existem
+  // quando o CNAE, isoladamente, não permite determinar a classificação.
+  classificacaoComplementos: {},
   comparativo: { view: "detalhado" }, // "detalhado" (padrão, análise técnica completa) | "resumo" (Resumo Executivo)
   result: null, // preenchido por computeAll()
   memoria: [],
@@ -1228,10 +1669,19 @@ function rbt12Atual() {
   return state.empresa.rbt12Modo === "auto" ? state.empresa.faturamentoMensal * 12 : state.empresa.rbt12Manual;
 }
 function anexoKeyAtual() {
-  // O Anexo do Simples Nacional é definido apenas pela escolha do usuário
-  // (manual) ou, no modo automático, pela regra do Fator R — nunca inferido
-  // a partir do CNAE, que é uma classificação puramente informativa.
+  // Em modo manual, a escolha do usuário sempre prevalece.
   if (state.simples.anexoModo === "manual") return state.simples.anexoManual;
+  // Em modo automático: quando o CNAE identificar, com confiança, natureza
+  // de comércio ou indústria, usa o Anexo correspondente (I/II) — reaproveita
+  // a mesma informação já obtida a partir do CNAE (item 4 do complemento do
+  // usuário). Caso contrário (sem CNAE selecionado, ou atividade de serviço/
+  // financeira), aplica a regra do Fator R (Anexo III ou V), exatamente como
+  // antes desta funcionalidade existir.
+  const cls = classificarPorCnae();
+  if (cls) {
+    if (cls.natureza === "comercio") return "I";
+    if (cls.natureza === "industria") return "II";
+  }
   return "III_V";
 }
 
@@ -1251,6 +1701,25 @@ function computeAll() {
   const anexoKey = anexoKeyAtual();
   const memoria = [];
 
+  // ---- Classificação tributária a partir do CNAE (CNAE → Atividade →
+  // Presunção → Tratamento IBS/CBS) — resolvida UMA ÚNICA VEZ e reaproveitada
+  // em Simples Nacional/Fator R (anexoKeyAtual, acima), Lucro Presumido e
+  // Simples Híbrido/IBS-CBS (abaixo), evitando duplicidade de informação. ----
+  const classificacao = classificarPorCnae();
+  const atividadeKey = atividadeKeyAtual();
+  if (classificacao) {
+    const presK = classificacao.presuncao, ibsK = classificacao.ibscbs;
+    memoria.push({
+      titulo: "Classificação tributária identificada a partir do CNAE",
+      formula: "CNAE " + classificacao.cnae.codigo + " (" + classificacao.cnae.descricao + ") → Atividade: " + (state.presumido.atividadeModo === "manual" ? PRESUNCAO[atividadeKey].label + " (definida manualmente)" : (presK && !presK.pendente ? PRESUNCAO[presK.key].label : PRESUNCAO[atividadeKey].label + " (mantida — classificação automática pendente de confirmação)")) +
+        " → Presunção IRPJ " + fmtPct(PRESUNCAO[atividadeKey].irpj) + " / CSLL " + fmtPct(PRESUNCAO[atividadeKey].csll) +
+        " → Tratamento IBS/CBS: " + IBS_CBS_TRATAMENTOS[tratamentoIbsCbsKeyAtual()].label,
+      detalhe: (presK && !presK.pendente ? "Presunção — fonte: " + presK.fonte + " (confiança " + presK.confianca + "). " + presK.motivo : "Presunção do Lucro Presumido: classificação automática pendente de confirmação complementar — mantido o valor anteriormente em uso (\"" + PRESUNCAO[atividadeKey].label + "\") até a resposta do usuário.") +
+        " · " + (ibsK && !ibsK.pendente ? "Tratamento IBS/CBS — fonte: " + ibsK.fonte + " (confiança " + ibsK.confianca + "). " + ibsK.motivo : "Tratamento de IBS/CBS: classificação automática pendente de confirmação complementar — mantido o valor anteriormente em uso até a resposta do usuário.") +
+        (classificacao.pendencias.length ? " · Confirmação(ões) necessária(s): " + classificacao.pendencias.map((p) => p.pergunta).join(" | ") : ""),
+    });
+  }
+
   const simples = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey, folha12m: e.folha12m });
   memoria.push({
     titulo: "RBT12 — Receita Bruta dos últimos 12 meses",
@@ -1262,6 +1731,12 @@ function computeAll() {
       titulo: "Fator R",
       formula: "Fator R = Folha de salários (12m) ÷ RBT12 = " + fmtBRL(e.folha12m) + " ÷ " + fmtBRL(rbt12) + " = " + fmtPct(simples.fatorR * 100),
       detalhe: "Fator R " + (simples.fatorR >= 0.28 ? "≥ 28% → tributação pelo Anexo III." : "< 28% → tributação pelo Anexo V."),
+    });
+  } else if (state.simples.anexoModo === "auto" && classificacao) {
+    memoria.push({
+      titulo: "Anexo do Simples Nacional — identificado a partir do CNAE",
+      formula: "Natureza da atividade (CNAE " + classificacao.cnae.codigo + ", Seção " + classificacao.cnae.secao + ") = " + (classificacao.natureza === "comercio" ? "comércio" : "indústria") + " → " + ANEXOS[anexoKey].nome,
+      detalhe: "Quando o CNAE identifica claramente natureza de comércio ou indústria, o Anexo correspondente (I ou II) é usado automaticamente, dispensando a regra do Fator R (aplicável apenas a serviços). Pode ser substituído manualmente a qualquer momento na aba Simples Nacional.",
     });
   }
   memoria.push({
@@ -1275,16 +1750,36 @@ function computeAll() {
     detalhe: "Valor total anual estimado: " + fmtBRL(simples.dasAnual) + " (DAS mensal × 12).",
   });
 
+  // ---- Tratamento tributário de IBS/CBS (alíquota padrão, reduções e
+  // benefícios aplicáveis à operação) — resolvido UMA VEZ e usado tanto pelo
+  // Lucro Presumido quanto pelo Simples Híbrido, para nunca divergir entre
+  // as duas telas (ver IBS_CBS_TRATAMENTOS / aplicarTratamentoIbsCbs). ----
+  const tratamentoIbsCbsCfg = tratamentoIbsCbsAtual();
+  const aliquotaIbsCbsManualPct = (state.ibscbs.aliquotaEfetivaManualPct != null && state.ibscbs.aliquotaEfetivaManualPct !== "" && isFinite(state.ibscbs.aliquotaEfetivaManualPct))
+    ? state.ibscbs.aliquotaEfetivaManualPct : null;
+
   const presumido = calcLucroPresumidoAnual({
     receitaTrimestre: e.faturamentoMensal * 3,
-    atividade: state.presumido.atividade,
+    atividade: atividadeKey,
     pisAliq: state.presumido.pisAliq / 100,
     cofinsAliq: state.presumido.cofinsAliq / 100,
     issAliq: state.presumido.issAliq / 100,
     aplicarMajoracao2026: state.presumido.majoracao,
     anoProjecao: state.presumido.anoProjecao,
+    tratamentoIbsCbs: tratamentoIbsCbsCfg,
+    aliquotaEfetivaManualPct: aliquotaIbsCbsManualPct,
   });
   const t = presumido.trimestre;
+  memoria.push({
+    titulo: "Tratamento tributário de IBS/CBS aplicável à operação",
+    formula: aliquotaIbsCbsManualPct != null
+      ? "Alíquota efetiva (IBS+CBS) informada manualmente pelo usuário = " + fmtPct(aliquotaIbsCbsManualPct) + " — substitui o percentual de redução do tratamento selecionado, mantida a mesma proporção relativa entre IBS e CBS da alíquota de referência."
+      : "Alíquota efetiva = Alíquota de referência × (1 − redução) = Alíquota de referência × (1 − " + fmtPct(tratamentoIbsCbsCfg.reducaoPct != null ? tratamentoIbsCbsCfg.reducaoPct : 0, 0) + ")",
+    detalhe: "Tratamento selecionado: \"" + tratamentoIbsCbsCfg.label + "\" (" + (tratamentoIbsCbsCfg.status === "oficial" ? "fonte oficial" : "hipótese — recomenda-se confirmação antes de aplicar em casos reais") + ") · Fonte/regra: " + tratamentoIbsCbsCfg.fonte + ". " + tratamentoIbsCbsCfg.observacao +
+      (state.ibscbs.observacao ? " · Observação do usuário: " + escHtml(state.ibscbs.observacao) : "") +
+      (state.ibscbs.modo === "auto" && classificacao && classificacao.ibscbs && !classificacao.ibscbs.pendente ? " · Origem: classificação automática a partir do CNAE (confiança " + classificacao.ibscbs.confianca + ")." : "") +
+      (state.ibscbs.modo === "auto" && classificacao && classificacao.pendencias.some((p) => p.aspecto === "ibscbs") ? " · Confirmação complementar pendente — ver aba Dados da Empresa." : ""),
+  });
   memoria.push({
     titulo: "Lucro Presumido — base de cálculo trimestral (" + t.atividade + ")",
     formula: "Base IRPJ = Receita trimestral × " + fmtPct(t.irpjPctUsado) + " = " + fmtBRL(e.faturamentoMensal * 3) + " × " + fmtPct(t.irpjPctUsado) + " = " + fmtBRL(t.baseIRPJ) + "  |  Base CSLL = " + fmtBRL(t.baseCSLL),
@@ -1297,8 +1792,8 @@ function computeAll() {
   });
   memoria.push(t.substituidoPorCbs ? {
     titulo: "CBS, IBS e ISS — tributos mensais (ano " + t.ano + ")",
-    formula: "CBS = Receita × " + fmtPct(t.crono.cbs, 2) + " = " + fmtBRL(t.cbs) + "  |  IBS = Receita × " + fmtPct(t.crono.ibs, 2) + " = " + fmtBRL(t.ibs) + "  |  ISS = Receita × " + fmtPct(t.issAliqEfetivaPct) + " = " + fmtBRL(t.iss),
-    detalhe: "A partir de 2027, a LC 214/2025 extingue PIS e COFINS, substituídos pela CBS; o ISS informado (" + fmtPct(state.presumido.issAliq) + ") é aplicado " + (t.fatorRemanescenteIss < 1 ? "a " + fmtPct(t.fatorRemanescenteIss * 100, 0) + " de sua alíquota, conforme o cronograma de redução do ISS/ICMS" : "integralmente") + " — mesmo cronograma de transição (IBS_CBS_CRONOGRAMA) usado na aba Simples Híbrido. Total do trimestre: " + fmtBRL(t.totalTrimestre) + " · Carga efetiva: " + fmtPct(t.cargaEfetivaPct) + ".",
+    formula: "CBS teórico = Receita × alíquota de referência (" + fmtPct(t.cbsRefPct, 2) + ") = " + fmtBRL(e.faturamentoMensal * 3 * t.cbsRefPct / 100) + "  (−) redução de " + fmtPct(t.reducaoAplicadaPct, 0) + "  ⇒  CBS efetivo = Receita × " + fmtPct(t.cbsPctUsado, 2) + " = " + fmtBRL(t.cbs) + "  |  IBS teórico = Receita × " + fmtPct(t.ibsRefPct, 2) + "  (−) redução de " + fmtPct(t.reducaoAplicadaPct, 0) + "  ⇒  IBS efetivo = Receita × " + fmtPct(t.ibsPctUsado, 2) + " = " + fmtBRL(t.ibs) + "  |  ISS = Receita × " + fmtPct(t.issAliqEfetivaPct) + " = " + fmtBRL(t.iss),
+    detalhe: "A partir de 2027, a LC 214/2025 extingue PIS e COFINS, substituídos pela CBS; o ISS informado (" + fmtPct(state.presumido.issAliq) + ") é aplicado " + (t.fatorRemanescenteIss < 1 ? "a " + fmtPct(t.fatorRemanescenteIss * 100, 0) + " de sua alíquota, conforme o cronograma de redução do ISS/ICMS" : "integralmente") + " — mesmo cronograma de transição (IBS_CBS_CRONOGRAMA) usado na aba Simples Híbrido. O IBS/CBS teórico usa a alíquota de referência do ano; a redução/benefício do tratamento tributário selecionado (\"" + t.tratamentoIbsCbs.label + "\") já está refletida no valor efetivo acima" + (t.tratamentoIbsCbsManual ? " (alíquota efetiva informada manualmente)" : "") + ". Total do trimestre: " + fmtBRL(t.totalTrimestre) + " · Carga efetiva: " + fmtPct(t.cargaEfetivaPct) + ".",
   } : {
     titulo: "PIS, COFINS e ISS — tributos mensais (ano " + t.ano + ")",
     formula: "PIS = " + fmtBRL(t.pis) + "  |  COFINS = " + fmtBRL(t.cofins) + "  |  ISS = " + fmtBRL(t.iss),
@@ -1315,6 +1810,8 @@ function computeAll() {
     cronoAno,
     creditoIbsPct: state.hibrido.creditoIbsPct,
     creditoCbsPct: state.hibrido.creditoCbsPct,
+    tratamentoIbsCbs: tratamentoIbsCbsCfg,
+    aliquotaEfetivaManualPct: aliquotaIbsCbsManualPct,
   });
   memoria.push({
     titulo: "Simples Híbrido — DAS sem IBS/CBS (ano " + hibrido.ano + ")",
@@ -1322,9 +1819,9 @@ function computeAll() {
     detalhe: "No mecanismo de apuração à parte (previsto a partir de 2027), as parcelas do DAS hoje correspondentes a " + (hibrido.tributoConsumo || "ICMS/ISS") + " (vira IBS) e a PIS/COFINS (vira CBS) saem da partilha do Simples e passam a ser recolhidas separadamente, em regime não cumulativo. IRPJ, CSLL e CPP permanecem no DAS.",
   });
   memoria.push({
-    titulo: "IBS e CBS — débito e crédito",
-    formula: "IBS débito = Faturamento × " + fmtPct(hibrido.ibsPct, 2) + " = " + fmtBRL(hibrido.ibsDebito) + "  |  CBS débito = Faturamento × " + fmtPct(hibrido.cbsPct, 2) + " = " + fmtBRL(hibrido.cbsDebito),
-    detalhe: "Crédito IBS informado: " + fmtPct(hibrido.creditoIbsPct, 1) + " do débito (" + fmtBRL(hibrido.creditoIbs) + ") · Crédito CBS informado: " + fmtPct(hibrido.creditoCbsPct, 1) + " do débito (" + fmtBRL(hibrido.creditoCbs) + "). Estes percentuais são PARÂMETROS DE SIMULAÇÃO, ajustáveis pelo usuário conforme os créditos de insumos efetivamente apurados pela empresa — não são alíquota legal e não é assumido crédito integral por padrão. O crédito de IBS não é compensado contra o débito de CBS (créditos apurados separadamente).",
+    titulo: "IBS e CBS — alíquota de referência, redução e débito",
+    formula: "IBS teórico = Faturamento × alíquota de referência (" + fmtPct(hibrido.ibsRefPct, 2) + ") = " + fmtBRL(e.faturamentoMensal * hibrido.ibsRefPct / 100) + "  (−) redução de " + fmtPct(hibrido.reducaoAplicadaPct, 0) + "  ⇒  IBS débito = Faturamento × " + fmtPct(hibrido.ibsPct, 2) + " = " + fmtBRL(hibrido.ibsDebito) + "  |  CBS teórico = Faturamento × " + fmtPct(hibrido.cbsRefPct, 2) + "  (−) redução de " + fmtPct(hibrido.reducaoAplicadaPct, 0) + "  ⇒  CBS débito = Faturamento × " + fmtPct(hibrido.cbsPct, 2) + " = " + fmtBRL(hibrido.cbsDebito),
+    detalhe: "Tratamento tributário selecionado: \"" + hibrido.tratamentoIbsCbs.label + "\" (" + (hibrido.tratamentoIbsCbs.status === "oficial" ? "fonte oficial" : "hipótese — confirmar antes de aplicar em casos reais") + (hibrido.tratamentoIbsCbsManual ? "; alíquota efetiva informada manualmente pelo usuário" : "") + "). Crédito IBS informado: " + fmtPct(hibrido.creditoIbsPct, 1) + " do débito (" + fmtBRL(hibrido.creditoIbs) + ") · Crédito CBS informado: " + fmtPct(hibrido.creditoCbsPct, 1) + " do débito (" + fmtBRL(hibrido.creditoCbs) + "). Os percentuais de CRÉDITO são PARÂMETROS DE SIMULAÇÃO, ajustáveis pelo usuário conforme os créditos de insumos efetivamente apurados pela empresa — não são alíquota legal e não é assumido crédito integral por padrão. O crédito de IBS não é compensado contra o débito de CBS (créditos apurados separadamente).",
   });
   memoria.push({
     titulo: "Total Híbrido líquido",
@@ -1373,7 +1870,7 @@ function computeAll() {
     }),
   };
 
-  state.result = { rbt12, anexoKey, simples, presumido, hibrido, pe, pePrestadora, peContratante, issues: validarEntradas(), timestamp: new Date() };
+  state.result = { rbt12, anexoKey, simples, presumido, hibrido, pe, pePrestadora, peContratante, issues: validarEntradas(), timestamp: new Date(), tratamentoIbsCbs: tratamentoIbsCbsCfg, classificacao, atividadeKey };
   state.memoria = memoria;
   return state.result;
 }
@@ -1581,6 +2078,10 @@ function renderEmpresa(root) {
     '</div>';
   root.appendChild(grid);
 
+  const classCard = el("div", { class: "card" });
+  classCard.innerHTML = classificacaoCardHTML(rPre);
+  root.appendChild(classCard);
+
   root.appendChild(el("div", { class: "flex", style: "justify-content:flex-end;gap:10px", html:
     '<button class="btn btn-secondary" id="btnLimpar">Limpar dados</button>' +
     '<button class="btn btn-success" id="btnCalcular">' + icon("calculator") + 'Calcular análise</button>' }));
@@ -1601,7 +2102,60 @@ function renderEmpresa(root) {
     $("#fProlabore").onchange = (ev) => { state.empresa.proLabore = parseNum(ev.target.value); saveDraft(); };
     $("#fAno").onchange = (ev) => { state.empresa.anoAnalise = parseInt(ev.target.value, 10); renderContent(); };
     setupCnaeAutocomplete();
+    $$("[data-complemento]", classCard).forEach((sel) => sel.onchange = (ev) => {
+      const id = sel.dataset.complemento;
+      if (ev.target.value) state.classificacaoComplementos[id] = ev.target.value; else delete state.classificacaoComplementos[id];
+      renderContent();
+    });
   }, 0);
+}
+
+/* ---------------------------------------------------------------------------
+   CARD: "Classificação tributária identificada" (CNAE → Atividade →
+   Presunção → Tratamento IBS/CBS) — visualmente simples, exibido na aba
+   Dados da Empresa logo após a seleção do CNAE. Mostra a cadeia completa no
+   formato pedido pelo usuário, com nível de confiança sempre visível e, se
+   necessário, a(s) pergunta(s) complementar(es) para resolver ambiguidade.
+   --------------------------------------------------------------------------- */
+function confiancaBadgeHTML(confianca) {
+  if (!confianca) return badge("Confirmação necessária", "yellow", "alert");
+  if (confianca === "alta") return badge("Automático — confiança alta", "green", "check");
+  if (confianca === "media") return badge("Automático — confirmar", "yellow", "alert");
+  return badge("Automático — baixa confiança, confirmar", "yellow", "alert");
+}
+function classificacaoCardHTML(r) {
+  const cls = r.classificacao;
+  const header = '<div class="card-title">' + icon("filetext") + 'Classificação tributária identificada<span class="grow"></span>' + badge("CNAE → Atividade → Presunção → IBS/CBS", "blue", "info") + '</div>';
+  if (!cls) {
+    return header + '<p class="tiny muted">Selecione o CNAE da empresa acima para identificar automaticamente a atividade, o percentual de presunção do Lucro Presumido e o tratamento de IBS/CBS aplicável — reaproveitados em todas as abas (Simples Nacional, Fator R, Lucro Presumido, Simples Híbrido, Comparativo, Memória de Cálculo e Relatório em PDF).</p>';
+  }
+  const presK = cls.presuncao, ibsK = cls.ibscbs;
+  const atividadeKey = r.atividadeKey;
+  const tratKey = tratamentoIbsCbsKeyAtual();
+  const presBadge = state.presumido.atividadeModo === "manual" ? badge("Manual", "blue") : confiancaBadgeHTML(presK && !presK.pendente ? presK.confianca : null);
+  const ibsBadge = state.ibscbs.modo === "manual" ? badge("Manual", "blue") : confiancaBadgeHTML(ibsK && !ibsK.pendente ? ibsK.confianca : null);
+  const fontesTxt = [
+    presK && !presK.pendente ? "Presunção — fonte: " + presK.fonte + ". " + presK.motivo : null,
+    ibsK && !ibsK.pendente ? "IBS/CBS — fonte: " + ibsK.fonte + ". " + ibsK.motivo : null,
+  ].filter(Boolean).join(" · ");
+  const pendHtml = cls.pendencias.map((p) => {
+    const respAtual = state.classificacaoComplementos[p.id];
+    return '<div class="field" style="margin-top:10px"><label>' + escHtml(p.pergunta) + '</label>' +
+      '<select data-complemento="' + p.id + '"><option value="">Selecione para confirmar…</option>' +
+      p.opcoes.map((o) => '<option value="' + escAttr(o.value) + '"' + (respAtual === o.value ? " selected" : "") + '>' + escHtml(o.label) + '</option>').join("") +
+      '</select><span class="hint">' + escHtml(p.explicacao) + '</span></div>';
+  }).join("");
+  return header +
+    '<div class="table-wrap"><table><tbody>' +
+      '<tr><td>CNAE</td><td class="num">' + escHtml(cls.cnae.codigo) + ' — ' + escHtml(cls.cnae.descricao) + '</td></tr>' +
+      '<tr><td>Atividade (Lucro Presumido)</td><td class="num">' + escHtml(PRESUNCAO[atividadeKey].label) + ' ' + presBadge + '</td></tr>' +
+      '<tr><td>Presunção IRPJ / CSLL</td><td class="num">' + fmtPct(PRESUNCAO[atividadeKey].irpj) + ' / ' + fmtPct(PRESUNCAO[atividadeKey].csll) + '</td></tr>' +
+      '<tr><td>Tratamento IBS/CBS</td><td class="num">' + escHtml(IBS_CBS_TRATAMENTOS[tratKey].label) + ' ' + ibsBadge + '</td></tr>' +
+      '<tr><td>Alíquota IBS / CBS (ano ' + state.hibrido.anoProjecao + ', referência)</td><td class="num">' + (() => { const c = IBS_CBS_CRONOGRAMA.find((x) => x.ano === state.hibrido.anoProjecao); const ap = aplicarTratamentoIbsCbs(c, IBS_CBS_TRATAMENTOS[tratKey], state.ibscbs.aliquotaEfetivaManualPct); return fmtPct(ap.ibsEfetivoPct, 2) + " / " + fmtPct(ap.cbsEfetivoPct, 2); })() + '</td></tr>' +
+    '</tbody></table></div>' +
+    (fontesTxt ? '<p class="tiny muted" style="margin-top:10px">' + escHtml(fontesTxt) + '</p>' : "") +
+    (cls.pendencias.length ? alertBox("yellow", "alert", "<b>Confirmação necessária</b> — a informação do CNAE, isoladamente, não permite determinar este item com segurança. Até a confirmação abaixo, o sistema mantém o valor já em uso (nenhum benefício é presumido).") + pendHtml : "") +
+    '<p class="tiny muted" style="margin-top:10px">Cadeia usada automaticamente em Simples Nacional/Fator R, Lucro Presumido, Simples Híbrido, Comparativo, Memória de Cálculo e Relatório em PDF — substitua manualmente a qualquer momento nas respectivas abas.</p>';
 }
 function confirm2(msg) { try { return window.confirm(msg); } catch (err) { return true; } }
 function fmtInput(v) { return (v || 0).toString().replace(".", ","); }
@@ -1703,13 +2257,18 @@ function renderSimples(root) {
     { k: "V", label: "Anexo V — Serviços (fixo)" },
   ];
   const modo = anexoKeyAtual();
+  const clsSimples = classificarPorCnae();
+  const autoLabel = modo === "I" ? "Automático (CNAE — comércio)" : modo === "II" ? "Automático (CNAE — indústria)" : "Automático (Fator R)";
 
   const card1 = el("div", { class: "card" });
   card1.innerHTML =
-    '<div class="card-title">' + icon("calculator") + 'Enquadramento<span class="grow"></span>' + badge(state.simples.anexoModo === "auto" ? "Automático (Fator R)" : "Manual", state.simples.anexoModo === "auto" ? "green" : "blue") + '</div>' +
+    '<div class="card-title">' + icon("calculator") + 'Enquadramento<span class="grow"></span>' + badge(state.simples.anexoModo === "auto" ? autoLabel : "Manual", state.simples.anexoModo === "auto" ? "green" : "blue") + '</div>' +
     '<div class="field"><label>Anexo utilizado na simulação</label><div class="radio-pills" id="anexoPills">' +
-      opts.map((o) => '<button type="button" class="radio-pill' + (modo === o.k ? " active" : "") + '" data-anexo="' + o.k + '">' + o.label + '</button>').join("") +
-    '</div><span class="hint">Selecionar um anexo manualmente fixa o Anexo; o modo automático aplica a regra do Fator R (Anexo III ou V conforme a folha de pagamento).</span></div>';
+      '<button type="button" class="radio-pill' + (state.simples.anexoModo === "auto" ? " active" : "") + '" data-anexo="auto">Automático (CNAE / Fator R)</button>' +
+      opts.filter((o) => o.k !== "III_V").map((o) => '<button type="button" class="radio-pill' + (state.simples.anexoModo === "manual" && modo === o.k ? " active" : "") + '" data-anexo="' + o.k + '">' + o.label + '</button>').join("") +
+    '</div><span class="hint">' + (clsSimples && (clsSimples.natureza === "comercio" || clsSimples.natureza === "industria")
+      ? "O CNAE selecionado identifica natureza de " + (clsSimples.natureza === "comercio" ? "comércio (Anexo I)" : "indústria (Anexo II)") + " — aplicado automaticamente. Sem CNAE ou para atividades de serviço, o modo automático aplica a regra do Fator R (Anexo III ou V)."
+      : "O modo automático aplica a regra do Fator R (Anexo III ou V conforme a folha de pagamento); quando o CNAE identificar comércio ou indústria, o Anexo I ou II é usado automaticamente.") + ' Selecionar um anexo manualmente sempre fixa o Anexo.</span></div>';
   root.appendChild(card1);
 
   root.appendChild(el("div", { html: alertsHTML(r.issues) }));
@@ -1740,8 +2299,8 @@ function renderSimples(root) {
 
   setTimeout(() => {
     $$("[data-anexo]", card1).forEach((b) => b.onclick = () => {
-      state.simples.anexoManual = b.dataset.anexo;
-      state.simples.anexoModo = "manual";
+      if (b.dataset.anexo === "auto") { state.simples.anexoModo = "auto"; }
+      else { state.simples.anexoManual = b.dataset.anexo; state.simples.anexoModo = "manual"; }
       renderContent();
     });
   }, 0);
@@ -1804,11 +2363,95 @@ function fatorRRegimeCard(nome, sim, ativo) {
 }
 
 /* ---------------------------------------------------------------------------
+   COMPONENTE COMPARTILHADO: "Tratamento tributário IBS/CBS"
+   Usado tanto na aba Simples Híbrido quanto na aba Lucro Presumido — os dois
+   editam o MESMO state.ibscbs, para que a premissa (redução/benefício
+   aplicável à operação) nunca divirja entre as duas telas (item 4/6 da
+   especificação). Visualmente compacto: uma seleção + uma tabela-resumo.
+   --------------------------------------------------------------------------- */
+function tratamentoIbsCbsCardHTML(ctx) {
+  // ctx: { ano, ibsRefPct, cbsRefPct, ibsPct, cbsPct, reducaoAplicadaPct,
+  //        ibsValor, cbsValor, manual, tratamento }
+  const cfg = state.ibscbs;
+  const trat = ctx.tratamento;
+  const tratKeyEfetivo = tratamentoIbsCbsKeyAtual();
+  const cls = classificarPorCnae();
+  const ibsK = cls && cls.ibscbs;
+  const pendenteIbs = cfg.modo === "auto" && cls && cls.pendencias.some((p) => p.aspecto === "ibscbs");
+  const modoBadge = cfg.modo === "manual"
+    ? badge("Manual", "blue")
+    : (!cls ? badge("Automático — sem CNAE, usa padrão", "green", "check")
+       : pendenteIbs ? badge("Confirmação necessária", "yellow", "alert")
+       : confiancaBadgeHTML(ibsK.confianca));
+  const opts = '<option value="__auto__"' + (cfg.modo === "auto" ? " selected" : "") + '>Automático (classificação por CNAE)' + (cls ? " — atual: " + IBS_CBS_TRATAMENTOS[tratKeyEfetivo].label : "") + '</option>' +
+    Object.keys(IBS_CBS_TRATAMENTOS).map((k) =>
+      '<option value="' + k + '"' + (cfg.modo === "manual" && cfg.tratamento === k ? " selected" : "") + '>' + IBS_CBS_TRATAMENTOS[k].label + '</option>').join("");
+  const origemHtml = cfg.modo === "auto" && cls && !pendenteIbs
+    ? alertBox("blue", "info", "<b>Classificação automática:</b> CNAE " + escHtml(cls.cnae.codigo) + " (" + escHtml(cls.cnae.descricao) + ") → " + escHtml(ibsK.fonte) + ". " + escHtml(ibsK.motivo))
+    : "";
+  const pendenciaIbsHtml = pendenteIbs
+    ? cls.pendencias.filter((p) => p.aspecto === "ibscbs").map((p) => {
+        const respAtual = state.classificacaoComplementos[p.id];
+        return alertBox("yellow", "alert", "<b>Confirmação necessária:</b> " + escHtml(p.explicacao) + " Até a confirmação, o sistema mantém o tratamento anteriormente em uso (nenhum benefício presumido).") +
+          '<div class="field" style="margin-top:8px"><label>' + escHtml(p.pergunta) + '</label><select data-complemento="' + p.id + '"><option value="">Selecione para confirmar…</option>' +
+          p.opcoes.map((o) => '<option value="' + escAttr(o.value) + '"' + (respAtual === o.value ? " selected" : "") + '>' + escHtml(o.label) + '</option>').join("") + '</select></div>';
+      }).join("")
+    : "";
+  const tipoLabel = trat.tipo === "reducao" ? "Redução percentual" : trat.tipo === "isencao" ? "Isenção (alíquota zero)" : trat.tipo === "especifico" ? "Regime específico" : trat.tipo === "confirmar" ? "A confirmar" : "Padrão, sem redução";
+  const confirmarAlert = (trat.tipo === "confirmar" || trat.tipo === "especifico") && !ctx.manual
+    ? alertBox("yellow", "alert", "Este tratamento não permite determinar automaticamente uma redução percentual. " + trat.observacao + " Até a confirmação, o sistema mantém a alíquota cheia (sem redução) — informe a alíquota efetiva acima assim que o enquadramento for confirmado.")
+    : "";
+  return (
+    '<div class="card-title">' + icon("percent") + 'Tratamento tributário IBS/CBS<span class="grow"></span>' + modoBadge + '</div>' +
+    '<p class="tiny muted" style="margin:-4px 0 12px">IBS e CBS não incidem sempre à alíquota cheia — dependem de reduções, isenções e regimes específicos previstos na LC 214/2025, conforme a natureza da operação/atividade/produto. Em modo automático, o tratamento é derivado do CNAE informado na aba Dados da Empresa; selecione manualmente para substituir.</p>' +
+    origemHtml + pendenciaIbsHtml +
+    '<div class="grid grid-2">' +
+      '<div class="field"><label for="ibscbsTratamento">Tratamento aplicável</label><select id="ibscbsTratamento">' + opts + '</select></div>' +
+      '<div class="field"><label for="ibscbsAliqManual">Alíquota efetiva informada manualmente (% IBS+CBS)</label><input type="text" inputmode="decimal" id="ibscbsAliqManual" value="' + (cfg.aliquotaEfetivaManualPct != null ? fmtInput(cfg.aliquotaEfetivaManualPct) : "") + '" placeholder="em branco = usar a redução do tratamento"><span class="hint">Se preenchida, tem prioridade sobre a redução do tratamento selecionado (mantém a mesma proporção entre IBS e CBS).</span></div>' +
+    '</div>' +
+    '<div class="field" style="margin-top:4px"><label for="ibscbsObs">Observação / premissa</label><input type="text" id="ibscbsObs" value="' + escAttr(cfg.observacao) + '" placeholder="Ex.: enquadramento confirmado pelo cliente em .../.../...."></div>' +
+    confirmarAlert +
+    '<div style="height:10px"></div>' +
+    '<div class="table-wrap"><table><tbody>' +
+      '<tr><td>Alíquota de referência/padrão (ano ' + ctx.ano + ', IBS+CBS)</td><td class="num">' + fmtPct(ctx.ibsRefPct + ctx.cbsRefPct, 2) + '</td></tr>' +
+      '<tr><td>Redução/benefício aplicado</td><td class="num">' + (ctx.reducaoAplicadaPct > 0 ? "− " + fmtPct(ctx.reducaoAplicadaPct, 0) : "—") + '</td></tr>' +
+      '<tr class="total"><td>Alíquota efetivamente aplicável (IBS+CBS)</td><td class="num">' + fmtPct(ctx.ibsPct + ctx.cbsPct, 2) + (ctx.manual ? " " + badge("Manual", "yellow") : "") + '</td></tr>' +
+      '<tr><td>Base de cálculo considerada</td><td class="num">' + fmtBRL(ctx.base) + '</td></tr>' +
+      '<tr><td>IBS calculado (' + fmtPct(ctx.ibsPct, 2) + ' × base)</td><td class="num">' + fmtBRL(ctx.ibsValor) + '</td></tr>' +
+      '<tr><td>CBS calculado (' + fmtPct(ctx.cbsPct, 2) + ' × base)</td><td class="num">' + fmtBRL(ctx.cbsValor) + '</td></tr>' +
+    '</tbody></table></div>' +
+    '<p class="tiny muted" style="margin-top:10px">Tipo de tratamento: ' + tipoLabel + ' · Fonte/regra: ' + trat.fonte + '</p>'
+  );
+}
+function wireTratamentoIbsCbsCard() {
+  const sel = $("#ibscbsTratamento");
+  if (sel) sel.onchange = (ev) => {
+    if (ev.target.value === "__auto__") { state.ibscbs.modo = "auto"; }
+    else { state.ibscbs.modo = "manual"; state.ibscbs.tratamento = ev.target.value; }
+    renderContent();
+  };
+  const aliq = $("#ibscbsAliqManual");
+  if (aliq) aliq.onchange = (ev) => {
+    const v = ev.target.value.trim();
+    state.ibscbs.aliquotaEfetivaManualPct = v === "" ? null : parseNum(v);
+    renderContent();
+  };
+  const obs = $("#ibscbsObs");
+  if (obs) obs.onchange = (ev) => { state.ibscbs.observacao = ev.target.value; renderContent(); };
+  $$("[data-complemento]").forEach((s) => s.onchange = (ev) => {
+    const id = s.dataset.complemento;
+    if (ev.target.value) state.classificacaoComplementos[id] = ev.target.value; else delete state.classificacaoComplementos[id];
+    renderContent();
+  });
+}
+
+/* ---------------------------------------------------------------------------
    RENDER: SIMPLES HÍBRIDO / IBS-CBS
    --------------------------------------------------------------------------- */
 function renderHibrido(root) {
   const r = computeAll();
   const h = r.hibrido;
+  const e = state.empresa;
   const ano = state.hibrido.anoProjecao;
   const cronoAno = IBS_CBS_CRONOGRAMA.find((c) => c.ano === ano) || IBS_CBS_CRONOGRAMA[IBS_CBS_CRONOGRAMA.length - 1];
 
@@ -1817,6 +2460,16 @@ function renderHibrido(root) {
   root.appendChild(el("div", { html:
     alertBox(ano === 2026 ? "blue" : "yellow", "info",
       "<b>" + ano + ":</b> " + cronoAno.nota + (ano === 2026 ? "" : " Valores de anos futuros são projeções baseadas na legislação vigente e podem ser ajustados por regulamentação complementar.")) }));
+
+  // ---- Tratamento tributário de IBS/CBS (alíquotas, reduções e benefícios) ----
+  const tratCard = el("div", { class: "card" });
+  tratCard.innerHTML = tratamentoIbsCbsCardHTML({
+    ano: h.ano, base: e.faturamentoMensal,
+    ibsRefPct: h.ibsRefPct, cbsRefPct: h.cbsRefPct, ibsPct: h.ibsPct, cbsPct: h.cbsPct,
+    reducaoAplicadaPct: h.reducaoAplicadaPct, ibsValor: h.ibsDebito, cbsValor: h.cbsDebito,
+    manual: h.tratamentoIbsCbsManual, tratamento: h.tratamentoIbsCbs,
+  });
+  root.appendChild(tratCard);
 
   // ---- Composição do Híbrido (item 2/3/4 da especificação) ----
   const compCard = el("div", { class: "card" });
@@ -1832,8 +2485,8 @@ function renderHibrido(root) {
     '<div style="height:14px"></div>' +
     '<div class="table-wrap"><table><tbody>' +
       '<tr><td>DAS sem IBS/CBS</td><td class="num">' + fmtBRL(h.dasSemIbsCbs) + '</td></tr>' +
-      '<tr><td>(+) IBS (débito)</td><td class="num">' + fmtBRL(h.ibsDebito) + '</td></tr>' +
-      '<tr><td>(+) CBS (débito)</td><td class="num">' + fmtBRL(h.cbsDebito) + '</td></tr>' +
+      '<tr><td>(+) IBS (débito) — alíquota efetiva ' + fmtPct(h.ibsPct, 2) + (h.reducaoAplicadaPct > 0 ? " (ref. " + fmtPct(h.ibsRefPct, 2) + " − " + fmtPct(h.reducaoAplicadaPct, 0) + ")" : "") + '</td><td class="num">' + fmtBRL(h.ibsDebito) + '</td></tr>' +
+      '<tr><td>(+) CBS (débito) — alíquota efetiva ' + fmtPct(h.cbsPct, 2) + (h.reducaoAplicadaPct > 0 ? " (ref. " + fmtPct(h.cbsRefPct, 2) + " − " + fmtPct(h.reducaoAplicadaPct, 0) + ")" : "") + '</td><td class="num">' + fmtBRL(h.cbsDebito) + '</td></tr>' +
       '<tr><td>(−) Crédito IBS</td><td class="num">− ' + fmtBRL(h.creditoIbs) + '</td></tr>' +
       '<tr><td>(−) Crédito CBS</td><td class="num">− ' + fmtBRL(h.creditoCbs) + '</td></tr>' +
       '<tr class="total"><td>= TOTAL LÍQUIDO (mensal)</td><td class="num">' + fmtBRL(h.totalMensal) + '</td></tr>' +
@@ -1843,10 +2496,10 @@ function renderHibrido(root) {
       '<div class="acc-head"><span class="step-badge">i</span><strong>Ver composição — memória de cálculo do Híbrido</strong>' + icon("chevron", "chev") + '</div>' +
       '<div class="acc-body"><div class="acc-body-inner">' +
         '<div class="formula">DAS sem IBS/CBS = DAS total − parcela de ' + (h.tributoConsumo || "ICMS/ISS") + ' (' + fmtBRL(h.parcelaIbsNoDas) + ') − parcela de PIS/COFINS (' + fmtBRL(h.parcelaCbsNoDas) + ') = ' + fmtBRL(r.simples.dasMensal) + ' − ' + fmtBRL(h.parcelaConsumoDas) + ' = ' + fmtBRL(h.dasSemIbsCbs) + '</div>' +
-        '<div class="formula">IBS débito = Faturamento × ' + fmtPct(h.ibsPct, 2) + ' = ' + fmtBRL(h.ibsDebito) + '  |  CBS débito = Faturamento × ' + fmtPct(h.cbsPct, 2) + ' = ' + fmtBRL(h.cbsDebito) + '</div>' +
+        '<div class="formula">IBS teórico = Faturamento × alíquota de referência (' + fmtPct(h.ibsRefPct, 2) + ') = ' + fmtBRL(e.faturamentoMensal * h.ibsRefPct / 100) + '  (−) redução ' + fmtPct(h.reducaoAplicadaPct, 0) + '  ⇒  IBS débito = ' + fmtBRL(h.ibsDebito) + '  |  CBS teórico = Faturamento × ' + fmtPct(h.cbsRefPct, 2) + '  (−) redução ' + fmtPct(h.reducaoAplicadaPct, 0) + '  ⇒  CBS débito = ' + fmtBRL(h.cbsDebito) + '</div>' +
         '<div class="formula">IBS líquido = ' + fmtBRL(h.ibsDebito) + ' − ' + fmtBRL(h.creditoIbs) + ' = ' + fmtBRL(h.ibsLiquido) + '  |  CBS líquido = ' + fmtBRL(h.cbsDebito) + ' − ' + fmtBRL(h.creditoCbs) + ' = ' + fmtBRL(h.cbsLiquido) + '</div>' +
         '<div class="formula">Total Híbrido = DAS sem IBS/CBS + IBS líquido + CBS líquido = ' + fmtBRL(h.dasSemIbsCbs) + ' + ' + fmtBRL(h.ibsLiquido) + ' + ' + fmtBRL(h.cbsLiquido) + ' = ' + fmtBRL(h.totalMensal) + '</div>' +
-        '<p class="small muted">Os percentuais de crédito de IBS e de CBS são parâmetros de simulação informados acima — não são alíquotas legais e não é assumido crédito integral por padrão. A memória completa também está disponível na aba Memória de Cálculo.</p>' +
+        '<p class="small muted">O tratamento tributário de IBS/CBS (redução/benefício aplicável — ver card acima) já está refletido nas alíquotas efetivas usadas nesta memória. Os percentuais de crédito de IBS e de CBS são parâmetros de simulação informados acima — não são alíquotas legais e não é assumido crédito integral por padrão. A memória completa também está disponível na aba Memória de Cálculo.</p>' +
       '</div></div>' +
     '</div>';
   root.appendChild(compCard);
@@ -1893,6 +2546,7 @@ function renderHibrido(root) {
   root.appendChild(resCard);
 
   setTimeout(() => {
+    wireTratamentoIbsCbsCard();
     $("#hibAno").onchange = (ev) => { state.hibrido.anoProjecao = parseInt(ev.target.value, 10); renderContent(); };
     $("#hibCredIbs").onchange = (ev) => { state.hibrido.creditoIbsPct = parseNum(ev.target.value); renderContent(); };
     $("#hibCredCbs").onchange = (ev) => { state.hibrido.creditoCbsPct = parseNum(ev.target.value); renderContent(); };
@@ -1916,12 +2570,24 @@ function renderPresumido(root) {
   const t = r.presumido.trimestre;
   root.appendChild(el("div", { class: "section-head", html: '<div><h2>Lucro Presumido</h2><p class="sub">IRPJ e CSLL (trimestrais) · ' + (t.substituidoPorCbs ? "CBS, IBS e ISS" : "PIS, COFINS e ISS") + ' (mensais)</p></div>' + badge("Fonte oficial", "blue", "info") }));
 
+  const clsPres = classificarPorCnae();
+  const presK = clsPres && clsPres.presuncao;
+  const pendentePres = state.presumido.atividadeModo === "auto" && clsPres && presK && presK.pendente;
+  const atividadeModoBadge = state.presumido.atividadeModo === "manual"
+    ? badge("Manual", "blue")
+    : (!clsPres ? badge("Automático — sem CNAE, valor mantido", "green", "check")
+       : pendentePres ? badge("Confirmação necessária", "yellow", "alert")
+       : confiancaBadgeHTML(presK.confianca));
+
   const inputCard = el("div", { class: "card" });
-  inputCard.innerHTML = '<div class="card-title">' + icon("receipt") + 'Parâmetros da atividade</div>' +
+  inputCard.innerHTML = '<div class="card-title">' + icon("receipt") + 'Parâmetros da atividade<span class="grow"></span>' + atividadeModoBadge + '</div>' +
     '<div class="grid grid-2">' +
     '<div class="field"><label for="lpAtiv">Atividade (presunção)</label><select id="lpAtiv">' +
-      Object.keys(PRESUNCAO).map((k) => '<option value="' + k + '"' + (state.presumido.atividade === k ? " selected" : "") + '>' + PRESUNCAO[k].label + ' (IRPJ ' + PRESUNCAO[k].irpj + '% · CSLL ' + PRESUNCAO[k].csll + '%)</option>').join("") +
-    '</select></div>' +
+      '<option value="__auto__"' + (state.presumido.atividadeModo === "auto" ? " selected" : "") + '>Automático (classificação por CNAE)' + (clsPres ? " — atual: " + PRESUNCAO[r.atividadeKey].label : "") + '</option>' +
+      Object.keys(PRESUNCAO).map((k) => '<option value="' + k + '"' + (state.presumido.atividadeModo === "manual" && state.presumido.atividade === k ? " selected" : "") + '>' + PRESUNCAO[k].label + ' (IRPJ ' + PRESUNCAO[k].irpj + '% · CSLL ' + PRESUNCAO[k].csll + '%)</option>').join("") +
+    '</select>' +
+    (state.presumido.atividadeModo === "auto" && clsPres && !pendentePres ? '<span class="hint">CNAE ' + escHtml(clsPres.cnae.codigo) + " — " + escHtml(presK.fonte) + ". " + escHtml(presK.motivo) + '</span>' : "") +
+    '</div>' +
     '<div class="field"><label for="lpReceita">Receita trimestral</label><input type="text" inputmode="decimal" id="lpReceita" value="' + fmtInput(state.empresa.faturamentoMensal * 3) + '"><span class="hint">Padrão: faturamento mensal × 3. Ajuste se a receita for sazonal.</span></div>' +
     '</div>' +
     '<div style="height:12px"></div>' +
@@ -1931,8 +2597,8 @@ function renderPresumido(root) {
     '<div style="height:12px"></div>' +
     '<div class="grid grid-3">' +
     (t.substituidoPorCbs
-      ? '<div class="field"><label>CBS (%) — ano ' + t.ano + '</label><input type="text" value="' + fmtInput(t.crono.cbs) + '" disabled><span class="hint">Substitui PIS/COFINS a partir de 2027</span></div>' +
-        '<div class="field"><label>IBS (%) — ano ' + t.ano + '</label><input type="text" value="' + fmtInput(t.crono.ibs) + '" disabled></div>'
+      ? '<div class="field"><label>CBS efetivo (%) — ano ' + t.ano + '</label><input type="text" value="' + fmtInput(t.cbsPctUsado) + '" disabled><span class="hint">Substitui PIS/COFINS a partir de 2027 · referência ' + fmtPct(t.cbsRefPct, 2) + (t.reducaoAplicadaPct > 0 ? " − redução " + fmtPct(t.reducaoAplicadaPct, 0) : "") + ' — ver "Tratamento tributário IBS/CBS" abaixo</span></div>' +
+        '<div class="field"><label>IBS efetivo (%) — ano ' + t.ano + '</label><input type="text" value="' + fmtInput(t.ibsPctUsado) + '" disabled><span class="hint">Referência ' + fmtPct(t.ibsRefPct, 2) + (t.reducaoAplicadaPct > 0 ? " − redução " + fmtPct(t.reducaoAplicadaPct, 0) : "") + '</span></div>'
       : '<div class="field"><label for="lpPis">PIS (%)</label><input type="text" inputmode="decimal" id="lpPis" value="' + fmtInput(state.presumido.pisAliq) + '"></div>' +
         '<div class="field"><label for="lpCofins">COFINS (%)</label><input type="text" inputmode="decimal" id="lpCofins" value="' + fmtInput(state.presumido.cofinsAliq) + '"></div>'
     ) +
@@ -1944,8 +2610,30 @@ function renderPresumido(root) {
     '<label class="checkbox-row"><input type="checkbox" id="lpMaj"' + (state.presumido.majoracao ? " checked" : "") + '> Aplicar majoração de 10% da presunção acima de R$ 1.250.000/trimestre (IN RFB 2.305/2025 e 2.306/2026) ' + badge("Verificar", "yellow") + '</label>';
   root.appendChild(inputCard);
 
+  if (pendentePres) {
+    const pendPresCard = el("div", { class: "card" });
+    pendPresCard.innerHTML = clsPres.pendencias.filter((p) => p.aspecto === "presuncao").map((p) => {
+      const respAtual = state.classificacaoComplementos[p.id];
+      return alertBox("yellow", "alert", "<b>Confirmação necessária:</b> " + escHtml(p.explicacao) + " Até a confirmação, a atividade mantida é \"" + PRESUNCAO[state.presumido.atividade].label + "\" (valor anteriormente em uso — nenhuma presunção reduzida é presumida).") +
+        '<div class="field" style="margin-top:8px"><label>' + escHtml(p.pergunta) + '</label><select data-complemento="' + p.id + '"><option value="">Selecione para confirmar…</option>' +
+        p.opcoes.map((o) => '<option value="' + escAttr(o.value) + '"' + (respAtual === o.value ? " selected" : "") + '>' + escHtml(o.label) + '</option>').join("") + '</select></div>';
+    }).join("");
+    root.appendChild(pendPresCard);
+  }
+
   if (t.notaMajoracao) root.appendChild(el("div", { html: alertBox("yellow", "alert", "Majoração aplicada sobre " + fmtBRL(t.notaMajoracao.parteMajorada) + " da receita (parcela acima de R$ 1.250.000,00) — presunção IRPJ ajustada para " + fmtPct(t.notaMajoracao.irpjMajPct) + " nessa faixa.") }));
   if (t.substituidoPorCbs) root.appendChild(el("div", { html: alertBox("blue", "info", "A partir de 2027, PIS e COFINS são extintos e substituídos pela CBS (Lei Complementar 214/2025). Os percentuais de CBS e IBS usados vêm do mesmo cronograma de transição da aba Simples Híbrido — ano selecionado: " + t.ano + ".") }));
+
+  // ---- Tratamento tributário de IBS/CBS (alíquotas, reduções e benefícios) ----
+  const tratCardPres = el("div", { class: "card" });
+  tratCardPres.innerHTML = tratamentoIbsCbsCardHTML({
+    ano: t.ano, base: state.empresa.faturamentoMensal * 3,
+    ibsRefPct: t.ibsRefPct, cbsRefPct: t.cbsRefPct, ibsPct: t.ibsPctUsado, cbsPct: t.cbsPctUsado,
+    reducaoAplicadaPct: t.reducaoAplicadaPct, ibsValor: t.ibs, cbsValor: t.cbs,
+    manual: t.tratamentoIbsCbsManual, tratamento: t.tratamentoIbsCbs,
+  });
+  root.appendChild(tratCardPres);
+  if (!t.substituidoPorCbs) root.appendChild(el("div", { html: alertBox("blue", "info", "Em " + t.ano + " (ano-teste ou anterior a 2027), o IBS/CBS ainda não substitui PIS/COFINS — a alíquota efetiva calculada acima passa a valer a partir de 2027, mas o tratamento já pode ser definido com antecedência.") }));
 
   const kpis = el("div", { class: "grid grid-4" });
   kpis.innerHTML =
@@ -1969,8 +2657,8 @@ function renderPresumido(root) {
     '<div style="height:14px"></div>' +
     '<div class="table-wrap"><table><thead><tr><th colspan="2">Tributos mensais (valores do trimestre)</th></tr></thead><tbody>' +
     (t.substituidoPorCbs
-      ? '<tr><td>CBS (' + fmtPct(t.crono.cbs, 2) + ') <span class="tiny muted">— substitui PIS/COFINS</span></td><td class="num">' + fmtBRL(t.cbs) + '</td></tr>' +
-        '<tr><td>IBS (' + fmtPct(t.crono.ibs, 2) + ')</td><td class="num">' + fmtBRL(t.ibs) + '</td></tr>'
+      ? '<tr><td>CBS (alíquota efetiva ' + fmtPct(t.cbsPctUsado, 2) + (t.reducaoAplicadaPct > 0 ? ", ref. " + fmtPct(t.cbsRefPct, 2) : "") + ') <span class="tiny muted">— substitui PIS/COFINS</span></td><td class="num">' + fmtBRL(t.cbs) + '</td></tr>' +
+        '<tr><td>IBS (alíquota efetiva ' + fmtPct(t.ibsPctUsado, 2) + (t.reducaoAplicadaPct > 0 ? ", ref. " + fmtPct(t.ibsRefPct, 2) : "") + ')</td><td class="num">' + fmtBRL(t.ibs) + '</td></tr>'
       : '<tr><td>PIS (' + fmtPct(state.presumido.pisAliq) + ')</td><td class="num">' + fmtBRL(t.pis) + '</td></tr>' +
         '<tr><td>COFINS (' + fmtPct(state.presumido.cofinsAliq) + ')</td><td class="num">' + fmtBRL(t.cofins) + '</td></tr>') +
     '<tr><td>ISS (' + fmtPct(t.issAliqEfetivaPct) + (t.fatorRemanescenteIss < 1 ? ' — ' + fmtPct(t.fatorRemanescenteIss * 100, 0) + ' da alíquota informada' : '') + ')</td><td class="num">' + fmtBRL(t.iss) + '</td></tr>' +
@@ -1985,7 +2673,12 @@ function renderPresumido(root) {
   root.appendChild(tableCard);
 
   setTimeout(() => {
-    $("#lpAtiv").onchange = (ev) => { state.presumido.atividade = ev.target.value; renderContent(); };
+    wireTratamentoIbsCbsCard();
+    $("#lpAtiv").onchange = (ev) => {
+      if (ev.target.value === "__auto__") { state.presumido.atividadeModo = "auto"; }
+      else { state.presumido.atividadeModo = "manual"; state.presumido.atividade = ev.target.value; }
+      renderContent();
+    };
     $("#lpReceita").onchange = (ev) => {
       const v = parseNum(ev.target.value);
       state.empresa.faturamentoMensal = v / 3;
@@ -2057,7 +2750,8 @@ function renderComparativo(root) {
       cmpRow("Total anual", [{ v: r.simples.dasAnual }, { v: h.totalAnual }, { v: r.presumido.totalAnual }], true) +
       cmpRow("Carga efetiva", [{ v: r.simples.cargaEfetivaPct, pct: true }, { v: h.cargaEfetivaPct, pct: true }, { v: r.presumido.cargaEfetivaPct, pct: true }], true) +
       '</tbody></table></div>' +
-      '<p class="tiny muted" style="margin-top:10px">"(' + NO_DAS + ')" indica que o valor já está embutido no DAS do Simples — não é um pagamento adicional. No Híbrido, IRPJ/CSLL permanecem no DAS; IBS e CBS são apurados à parte, com créditos conforme parâmetros informados na aba Simples Híbrido (ano de referência: ' + h.ano + '). O Lucro Presumido não possui DAS; a partir de 2027 (ano de projeção selecionado na aba Lucro Presumido: ' + t.ano + '), PIS e COFINS são substituídos pela CBS e o IBS passa a incidir, pelo mesmo cronograma de transição usado no Simples Híbrido — antes de 2027, mantém PIS/COFINS/ISS pelas regras vigentes.</p>';
+      '<p class="tiny muted" style="margin-top:10px">"(' + NO_DAS + ')" indica que o valor já está embutido no DAS do Simples — não é um pagamento adicional. No Híbrido, IRPJ/CSLL permanecem no DAS; IBS e CBS são apurados à parte, com créditos conforme parâmetros informados na aba Simples Híbrido (ano de referência: ' + h.ano + '). O Lucro Presumido não possui DAS; a partir de 2027 (ano de projeção selecionado na aba Lucro Presumido: ' + t.ano + '), PIS e COFINS são substituídos pela CBS e o IBS passa a incidir, pelo mesmo cronograma de transição usado no Simples Híbrido — antes de 2027, mantém PIS/COFINS/ISS pelas regras vigentes. Os valores de IBS e CBS acima já refletem o tratamento tributário selecionado (\"' + r.tratamentoIbsCbs.label + '\"' + (h.reducaoAplicadaPct > 0 ? " — redução de " + fmtPct(h.reducaoAplicadaPct, 0) + " sobre a alíquota de referência" : "") + '); ajuste-o nas abas Simples Híbrido ou Lucro Presumido.</p>' +
+      (r.classificacao ? '<p class="tiny muted" style="margin-top:6px">Atividade (' + escHtml(PRESUNCAO[r.atividadeKey].label) + ') e tratamento IBS/CBS acima ' + (state.presumido.atividadeModo === "auto" || state.ibscbs.modo === "auto" ? "identificados automaticamente a partir do CNAE " + escHtml(r.classificacao.cnae.codigo) : "definidos manualmente") + ' — ver aba Dados da Empresa para a cadeia completa e o nível de confiança de cada item.</p>' : "");
     root.appendChild(tableCard);
 
     const chartsGrid = el("div", { class: "grid grid-2" });
@@ -2472,10 +3166,10 @@ function buildResumoExecutivoSlideDefs(r) {
       pptxKV("Faturamento mensal", fmtBRL(e.faturamentoMensal)) +
       pptxKV("RBT12", fmtBRL(r.rbt12) + (e.rbt12Modo === "auto" ? " (automático)" : " (manual)")) +
       pptxKV("Ano-calendário", String(e.anoAnalise)) +
-      pptxKV("Enquadramento Simples", state.simples.anexoModo === "manual" ? "Manual — " + anexo.nome : "Automático (Fator R) — " + anexo.nome) +
+      pptxKV("Enquadramento Simples", state.simples.anexoModo === "manual" ? "Manual — " + anexo.nome : "Automático (" + (r.anexoKey === "I" || r.anexoKey === "II" ? "CNAE" : "Fator R") + ") — " + anexo.nome) +
       '</div>' +
       '<div>' +
-      pptxKV("Atividade — Lucro Presumido", PRESUNCAO[state.presumido.atividade].label) +
+      pptxKV("Atividade — Lucro Presumido", PRESUNCAO[r.atividadeKey].label + (state.presumido.atividadeModo === "auto" && r.classificacao ? " (auto — CNAE)" : "")) +
       pptxKV("Ano de projeção — Presumido", String(t.ano) + (t.substituidoPorCbs ? " (CBS/IBS)" : " (PIS/COFINS)")) +
       pptxKV("Ano de referência — Híbrido", String(state.hibrido.anoProjecao)) +
       pptxKV("Crédito IBS / CBS (simulação)", fmtPct(state.hibrido.creditoIbsPct, 1) + " / " + fmtPct(state.hibrido.creditoCbsPct, 1)) +
@@ -2551,6 +3245,9 @@ function buildPptxSlideDefs(r) {
       '<div class="pptx-grid pptx-grid-2">' +
       '<div class="pptx-card">' + pptxTable(["Item", "Valor"], [
         { cells: ["DAS sem IBS/CBS", fmtBRL(h.dasSemIbsCbs)] },
+        { cells: ["Alíquota de referência (IBS+CBS)", fmtPct(h.ibsRefPct + h.cbsRefPct, 2)] },
+        { cells: ["Redução/benefício aplicado (" + h.tratamentoIbsCbs.label + ")", h.reducaoAplicadaPct > 0 ? "− " + fmtPct(h.reducaoAplicadaPct, 0) : "—"] },
+        { cells: ["Alíquota efetiva (IBS+CBS)", fmtPct(h.ibsPct + h.cbsPct, 2)] },
         { cells: ["(+) IBS débito", fmtBRL(h.ibsDebito)] },
         { cells: ["(+) CBS débito", fmtBRL(h.cbsDebito)] },
         { cells: ["(−) Crédito IBS", "− " + fmtBRL(h.creditoIbs)] },
@@ -2558,7 +3255,7 @@ function buildPptxSlideDefs(r) {
         { cells: ["Total líquido (mensal)", fmtBRL(h.totalMensal)], total: true },
       ]) + '</div>' +
       '<div class="pptx-card"><div class="pptx-card-title">Composição do Híbrido — ano ' + h.ano + '</div><div class="pptx-chart-box" style="height:148px"><canvas id="pptxC2"></canvas></div>' +
-      '<p style="font-size:10.5px;color:' + PPTX.textSec + ';margin-top:6px">Carga efetiva: ' + fmtPct(h.cargaEfetivaPct) + ' · Créditos são parâmetro de simulação (IBS ' + fmtPct(h.creditoIbsPct, 1) + ' · CBS ' + fmtPct(h.creditoCbsPct, 1) + ')</p></div>' +
+      '<p style="font-size:10.5px;color:' + PPTX.textSec + ';margin-top:6px">Carga efetiva: ' + fmtPct(h.cargaEfetivaPct) + ' · Créditos são parâmetro de simulação (IBS ' + fmtPct(h.creditoIbsPct, 1) + ' · CBS ' + fmtPct(h.creditoCbsPct, 1) + ')' + (h.tratamentoIbsCbs.status !== "oficial" ? ' · Tratamento tributário: hipótese, confirmar antes de aplicar em casos reais' : '') + '</p></div>' +
       '</div>',
     charts: [{ id: "pptxC2", build: pptxBuildChartHibrido }] });
 
@@ -2578,7 +3275,7 @@ function buildPptxSlideDefs(r) {
       ]) + '</div>' +
       '<div class="pptx-card">' + pptxTable(["Tributos mensais", "Valor"], (
         t.substituidoPorCbs
-          ? [{ cells: ["CBS (" + fmtPct(t.crono.cbs, 2) + ")", fmtBRL(t.cbs)] }, { cells: ["IBS (" + fmtPct(t.crono.ibs, 2) + ")", fmtBRL(t.ibs)] }]
+          ? [{ cells: ["CBS (efetivo " + fmtPct(t.cbsPctUsado, 2) + (t.reducaoAplicadaPct > 0 ? ", ref. " + fmtPct(t.cbsRefPct, 2) : "") + ")", fmtBRL(t.cbs)] }, { cells: ["IBS (efetivo " + fmtPct(t.ibsPctUsado, 2) + (t.reducaoAplicadaPct > 0 ? ", ref. " + fmtPct(t.ibsRefPct, 2) : "") + ")", fmtBRL(t.ibs)] }]
           : [{ cells: ["PIS (" + fmtPct(state.presumido.pisAliq) + ")", fmtBRL(t.pis)] }, { cells: ["COFINS (" + fmtPct(state.presumido.cofinsAliq) + ")", fmtBRL(t.cofins)] }]
       ).concat([
         { cells: ["ISS (" + fmtPct(t.issAliqEfetivaPct) + ")", fmtBRL(t.iss)] },
@@ -2660,19 +3357,25 @@ function buildPptxSlideDefs(r) {
       pptxKV("Folha de salários (12m)", fmtBRL(e.folha12m)) +
       pptxKV("Pró-labore mensal", fmtBRL(e.proLabore)) +
       pptxKV("Ano-calendário", String(e.anoAnalise)) +
-      pptxKV("Enquadramento Simples", state.simples.anexoModo === "manual" ? "Manual — " + anexo.nome : "Automático (Fator R)") +
+      pptxKV("Enquadramento Simples", state.simples.anexoModo === "manual" ? "Manual — " + anexo.nome : "Automático (" + (r.anexoKey === "I" || r.anexoKey === "II" ? "CNAE" : "Fator R") + ") — " + anexo.nome) +
       '</div>' +
       '<div>' +
-      pptxKV("Atividade — Lucro Presumido", PRESUNCAO[state.presumido.atividade].label) +
+      pptxKV("Atividade — Lucro Presumido", PRESUNCAO[r.atividadeKey].label + (state.presumido.atividadeModo === "auto" && r.classificacao ? " (auto — CNAE)" : "")) +
       pptxKV("Ano de projeção — Presumido", String(t.ano) + (t.substituidoPorCbs ? " (CBS/IBS)" : " (PIS/COFINS)")) +
-      pptxKV(t.substituidoPorCbs ? "CBS / IBS / ISS" : "PIS / COFINS / ISS", (t.substituidoPorCbs ? fmtPct(t.crono.cbs, 2) + " / " + fmtPct(t.crono.ibs, 2) : fmtPct(state.presumido.pisAliq) + " / " + fmtPct(state.presumido.cofinsAliq)) + " / " + fmtPct(state.presumido.issAliq)) +
+      pptxKV(t.substituidoPorCbs ? "CBS / IBS / ISS (efetivo)" : "PIS / COFINS / ISS", (t.substituidoPorCbs ? fmtPct(t.cbsPctUsado, 2) + " / " + fmtPct(t.ibsPctUsado, 2) : fmtPct(state.presumido.pisAliq) + " / " + fmtPct(state.presumido.cofinsAliq)) + " / " + fmtPct(state.presumido.issAliq)) +
       pptxKV("Ano de referência — Híbrido", String(state.hibrido.anoProjecao)) +
+      pptxKV("Tratamento tributário IBS/CBS", r.tratamentoIbsCbs.label + (r.tratamentoIbsCbs.status !== "oficial" ? " (hipótese — confirmar)" : "") + (state.ibscbs.modo === "auto" && r.classificacao ? " (auto — CNAE)" : "")) +
       pptxKV("Crédito IBS / CBS (simulação)", fmtPct(state.hibrido.creditoIbsPct, 1) + " / " + fmtPct(state.hibrido.creditoCbsPct, 1)) +
       pptxKV("Custos fixos / variáveis (equilíbrio)", fmtBRL(state.equilibrio.custosFixos) + " / " + fmtPct(state.equilibrio.custosVariaveisPct, 1)) +
       '</div>' +
       '</div>' +
+      (r.classificacao ? '<div style="height:12px"></div><div class="pptx-card" style="padding:12px 16px"><div class="pptx-card-title">Classificação tributária identificada a partir do CNAE</div>' +
+        pptxKV("CNAE", r.classificacao.cnae.codigo + " — " + r.classificacao.cnae.descricao) +
+        (r.classificacao.presuncao && !r.classificacao.presuncao.pendente ? pptxKV("Presunção — fonte", r.classificacao.presuncao.fonte + " (confiança " + r.classificacao.presuncao.confianca + ")") : pptxKV("Presunção", "pendente de confirmação complementar")) +
+        (r.classificacao.ibscbs && !r.classificacao.ibscbs.pendente ? pptxKV("IBS/CBS — fonte", r.classificacao.ibscbs.fonte + " (confiança " + r.classificacao.ibscbs.confianca + ")") : pptxKV("IBS/CBS", "pendente de confirmação complementar")) +
+        '</div>' : "") +
       '<div style="height:12px"></div>' +
-      '<div class="pptx-alert pptx-alert-blue">Percentuais de crédito de IBS/CBS são parâmetros de simulação informados pelo usuário — não são alíquotas legais e não assumem crédito integral.</div>' });
+      '<div class="pptx-alert pptx-alert-blue">Percentuais de crédito de IBS/CBS são parâmetros de simulação informados pelo usuário — não são alíquotas legais e não assumem crédito integral. Classificações automáticas por CNAE podem ser substituídas manualmente a qualquer momento (aba Dados da Empresa).</div>' });
 
   const half = Math.ceil(FONTES.length / 2);
   const pptxSrcCol = (arr) => arr.map((f) => '<div class="pptx-src"><div><div class="n">' + escHtml(f.nome) + '</div><div class="f">' + escHtml(f.fonte) + '</div></div><span class="pptx-badge pptx-badge-' + (f.status === "oficial" ? "blue" : "yellow") + '">' + (f.status === "oficial" ? "Oficial" : "Verificar") + '</span></div>').join("");
@@ -3007,7 +3710,7 @@ function buildChartsForActive() {
    --------------------------------------------------------------------------- */
 function saveDraft() {
   try {
-    const snap = { empresa: state.empresa, simples: state.simples, presumido: state.presumido, equilibrio: state.equilibrio, hibrido: state.hibrido, active: state.active, calculated: state.calculated };
+    const snap = { empresa: state.empresa, simples: state.simples, presumido: state.presumido, equilibrio: state.equilibrio, hibrido: state.hibrido, ibscbs: state.ibscbs, classificacaoComplementos: state.classificacaoComplementos, active: state.active, calculated: state.calculated };
     localStorage.setItem("analise-tributaria-draft", JSON.stringify(snap));
   } catch (e) {}
 }
@@ -3027,6 +3730,8 @@ function loadDraft() {
     Object.assign(state.presumido, snap.presumido || {});
     Object.assign(state.equilibrio, snap.equilibrio || {});
     Object.assign(state.hibrido, snap.hibrido || {});
+    Object.assign(state.ibscbs, snap.ibscbs || {});
+    Object.assign(state.classificacaoComplementos, snap.classificacaoComplementos || {});
     if (snap.active) state.active = snap.active;
     state.calculated = !!snap.calculated;
     migrateCnaeShape(state.empresa);
@@ -3035,9 +3740,11 @@ function loadDraft() {
 function resetState() {
   state.empresa = { nome: "", cnpj: "", cnae: null, faturamentoMensal: 18000, rbt12Modo: "auto", rbt12Manual: 216000, folha12m: 0, proLabore: 0, anoAnalise: 2026 };
   state.simples = { anexoModo: "auto", anexoManual: "III" };
-  state.presumido = { atividade: "servicos_gerais", receitaTrimestre: 54000, pisAliq: 0.65, cofinsAliq: 3.0, issAliq: 3.0, majoracao: false, anoProjecao: 2027 };
+  state.presumido = { atividade: "servicos_gerais", atividadeModo: "auto", receitaTrimestre: 54000, pisAliq: 0.65, cofinsAliq: 3.0, issAliq: 3.0, majoracao: false, anoProjecao: 2027 };
   state.equilibrio = { custosFixos: 6000, custosVariaveisPct: 10, contratoBruto: 10000, contratoLiquido: 8500, creditoContratanteAtualPct: 0 };
   state.hibrido = { anoProjecao: 2033, valorContratoAnual: 216000, creditoIbsPct: 0, creditoCbsPct: 0, creditoContratanteHibridoPct: 100 };
+  state.ibscbs = { tratamento: "padrao", modo: "auto", aliquotaEfetivaManualPct: null, observacao: "" };
+  state.classificacaoComplementos = {};
   state.comparativo = { view: "detalhado" };
   state.calculated = false;
   saveDraft();
@@ -3061,6 +3768,8 @@ function boot(initialState) {
       Object.assign(state.presumido, initialState.presumido || {});
       Object.assign(state.equilibrio, initialState.equilibrio || {});
       Object.assign(state.hibrido, initialState.hibrido || {});
+      Object.assign(state.ibscbs, initialState.ibscbs || {});
+      Object.assign(state.classificacaoComplementos, initialState.classificacaoComplementos || {});
       if (initialState.active) state.active = initialState.active;
       state.calculated = !!initialState.calculated;
       migrateCnaeShape(state.empresa);
@@ -3081,7 +3790,7 @@ function boot(initialState) {
 }
 
 function currentSnapshot() {
-  return { empresa: state.empresa, simples: state.simples, presumido: state.presumido, equilibrio: state.equilibrio, hibrido: state.hibrido, active: state.active, calculated: state.calculated };
+  return { empresa: state.empresa, simples: state.simples, presumido: state.presumido, equilibrio: state.equilibrio, hibrido: state.hibrido, ibscbs: state.ibscbs, classificacaoComplementos: state.classificacaoComplementos, active: state.active, calculated: state.calculated };
 }
 
 if (window.claude && window.claude.hot) {
