@@ -1,13 +1,8 @@
-/* ============================================================================
-   ANÁLISE TRIBUTÁRIA — aplicação
-   Estrutura: ICONS · DATA (parâmetros) · ENGINE (cálculo puro) · STATE ·
-   RENDER (por seção) · CHARTS · PDF · INIT
-   ============================================================================ */
 
-/* ---------------------------------------------------------------------------
-   ICONS — conjunto próprio de ícones em linha (stroke, 24x24), sem dependência
-   externa. Visual discreto conforme especificação.
-   --------------------------------------------------------------------------- */
+/* ============================================================================
+   BLOCO 05_icons
+   ============================================================================ */
+/* ICONS — conjunto próprio de ícones em linha (stroke, 24x24), sem dependência externa. */
 const ICON_PATHS = {
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/>',
   building: '<path d="M6 22V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v18"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M16 8h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-4"/><path d="M10 6h2M10 10h2M10 14h2M10 18h2"/>',
@@ -36,6 +31,20 @@ function icon(name, extra) {
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="' + (extra || '') + '">' + (ICON_PATHS[name] || "") + "</svg>";
 }
 
+Object.assign(ICON_PATHS, {
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+  arrowr: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+  arrowl: '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
+  refresh: '<polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/>',
+});
+
+/* ============================================================================
+   BLOCO 10_legacy_data
+   ============================================================================ */
 /* ---------------------------------------------------------------------------
    DATA — banco de parâmetros tributários
    --------------------------------------------------------------------------- */
@@ -95,6 +104,100 @@ const ANEXOS = {
       { aliq: 0.305, ded: 540000, partilha: { IRPJ: 35.0, CSLL: 15.5, COFINS: 16.44, PIS: 3.56, CPP: 29.50, ISS: 0 } },
     ] },
 };
+
+/* ---------------------------------------------------------------------------
+   V3.2.3 — Anexos I a V a partir de 2027: ALÍQUOTA NOMINAL, PARCELAS A DEDUZIR e PARTILHA por tributo, com CBS e IBS.
+   Fonte: Lei Complementar 123/2006, Anexos I a V na redação dada pelo art. 519 da Lei Complementar 214/2025 (Anexos XVIII a XXII,
+   com efeitos a partir de 01/01/2027 — art. 544), reproduzidos na Res. CGSN 140/2018 pela Res. CGSN 190/2026, art. 6º (texto da
+   LC 214/2025 conferido na republicação do Senado Federal, legis.senado.leg.br, norma 40180341). Alíquotas nominais e parcelas a deduzir
+   são as mesmas dos Anexos de 2026, exceto a alíquota da 6ª faixa (abaixo). Períodos de vigência da partilha: 2027-2028, 2029, 2030, 2031,
+   2032 e 2033 em diante. Colunas em %, na ordem de `cols`; as faixas de 1 a 6 vêm em ordem. A publicação oficial traz duas linhas somando
+   100,01% (Anexo III, 3ª e 4ª faixas de 2027-2028); os números são mantidos como publicados. Em 2033 em diante o ICMS/ISS sai da tabela
+   (a coluna passa a ser só IBS).
+   --------------------------------------------------------------------------- */
+const ANEXOS_LC214 = {
+  I: { cols: ["IRPJ", "CSLL", "CBS", "CPP", "ICMS", "IBS"], p: {
+    "2728": [[5.5,3.5,15.33,41.5,34,0.17], [5.5,3.5,15.33,41.5,34,0.17], [5.5,3.5,15.33,42,33.5,0.17], [5.5,3.5,15.33,42,33.5,0.17], [5.5,3.5,15.33,42,33.5,0.17], [13.58,10.06,34.02,42.34,0,0]],
+    "2029": [[5.5,3.5,15.5,41.5,30.6,3.4], [5.5,3.5,15.5,41.5,30.6,3.4], [5.5,3.5,15.5,42,30.15,3.35], [5.5,3.5,15.5,42,30.15,3.35], [5.5,3.5,15.5,42,30.15,3.35], [13.5,10,34.4,42.1,0,0]],
+    "2030": [[5.5,3.5,15.5,41.5,27.2,6.8], [5.5,3.5,15.5,41.5,27.2,6.8], [5.5,3.5,15.5,42,26.8,6.7], [5.5,3.5,15.5,42,26.8,6.7], [5.5,3.5,15.5,42,26.8,6.7], [13.5,10,34.4,42.1,0,0]],
+    "2031": [[5.5,3.5,15.5,41.5,23.8,10.2], [5.5,3.5,15.5,41.5,23.8,10.2], [5.5,3.5,15.5,42,23.45,10.05], [5.5,3.5,15.5,42,23.45,10.05], [5.5,3.5,15.5,42,23.45,10.05], [13.5,10,34.4,42.1,0,0]],
+    "2032": [[5.5,3.5,15.5,41.5,20.4,13.6], [5.5,3.5,15.5,41.5,20.4,13.6], [5.5,3.5,15.5,42,20.1,13.4], [5.5,3.5,15.5,42,20.1,13.4], [5.5,3.5,15.5,42,20.1,13.4], [13.5,10,34.4,42.1,0,0]],
+    "2033": [[5.5,3.5,15.5,41.5,0,34], [5.5,3.5,15.5,41.5,0,34], [5.5,3.5,15.5,42,0,33.5], [5.5,3.5,15.5,42,0,33.5], [5.5,3.5,15.5,42,0,33.5], [13.5,10,34.4,42.1,0,0]],
+  } },
+  II: { cols: ["IRPJ", "CSLL", "CBS", "CPP", "IPI", "ICMS", "IBS"], p: {
+    "2728": [[5.5,3.5,13.85,37.5,7.5,32,0.15], [5.5,3.5,13.85,37.5,7.5,32,0.15], [5.5,3.5,13.85,37.5,7.5,32,0.15], [5.5,3.5,13.85,37.5,7.5,32,0.15], [5.5,3.5,13.85,37.5,7.5,32,0.15], [8.53,7.53,25.22,23.59,35.13,0,0]],
+    "2029": [[5.5,3.5,14,37.5,7.5,28.8,3.2], [5.5,3.5,14,37.5,7.5,28.8,3.2], [5.5,3.5,14,37.5,7.5,28.8,3.2], [5.5,3.5,14,37.5,7.5,28.8,3.2], [5.5,3.5,14,37.5,7.5,28.8,3.2], [8.5,7.5,25.5,23.5,35,0,0]],
+    "2030": [[5.5,3.5,14,37.5,7.5,25.6,6.4], [5.5,3.5,14,37.5,7.5,25.6,6.4], [5.5,3.5,14,37.5,7.5,25.6,6.4], [5.5,3.5,14,37.5,7.5,25.6,6.4], [5.5,3.5,14,37.5,7.5,25.6,6.4], [8.5,7.5,25.5,23.5,35,0,0]],
+    "2031": [[5.5,3.5,14,37.5,7.5,22.4,9.6], [5.5,3.5,14,37.5,7.5,22.4,9.6], [5.5,3.5,14,37.5,7.5,22.4,9.6], [5.5,3.5,14,37.5,7.5,22.4,9.6], [5.5,3.5,14,37.5,7.5,22.4,9.6], [8.5,7.5,25.5,23.5,35,0,0]],
+    "2032": [[5.5,3.5,14,37.5,7.5,19.2,12.8], [5.5,3.5,14,37.5,7.5,19.2,12.8], [5.5,3.5,14,37.5,7.5,19.2,12.8], [5.5,3.5,14,37.5,7.5,19.2,12.8], [5.5,3.5,14,37.5,7.5,19.2,12.8], [8.5,7.5,25.5,23.5,35,0,0]],
+    "2033": [[5.5,3.5,14,37.5,7.5,0,32], [5.5,3.5,14,37.5,7.5,0,32], [5.5,3.5,14,37.5,7.5,0,32], [5.5,3.5,14,37.5,7.5,0,32], [5.5,3.5,14,37.5,7.5,0,32], [8.5,7.5,25.5,23.5,35,0,0]],
+  } },
+  III: { cols: ["IRPJ", "CSLL", "CBS", "CPP", "ISS", "IBS"], p: {
+    "2728": [[4,3.5,15.43,43.4,33.5,0.17], [4,3.5,16.91,43.4,32,0.19], [4,3.5,16.42,43.4,32.5,0.19], [4,3.5,16.42,43.4,32.5,0.19], [4,3.5,15.43,43.4,33.5,0.17], [35.09,15.04,19.29,30.58,0,0]],
+    "2029": [[4,3.5,15.6,43.4,30.15,3.35], [4,3.5,17.1,43.4,28.8,3.2], [4,3.5,16.6,43.4,29.25,3.25], [4,3.5,16.6,43.4,29.25,3.25], [4,3.5,15.6,43.4,30.15,3.35], [35,15,19.5,30.5,0,0]],
+    "2030": [[4,3.5,15.6,43.4,26.8,6.7], [4,3.5,17.1,43.4,25.6,6.4], [4,3.5,16.6,43.4,26,6.5], [4,3.5,16.6,43.4,26,6.5], [4,3.5,15.6,43.4,26.8,6.7], [35,15,19.5,30.5,0,0]],
+    "2031": [[4,3.5,15.6,43.4,23.45,10.05], [4,3.5,17.1,43.4,22.4,9.6], [4,3.5,16.6,43.4,22.75,9.75], [4,3.5,16.6,43.4,22.75,9.75], [4,3.5,15.6,43.4,23.45,10.05], [35,15,19.5,30.5,0,0]],
+    "2032": [[4,3.5,15.6,43.4,20.1,13.4], [4,3.5,17.1,43.4,19.2,12.8], [4,3.5,16.6,43.4,19.5,13], [4,3.5,16.6,43.4,19.5,13], [4,3.5,15.6,43.4,20.1,13.4], [35,15,19.5,30.5,0,0]],
+    "2033": [[4,3.5,15.6,43.4,0,33.5], [4,3.5,17.1,43.4,0,32], [4,3.5,16.6,43.4,0,32.5], [4,3.5,16.6,43.4,0,32.5], [4,3.5,15.6,43.4,0,33.5], [35,15,19.5,30.5,0,0]],
+  } },
+  IV: { cols: ["IRPJ", "CSLL", "CBS", "ISS", "IBS"], p: {
+    "2728": [[18.8,15.2,21.26,44.5,0.24], [19.8,15.2,24.73,40,0.27], [20.8,15.2,23.74,40,0.26], [17.8,19.2,22.75,40,0.25], [18.8,19.2,21.76,40,0.24], [53.71,21.59,24.7,0,0]],
+    "2029": [[18.8,15.2,21.5,40.05,4.45], [19.8,15.2,25,36,4], [20.8,15.2,24,36,4], [17.8,19.2,23,36,4], [18.8,19.2,22,36,4], [53.5,21.5,25,0,0]],
+    "2030": [[18.8,15.2,21.5,35.6,8.9], [19.8,15.2,25,32,8], [20.8,15.2,24,32,8], [17.8,19.2,23,32,8], [18.8,19.2,22,32,8], [53.5,21.5,25,0,0]],
+    "2031": [[18.8,15.2,21.5,31.15,13.35], [19.8,15.2,25,28,12], [20.8,15.2,24,28,12], [17.8,19.2,23,28,12], [18.8,19.2,22,28,12], [53.5,21.5,25,0,0]],
+    "2032": [[18.8,15.2,21.5,26.7,17.8], [19.8,15.2,25,24,16], [20.8,15.2,24,24,16], [17.8,19.2,23,24,16], [18.8,19.2,22,24,16], [53.5,21.5,25,0,0]],
+    "2033": [[18.8,15.2,21.5,0,44.5], [19.8,15.2,25,0,40], [20.8,15.2,24,0,40], [17.8,19.2,23,0,40], [18.8,19.2,22,0,40], [53.5,21.5,25,0,0]],
+  } },
+  V: { cols: ["IRPJ", "CSLL", "CBS", "CPP", "ISS", "IBS"], p: {
+    "2728": [[25,15,16.96,28.85,14,0.19], [23,15,16.96,27.85,17,0.19], [24,15,17.95,23.85,19,0.2], [21,15,18.94,23.85,21,0.21], [23,12.5,16.96,23.85,23.5,0.19], [35.1,15.54,19.78,29.58,0,0]],
+    "2029": [[25,15,17.15,28.85,12.6,1.4], [23,15,17.15,27.85,15.3,1.7], [24,15,18.15,23.85,17.1,1.9], [21,15,19.15,23.85,18.9,2.1], [23,12.5,17.15,23.85,21.15,2.35], [35,15.5,20,29.5,0,0]],
+    "2030": [[25,15,17.15,28.85,11.2,2.8], [23,15,17.15,27.85,13.6,3.4], [24,15,18.15,23.85,15.2,3.8], [21,15,19.15,23.85,16.8,4.2], [23,12.5,17.15,23.85,18.8,4.7], [35,15.5,20,29.5,0,0]],
+    "2031": [[25,15,17.15,28.85,9.8,4.2], [23,15,17.15,27.85,11.9,5.1], [24,15,18.15,23.85,13.3,5.7], [21,15,19.15,23.85,14.7,6.3], [23,12.5,17.15,23.85,16.45,7.05], [35,15.5,20,29.5,0,0]],
+    "2032": [[25,15,17.15,28.85,8.4,5.6], [23,15,17.15,27.85,10.2,6.8], [24,15,18.15,23.85,11.4,7.6], [21,15,19.15,23.85,12.6,8.4], [23,12.5,17.15,23.85,14.1,9.4], [35,15.5,20,29.5,0,0]],
+    "2033": [[25,15,17.15,28.85,0,14], [23,15,17.15,27.85,0,17], [24,15,18.15,23.85,0,19], [21,15,19.15,23.85,0,21], [23,12.5,17.15,23.85,0,23.5], [35,15.5,20,29.5,0,0]],
+  } },
+};
+// Alíquota nominal da 6ª faixa: 2027-2028 (0,10 p.p. menor que a de 2026) e a partir de 2029 (retoma o valor de 2026 arredondado: I 19%; II 30%; III e IV 33%; V 30,5%).
+const ALIQ_NOMINAL_6A_FAIXA_2027 = { I: 0.189, II: 0.299, III: 0.329, IV: 0.329, V: 0.304 };
+const ALIQ_NOMINAL_6A_FAIXA_2029 = { I: 0.19, II: 0.30, III: 0.33, IV: 0.33, V: 0.305 };
+// Nota (*) dos Anexos III e IV (5ª faixa): o percentual efetivo máximo do ISS é de 5%; acima do limiar, o ISS (e, de 2029, o IBS) fica fixo
+// e o excedente (alíquota efetiva − 5%) é repartido entre os demais tributos pelos fatores abaixo. Valores em % (fatores) e em fração da receita (fixos).
+const ISS_TETO_5A_FAIXA = {
+  III: { limiar: 0.05 / 0.335, p: {
+    "2728": { fixo: { ISS: 0.05 }, fator: { IRPJ: 6.02, CSLL: 5.26, CBS: 23.20, CPP: 65.26, IBS: 0.26 } },
+    "2029": { fixo: { ISS: 0.045, IBS: 0.005 }, fator: { IRPJ: 6.02, CSLL: 5.26, CBS: 23.46, CPP: 65.26 } },
+    "2030": { fixo: { ISS: 0.04, IBS: 0.01 }, fator: { IRPJ: 6.02, CSLL: 5.26, CBS: 23.46, CPP: 65.26 } },
+    "2031": { fixo: { ISS: 0.035, IBS: 0.015 }, fator: { IRPJ: 6.02, CSLL: 5.26, CBS: 23.46, CPP: 65.26 } },
+    "2032": { fixo: { ISS: 0.03, IBS: 0.02 }, fator: { IRPJ: 6.02, CSLL: 5.26, CBS: 23.46, CPP: 65.26 } } } },
+  IV: { limiar: 0.125, p: {
+    "2728": { fixo: { ISS: 0.05 }, fator: { IRPJ: 31.33, CSLL: 32.00, CBS: 36.27, IBS: 0.40 } },
+    "2029": { fixo: { ISS: 0.045, IBS: 0.005 }, fator: { IRPJ: 31.33, CSLL: 32.00, CBS: 36.67 } },
+    "2030": { fixo: { ISS: 0.04, IBS: 0.01 }, fator: { IRPJ: 31.33, CSLL: 32.00, CBS: 36.67 } },
+    "2031": { fixo: { ISS: 0.035, IBS: 0.015 }, fator: { IRPJ: 31.33, CSLL: 32.00, CBS: 36.67 } },
+    "2032": { fixo: { ISS: 0.03, IBS: 0.02 }, fator: { IRPJ: 31.33, CSLL: 32.00, CBS: 36.67 } } } },
+};
+function periodoTabelaLC214(ano) {
+  if (ano == null || ano < 2027) return null;
+  if (ano <= 2028) return "2728";
+  return ano >= 2033 ? "2033" : String(ano);
+}
+// Partilha oficial (em % do DAS) do Anexo/faixa/ano; null antes de 2027 (valem os Anexos de 2026, em ANEXOS).
+function partilhaOficial(anexoKey, ano, faixaIdx, aliqEfetiva) {
+  const per = periodoTabelaLC214(ano), A = ANEXOS_LC214[anexoKey];
+  if (!per || !A) return null;
+  const row = A.p[per][faixaIdx];
+  if (!row) return null;
+  const out = {};
+  A.cols.forEach((c, i) => { if (per === "2033" && (c === "ICMS" || c === "ISS")) return; out[c] = row[i]; });
+  const cap = ISS_TETO_5A_FAIXA[anexoKey];
+  if (cap && faixaIdx === 4 && cap.p[per] && aliqEfetiva > cap.limiar + 1e-12) {
+    const c = cap.p[per], exc = aliqEfetiva - 0.05;
+    Object.keys(out).forEach((k) => { out[k] = 0; });
+    Object.keys(c.fixo).forEach((k) => { out[k] = (c.fixo[k] / aliqEfetiva) * 100; });
+    Object.keys(c.fator).forEach((k) => { out[k] = ((exc * c.fator[k]) / 100 / aliqEfetiva) * 100; });
+  }
+  return out;
+}
 
 const PRESUNCAO = {
   comercio_industria: { irpj: 8, csll: 12, label: "Comércio / indústria em geral" },
@@ -197,7 +300,7 @@ function updateFontesCnaeRow() {
 }
 function afterCnaeBaseChange() {
   const focused = document.activeElement && document.activeElement.id === "fCnae";
-  if (!focused && (state.active === "empresa" || state.active === "fontes")) renderContent();
+  if (!focused && (state.active === "preenchimento" || state.active === "resultados")) renderContent();
 }
 
 async function loadCnaeBase() {
@@ -752,21 +855,46 @@ const FONTES = [
   { nome: "Regra do Fator R (limiar de 28%)", fonte: "Lei Complementar 123/2006, art. 18, §5º-J e §5º-M", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Percentuais de presunção — Lucro Presumido (IRPJ/CSLL, incl. instituições financeiras)", fonte: "Lei 9.249/1995, art. 15 (incl. §1º, II) e 20 · Decreto 9.580/2018 (RIR)", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Alíquotas PIS/COFINS cumulativo — Lucro Presumido", fonte: "Lei 9.718/1998 (0,65% e 3,00%)", data: "consultado em 09/2026", status: "oficial" },
-  { nome: "Adicional de IRPJ (10% sobre excedente trimestral)", fonte: "Lei 9.249/1995, art. 3º, §1º — limite de R$ 60.000/trimestre", data: "consultado em 09/2026", status: "oficial" },
+  { nome: "Adicional de IRPJ (10% sobre o excedente do período de apuração)", fonte: "Lei 9.249/1995, art. 3º, §1º — limite de R$ 20.000 por mês (R$ 60.000 em trimestre completo)", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Majoração de 10% da presunção acima de R$ 1,25 mi/trimestre", fonte: "IN RFB nº 2.305/2025 e nº 2.306/2026 — regra recente, recomenda-se confirmação antes de aplicar em casos reais", data: "consultado em 09/2026", status: "hipotese" },
   { nome: "Alíquotas-teste CBS (0,9%) e IBS (0,1%) — ano-calendário 2026", fonte: "Lei Complementar 214/2025 e Emenda Constitucional 132/2023", data: "consultado em 09/2026", status: "oficial" },
-  { nome: "Cronograma de transição IBS/CBS 2027-2033", fonte: "Lei Complementar 214/2025 — alíquotas de CBS a partir de 2027 e implantação gradual do IBS", data: "consultado em 09/2026", status: "oficial" },
-  { nome: "Alíquota de referência combinada final (~26,5%)", fonte: "Estimativa preliminar do Comitê Gestor do IBS (CGIBS); valor final depende de resolução do Senado Federal com base na arrecadação efetiva", data: "consultado em 09/2026", status: "hipotese" },
+  { nome: "Calendário de transição IBS/CBS 2027-2033 (extinção de PIS/COFINS em 2027; redução gradual de ICMS/ISS e implantação do IBS de 2029 a 2033)", fonte: "Emenda Constitucional 132/2023 e Lei Complementar 214/2025 — o calendário é legal; as alíquotas de referência aplicadas sobre ele são projeção (ver item acima). IBS de 0,1% em 2027: ADCT, art. 127 (conforme Contábeis/Migalhas, 25/09/2026)", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Alíquotas de referência de CBS (2027+) e de IBS (2029+) — usadas aqui como PROJEÇÃO", fonte: "Ainda não fixadas oficialmente: o TCU tem até 30/10/2026 para enviar ao Senado o cálculo da CBS de 2027 e o Senado tem até 15/12/2026 para fixá-la por resolução; a Resolução CGIBS nº 14/2026 usa 27,91% (IBS+CBS) só como premissa metodológica (Portal Reforma Tributária, 04/09/2026; Contábeis/Migalhas, 25/09/2026). Os valores do app (CBS 8,8%; teto de referência ~26,5%) são projeções de planejamento e podem mudar", data: "consultado em 10/2026", status: "hipotese" },
   { nome: "Redução de 60% de IBS/CBS — saúde, educação, agropecuária e demais itens do Anexo II", fonte: "Lei Complementar 214/2025, art. 126 e Anexo II", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Redução de 100% (alíquota zero) — Cesta Básica Nacional de Alimentos", fonte: "Lei Complementar 214/2025, art. 125 e Anexo I", data: "consultado em 09/2026", status: "oficial" },
   { nome: "Outras hipóteses de alíquota zero (dispositivos médicos, medicamentos de lista específica, produtor rural)", fonte: "Lei Complementar 214/2025 — depende de regulamentação infralegal complementar", data: "consultado em 09/2026", status: "hipotese" },
   { nome: "Redução de 30% — sociedades profissionais / profissões intelectuais regulamentadas", fonte: "Lei Complementar 214/2025 — regime específico, abrangência exata sujeita a regulamentação complementar", data: "consultado em 09/2026", status: "hipotese" },
   { nome: "ISS municipal", fonte: "Alíquota varia por município (2% a 5%) — informar manualmente por cliente", data: "parâmetro do usuário", status: "hipotese" },
   { nome: "Classificação automática CNAE → Atividade → Presunção → IBS/CBS", fonte: "Estrutura CONCLA/IBGE (CNAE 2.3) combinada com Lei 9.249/1995 e LC 214/2025 — cada item traz confiança própria e, se insuficiente, exige confirmação do usuário", data: "consultado em 09/2026", status: "hipotese" },
+  { nome: "Início de atividade — RBT12 proporcionalizada. Até dez/2026: 1º mês = receita × 12; demais meses = média dos meses anteriores × 12. De jan/2027: 1º e 2º mês na 1ª faixa dos Anexos I a V; do 3º ao 13º mês = média dos meses antecedentes ao mês anterior × 12; do 14º mês, janela normal", fonte: "Lei Complementar 123/2006, art. 18, §§ 2º e 3º · Resolução CGSN nº 140/2018, art. 22, §§ 2º e 4º, na redação da Resolução CGSN nº 190/2026 (texto conferido em transcrição da resolução; vigência em 01/01/2027 — ver item de vigência)", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "RBT12 e FS12 de 2027 em diante: 12 meses ANTECEDENTES AO MÊS ANTERIOR ao período de apuração (o mês imediatamente anterior sai da janela)", fonte: "LC 123/2006, art. 18, § 1º, § 1º-A, I e § 5º-K, na redação da LC 214/2025, art. 517, com efeitos a partir de 01/01/2027 (art. 544) · Res. CGSN 140/2018, art. 26, § 5º, IV e V, na redação da Res. CGSN 190/2026. Aplicado a todo período de apuração a partir de jan/2027", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Anexos I a V de 2027 em diante (alíquotas nominais, parcelas a deduzir e partilha com CBS e IBS por Anexo, faixa e período: 2027-2028, 2029, 2030, 2031, 2032 e 2033 em diante)", fonte: "Lei Complementar 123/2006, Anexos I a V, na redação da LC 214/2025, art. 519 (Anexos XVIII a XXII), com efeitos a partir de 01/01/2027 (art. 544) — conferidos linha a linha na republicação do Senado Federal (legis.senado.leg.br). Alíquotas nominais e parcelas a deduzir iguais às de 2026, exceto a 6ª faixa (2027-2028: I 18,90%; II 29,90%; III e IV 32,90%; V 30,40%; 2029 em diante: I 19%; II 30%; III e IV 33%; V 30,5%). Em 2027-2028 CBS + IBS ocupam exatamente a parcela de PIS + COFINS de 2026; ISS e ICMS saem da tabela gradualmente até 2033. Nota de 5% de ISS (Anexos III e IV, 5ª faixa) aplicada com os fatores de redistribuição da lei. O Anexo III, 3ª e 4ª faixas de 2027-2028 somam 100,01% como publicado (IBS 0,19%)", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Exclusão do Simples por excesso de receita: até 20% → efeitos em 1º/jan do ano seguinte; acima de 20% → mês seguinte (início de atividade: retroativo à abertura do CNPJ)", fonte: "Manual da Exclusão do Simples Nacional (Receita Federal, versão mar/2024), itens 4.2 e 4.3 · LC 123/2006, arts. 28 a 32 · Res. CGSN 140/2018, arts. 81 a 84 — art. 3º, §2º da LC 123 (limite proporcional no início de atividade) conferido no Planalto em 10/2026; demais regras conferidas no manual oficial", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Fator R: folha de salários (FS12) pelo regime de caixa, incluídos os encargos", fonte: "Manual do PGDAS-D e DEFIS (Receita Federal, versão 17/06/2025), seção 1.5: FS12 = remunerações pagas (inclui pró-labore; exclui aluguéis e distribuição de lucros) + encargos efetivamente recolhidos · Solução de Consulta COSIT/RFB nº 17/2021 · LC 123/2006, art. 18, § 24", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Limite de receita no ano de início de atividade (R$ 400.000 × meses de funcionamento)", fonte: "Lei Complementar 123/2006, art. 3º, § 2º — frações de mês contam como mês inteiro", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Fator R nos 2 primeiros meses de atividade (a partir de jan/2027): considerado 0,28 (Anexo III)", fonte: "Res. CGSN 140/2018, art. 26, § 6º, na redação da Res. CGSN 190/2026 — \"O fator r referente aos 2 primeiros meses de início de atividades será considerado 0,28\"", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Vigência a partir de 01/01/2027 das regras da Res. CGSN 190/2026 (janela de RBT12/FS12, início de atividade, Anexos com CBS e IBS, Simples Híbrido)", fonte: "Art. 9º da Res. CGSN 190/2026, indicado como fundamento da vigência em 01/01/2027 (o dispositivo não pôde ser localizado nas cópias acessíveis do texto; a data coincide com a LC 214/2025, art. 544, e com a vigência dos Anexos republicados). Aplicado por período de apuração a partir de jan/2027", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Simples Híbrido: o DAS é calculado normalmente e dele se retiram SOMENTE as parcelas de CBS e de IBS da partilha do Anexo, da faixa e do ano; ISS, ICMS, IRPJ, CSLL, CPP e IPI continuam no DAS. O IBS e a CBS do regime regular são recolhidos por fora, às alíquotas de referência (projeção). Antes de 2027 a opção não existe: o Híbrido é igual ao Simples", fonte: "Res. CGSN 140/2018, arts. 21, III, 22-A e 40-C a 40-E, incluídos/alterados pela Res. CGSN 190/2026 · LC 123/2006, art. 18 e Anexos (partilha) na redação da LC 214/2025", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Sublimite de ICMS, ISS e IBS no Simples (2027+): R$ 3,6 mi por ano; início de atividade R$ 300.000 × meses. Excesso acima de 20%: impedimento a partir do mês seguinte (início de atividade: retroativo à abertura); até 20%: ano seguinte", fonte: "LC 123/2006, art. 13-A e art. 3º, §§ 9º a 13 (art. 3º conferido no Planalto) · Res. CGSN 140/2018, art. 12, caput e §§ 1º a 4º, 7º e 8º, na redação da Res. CGSN 190/2026. O impedido recolhe IBS, ICMS e ISS pelas normas gerais (CBS e tributos federais seguem no DAS). O app não calcula esses tributos: marca o total como incompleto e o comparativo como inconclusivo quando isso pode mudar o resultado", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Exclusão por excesso do limite proporcional no início de atividade (R$ 400.000 × meses): acima de 20%, efeitos retroativos à abertura (Simples e Híbrido inaplicáveis; regras gerais desde a abertura); até 20%, ano seguinte", fonte: "LC 123/2006, art. 3º, §§ 2º, 9º, 9º-A, 10 e 12 (texto conferido no Planalto) · Res. CGSN 140/2018, arts. 81 a 84 (manual da Receita). O app compara só o Lucro Presumido como regra geral e marca o comparativo como inconclusivo (juros, multa, Lucro Real e recolhimento retroativo não calculados)", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Fator R do 3º mês de atividade em diante (empresa nova): folha e receita anualizadas pelo mesmo critério (média dos meses antecedentes ao mês anterior × 12), cada uma pela sua própria média; até dez/2026, folha e receita acumuladas desde o 1º mês. Casos de zero: folha e receita zero → 0,01 (Anexo V); folha > 0 com receita zero → 0,28; folha zero com receita > 0 → 0,01", fonte: "Res. CGSN 140/2018, art. 26, § 4º (mais de 2 e menos de 14 meses de atividade: folha anualizada pelos critérios do art. 22), § 6º (casos de zero) e § 7º, na redação da Res. CGSN 190/2026. Os incisos foram conferidos em reprodução secundária — as transcrições da Res. 190 acessíveis os omitem; a ratificar no texto integral. Para 2026 vale o Manual do PGDAS-D, seção 8.3, não acessada. Janela e anualização: LC 123/2006, art. 18, § 1º-A", data: "consultado em 10/2026", status: "hipotese" },
+  { nome: "Folha fiscal do Fator R (FS12): remunerações pagas a pessoas físicas (inclui pró-labore e 13º) + CPP patronal efetivamente recolhida (inclusive a paga dentro do DAS) + FGTS efetivamente recolhido; não inclui aluguéis nem distribuição de lucros", fonte: "Res. CGSN 140/2018, art. 26, § 1º (redação da Res. CGSN 190/2026) · Manual do PGDAS-D, item 1.5 (conferido) · LC 123/2006, art. 18, § 25 (apenas valores declarados em GFIP/eSocial/DCTFWeb)", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Folha elegível do app = pró-labore + salários + FGTS (sem somar a CPP paga no DAS)", fonte: "A CPP paga dentro do DAS é parte da folha fiscal (item acima), mas o app NÃO a soma: seria um valor estimado (depende do DAS do mês anterior e da partilha) tratado como valor pago, e criaria dependência circular com o próprio Fator R. Escolha conservadora — a folha necessária fica mais alta que a exigida (com CPP de ~2,6% da receita no Anexo III, 1ª faixa, bastariam ~25,4% de pró-labore e salários + FGTS). A folha informada pelo usuário deve seguir o conceito fiscal completo; confirmar com o contador", data: "consultado em 10/2026", status: "hipotese" },
+  { nome: "Adicional de IRPJ: R$ 20.000 × meses do PERÍODO DE APURAÇÃO (trimestre completo = R$ 60.000; proporcional só no trimestre de início de atividade)", fonte: "Lei 9.249/1995, art. 3º, § 1º — uma simulação mais curta que o trimestre não reduz o limite; o trimestre é marcado como estimativa parcial (regra do app, V3.1)", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Teto do salário de contribuição do INSS em 2026: R$ 8.475,55", fonte: "Portaria Interministerial MPS/MF nº 13/2026 — conferido na tabela de contribuição mensal do INSS (gov.br/inss) e na notícia oficial do reajuste de 3,9%", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "INSS de 11% retido do sócio sobre o pró-labore (contribuinte individual que presta serviço à empresa), até o teto do salário de contribuição", fonte: "IN RFB 2.110/2022, art. 37, II, \"a\" (alíquota de 20% com dedução de 45% da contribuição patronal, limitada a 9% do salário de contribuição = 11%) · Lei 10.666/2003, art. 4º (a empresa desconta e recolhe, até o dia 20 do mês seguinte) · Receita Federal — Contribuições previdenciárias, item 1.5 (11% para o contribuinte individual que presta serviço à empresa). Optantes do Simples também retêm (orientação de fonte secundária). Limites e exceções: a base não passa do teto; com mais de uma fonte pagadora o teto é compartilhado (informação do sócio via eSocial); o app considera só esta empresa e não trata sócio com outros vínculos, aposentado ou MEI", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Teto do INSS e tabela do IRRF em 2027: o app usa os valores de 2026", fonte: "O teto de 2027 (portaria interministerial de janeiro) e o salário mínimo de 2027 ainda não foram publicados; a tabela do IRRF de 2026 é mantida (Lei 15.270/2025, sem prazo de vigência). Pró-labore alto em 2027 pode ter retenção de INSS ligeiramente maior que a estimada", data: "consultado em 10/2026", status: "hipotese" },
+  { nome: "CPP patronal no Simples Nacional: já incluída no DAS dos Anexos I, II, III e V (fora do Anexo IV) e dispensa das demais contribuições (sistema S etc.)", fonte: "Lei Complementar 123/2006, art. 13, VI e § 3º (texto conferido no Planalto, 10/2026) — por isso o pró-labore adicional do Fator R não gera encargo patronal extra nos Anexos III e V", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "IRRF mensal sobre pró-labore — tabela progressiva, desconto simplificado (R$ 607,20) e redução da Lei 15.270/2025 (até R$ 5.000: redução de até R$ 312,89, zerando o imposto; de R$ 5.000,01 a R$ 7.350: redução = R$ 978,62 − 0,133145 × rendimento; vigência 01/01/2026)", fonte: "Receita Federal — Tabelas do IRPF 2026 (gov.br/receitafederal, conferida: faixas, parcelas a deduzir e desconto simplificado; Lei 15.191/2025) · Lei 15.270/2025, art. 3º-A da Lei 9.250/1995 (texto no Planalto, conferido). O app deduz o maior entre o INSS e o desconto simplificado e não considera dependentes nem outras rendas", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "Distribuição de lucros: retenção de 10% do IRPF sobre o que passar de R$ 50.000 por mês pago por uma mesma pessoa jurídica (a partir de 2026) — NÃO modelada", fonte: "Lei 15.270/2025, art. 6º-A da Lei 9.250/1995 (conferida no Planalto) — pode alterar a comparação entre pró-labore e distribuição de lucros em empresas com lucros altos; fora do escopo dos cálculos", data: "consultado em 10/2026", status: "hipotese" },
+  { nome: "Simples com IBS/CBS pelo regime regular (Simples Híbrido): janelas de opção — jan–jun/2027: de 01/09 a 30/10/2026 (prorrogada de 30/09 pela Res. CGSN 194/2026); cancelamento irretratável de 03/11 a 20/12/2026; nova janela em março/2027 para jul–dez/2027; empresas que abrirem CNPJ de 31/10 a 31/12/2026 seguem regra própria. Sem opção, IBS/CBS ficam dentro do DAS", fonte: "Resolução CGSN 186/2026, arts. 1º a 3º, na redação da Resolução CGSN 194/2026 (25/09/2026, DOU 28/09/2026) — opção pelo Simples Nacional para 2027: 01/09 a 15/10/2026 (pendências regularizáveis até 30/10/2026) · janela de março/2027 conforme Res. CGSN 190 e 191/2026 e fonte secundária (a Res. 194 não trata do 2º semestre)", data: "consultado em 10/2026", status: "oficial" },
   { id: "cnae", nome: "Base de CNAEs (classificação oficial)", fonte: "Carregando base de CNAEs (CONCLA/IBGE)...", data: "—", status: "hipotese" },
 ];
 updateFontesCnaeRow(); // aplica o estado inicial ("carregando") ao registro acima
 
+/* ============================================================================
+   BLOCO 20_legacy_engine
+   ============================================================================ */
 /* ---------------------------------------------------------------------------
    ENGINE — funções puras de cálculo
    --------------------------------------------------------------------------- */
@@ -775,40 +903,74 @@ function getFaixaIndex(rbt12) {
   for (let i = 0; i < FAIXAS_LIMITES.length; i++) if (rbt12 <= FAIXAS_LIMITES[i].max) return i;
   return FAIXAS_LIMITES.length - 1;
 }
-function calcAliquotaEfetiva(rbt12, anexoKey) {
+/* V3.2.2 — Regras de 2027 (Res. CGSN 190/2026 e LC 123, art. 18, §§ 1º, 1º-A e 5º-K, redação da LC 214/2025,
+   com efeitos a partir de 01/01/2027):
+   · RBT12 e FS12 passam a considerar os 12 meses ANTECEDENTES AO MÊS ANTERIOR ao período de apuração (o mês imediatamente anterior sai da janela);
+   · Anexos I a V (LC 214/2025, Anexos XVIII a XXII): a alíquota nominal da 6ª faixa é 0,10 p.p. menor em 2027-2028 (I 18,90%; II 29,90%; III e IV 32,90%;
+     V 30,40%) e volta a I 19%; II 30%; III e IV 33%; V 30,50% a partir de 2029, com as mesmas parcelas a deduzir; a partilha passa a ter CBS e IBS (V3.2.3);
+   · Início de atividade: nos 2 primeiros meses aplica-se a 1ª faixa dos Anexos I a V e o fator "r" é 0,28; do 3º ao 13º mês a RBT12 é a média dos
+     meses antecedentes ao mês anterior × 12; a partir do 14º mês vale a janela normal. */
+const ANO_REGRAS_2027 = 2027;
+function calcAliquotaEfetiva(rbt12, anexoKey, ano, forcarPrimeiraFaixa) {
   const anexo = ANEXOS[anexoKey];
-  const idx = getFaixaIndex(rbt12);
-  const faixa = anexo.faixas[idx];
-  if (rbt12 <= 0) return { aliqEfetiva: 0, idx, faixa };
+  const idx = forcarPrimeiraFaixa ? 0 : getFaixaIndex(rbt12);
+  let faixa = anexo.faixas[idx];
+  if (ano != null && ano >= ANO_REGRAS_2027 && idx === anexo.faixas.length - 1) {
+    const n6 = (ano >= 2029 ? ALIQ_NOMINAL_6A_FAIXA_2029 : ALIQ_NOMINAL_6A_FAIXA_2027)[anexoKey];
+    if (n6 != null) faixa = Object.assign({}, faixa, { aliq: n6 });
+  }
+  if (forcarPrimeiraFaixa) return { aliqEfetiva: faixa.aliq, idx, faixa, primeiraFaixaForcada: true };
+  // RBT12 = 0 (sem receita nos 12 meses anteriores): a fórmula da alíquota
+  // efetiva é indeterminada; usa-se a alíquota nominal da 1ª faixa (que, na
+  // 1ª faixa, é igual à efetiva para qualquer RBT12 positivo, pois a parcela
+  // a deduzir é zero). Antes retornava 0, o que zerava o tributo indevidamente.
+  if (rbt12 <= 0) return { aliqEfetiva: faixa.aliq, idx, faixa, semHistorico: true };
   const aliqEfetiva = (rbt12 * faixa.aliq - faixa.ded) / rbt12;
   return { aliqEfetiva: Math.max(aliqEfetiva, 0), idx, faixa };
 }
 function calcFatorR(folha12m, rbt12) { return rbt12 <= 0 ? 0 : folha12m / rbt12; }
+// Fator "r" com os casos de receita ou folha zero (Res. CGSN 140/2018, art. 26, § 7º, I a IV — meses posteriores ao início; § 6º no mês de início até 2026):
+// FS12 e RBT12r zero → 0,01; FS12 > 0 e RBT12r zero → 0,28; ambos > 0 → FS12 ÷ RBT12r; FS12 zero e RBT12r > 0 → 0,01. Para o enquadramento (limiar de 28%)
+// 0,01 e 0 são equivalentes (Anexo V); por isso o valor exibido continua 0 nesses casos e só "FS12 > 0 com RBT12r zero" muda (Anexo III, fator 0,28).
+function calcFatorRLegal(folha12m, rbt12) {
+  if (rbt12 > 0) return folha12m / rbt12;
+  return folha12m > 0 ? FATOR_R_LIMIAR : 0;
+}
 // Auxiliar somente informativo (usado no slide "Fator R" do relatório em PDF):
 // folha de salários (12 meses) necessária para atingir o limiar de 28% do
 // Fator R, dado o RBT12 atual. Não altera a regra de enquadramento em si
 // (calcFatorR/calcSimplesNacional) — é apenas um valor de referência exibido.
 function calcFolhaNecessariaFatorR(rbt12) { return rbt12 * 0.28; }
 
-function calcSimplesNacional({ faturamentoMensal, rbt12, anexoKey, folha12m }) {
+function calcSimplesNacional({ faturamentoMensal, rbt12, anexoKey, folha12m, ano, fatorRFixo, primeiraFaixa }) {
   let anexoUsado = anexoKey, fatorR = null;
   if (anexoKey === "III_V") {
-    fatorR = calcFatorR(folha12m || 0, rbt12);
+    fatorR = fatorRFixo != null ? fatorRFixo : calcFatorRLegal(folha12m || 0, rbt12);
     anexoUsado = fatorR >= 0.28 ? "III" : "V";
   }
-  const { aliqEfetiva, idx, faixa } = calcAliquotaEfetiva(rbt12, anexoUsado);
+  const { aliqEfetiva, idx, faixa } = calcAliquotaEfetiva(rbt12, anexoUsado, ano, primeiraFaixa);
   const dasMensal = faturamentoMensal * aliqEfetiva;
+  // Até 2026: partilha dos Anexos de 2026 (PIS/COFINS). De 2027: partilha da LC 214/2025 (com CBS e IBS).
+  const partilha = (ano != null && ano >= ANO_REGRAS_2027 && partilhaOficial(anexoUsado, ano, idx, aliqEfetiva)) || faixa.partilha;
   const partilhaValores = {};
-  Object.keys(faixa.partilha).forEach((t) => (partilhaValores[t] = dasMensal * (faixa.partilha[t] / 100)));
+  Object.keys(partilha).forEach((t) => (partilhaValores[t] = dasMensal * (partilha[t] / 100)));
   return {
     anexoUsado, faixaIndex: idx + 1, faixaLabel: (idx + 1) + "ª faixa",
     aliqNominal: faixa.aliq, parcelaDeduzir: faixa.ded, aliqEfetiva,
     dasMensal, dasAnual: dasMensal * 12, cargaEfetivaPct: aliqEfetiva * 100,
-    partilha: faixa.partilha, partilhaValores, fatorR, rbt12,
+    partilha, partilhaValores, fatorR, rbt12,
   };
 }
 
-function calcLucroPresumidoTrimestral({ receitaTrimestre, atividade, pisAliq, cofinsAliq, issAliq, aplicarMajoracao2026, anoProjecao, tratamentoIbsCbs, aliquotaEfetivaManualPct }) {
+// mesesPeriodo (opcional, padrão 3): número de meses do PERÍODO DE APURAÇÃO
+// do IRPJ. O limite do adicional é de R$ 20.000 por mês do período de
+// apuração (Lei 9.249/1995, art. 3º, §1º) — trimestre completo = R$ 60.000.
+// Só é menor que 3 no trimestre de início de atividade (a apuração começa no
+// mês de início). Uma simulação mais curta que o trimestre NÃO reduz o limite:
+// quem decide é o período de apuração, não o período simulado (V3.1).
+function calcLucroPresumidoTrimestral({ receitaTrimestre, atividade, pisAliq, cofinsAliq, issAliq, aplicarMajoracao2026, anoProjecao, tratamentoIbsCbs, aliquotaEfetivaManualPct, mesesPeriodo }) {
+  const mesesApuracao = mesesPeriodo && mesesPeriodo > 0 ? mesesPeriodo : 3;
+  const limiteAdicional = 20000 * mesesApuracao;
   const pres = PRESUNCAO[atividade];
   let irpjPct = pres.irpj, csllPct = pres.csll, baseIRPJ, baseCSLL, notaMajoracao = null;
   if (aplicarMajoracao2026 && receitaTrimestre > 1250000) {
@@ -822,7 +984,7 @@ function calcLucroPresumidoTrimestral({ receitaTrimestre, atividade, pisAliq, co
     baseCSLL = receitaTrimestre * (csllPct / 100);
   }
   const irpjNormal = baseIRPJ * 0.15;
-  const adicionalBase = Math.max(baseIRPJ - 60000, 0);
+  const adicionalBase = Math.max(baseIRPJ - limiteAdicional, 0);
   const irpjAdicional = adicionalBase * 0.10;
   const irpjTotal = irpjNormal + irpjAdicional;
   const csllTotal = baseCSLL * 0.09;
@@ -857,7 +1019,7 @@ function calcLucroPresumidoTrimestral({ receitaTrimestre, atividade, pisAliq, co
   const totalTrimestre = irpjTotal + csllTotal + consumoTotal;
   return {
     atividade: pres.label, irpjPctUsado: irpjPct, csllPctUsado: csllPct, baseIRPJ, baseCSLL,
-    irpjNormal, irpjAdicional, irpjTotal, csllTotal,
+    irpjNormal, irpjAdicional, irpjTotal, csllTotal, limiteAdicional, mesesApuracao,
     pis, cofins, cbs, ibs, iss, consumoTotal,
     issAliqEfetivaPct: issAliqEfetiva * 100, fatorRemanescenteIss,
     ano, substituidoPorCbs, crono,
@@ -900,24 +1062,36 @@ function calcLiquidoParaBruto(liquido, cargaPct) { const f = 1 - cargaPct / 100;
    sistema. Sem informação em contrário, tratamos o crédito como 0 (não
    assumido), nunca como integral.
    --------------------------------------------------------------------------- */
-function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaValores, cronoAno, creditoIbsPct, creditoCbsPct, tratamentoIbsCbs, aliquotaEfetivaManualPct }) {
-  // Parcelas do DAS hoje embutidas que correspondem aos tributos sobre
-  // consumo substituídos pela reforma: ICMS (Anexo I/II) ou ISS (Anexo
-  // III/IV/V) → viram IBS; PIS e COFINS (federais) → viram CBS. É essa soma
-  // que sai da partilha do Simples e passa a ser apurada separadamente no
-  // mecanismo à parte. IRPJ, CSLL e CPP não são afetados pela reforma e
-  // permanecem no DAS sem IBS/CBS.
-  const tributoConsumo = partilha.ICMS != null ? "ICMS" : (partilha.ISS != null ? "ISS" : null);
-  const parcelaIbsNoDas = (partilhaValores.ICMS || 0) + (partilhaValores.ISS || 0);
-  const parcelaCbsNoDas = (partilhaValores.COFINS || 0) + (partilhaValores.PIS || 0);
+// V3.2.3 — Res. CGSN 140/2018, art. 22-A (incluído pela Res. CGSN 190/2026): na opção pelo regime regular de IBS e CBS o DAS é calculado como no art. 22
+// (alíquota efetiva × receita do mês) e dele são deduzidas SOMENTE as parcelas de CBS e IBS previstas para o Anexo, a faixa e o ano (colunas CBS e IBS da
+// partilha da LC 214/2025, Anexos XVIII a XXII); IRPJ, CSLL, CPP, IPI, ICMS e ISS continuam no DAS (o ICMS/ISS sai da partilha pela própria tabela, ano a ano).
+// A opção só existe a partir de 01/01/2027 (Res. CGSN 190/2026, efeitos de 2027; Res. CGSN 186/2026 — janelas de opção): antes disso o Híbrido é o próprio DAS
+// (em 2026 os optantes estão dispensados de destacar IBS/CBS e o valor-teste é compensável).
+function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaValores, cronoAno, creditoIbsPct, creditoCbsPct, tratamentoIbsCbs, aliquotaEfetivaManualPct, anexoUsado, faixaIdx, aliqEfetiva }) {
+  const anoH = cronoAno.ano;
+  const opcao = anoH >= ANO_REGRAS_2027;
+  const tributoConsumo = partilha && partilha.ICMS != null ? "ICMS" : (partilha && partilha.ISS != null ? "ISS" : null);
+  // partilha (em %) que vale para o ano do Híbrido; sem ela (chamada direta com a partilha do próprio mês) usa-se a partilha informada
+  let pp = null;
+  if (opcao && anexoUsado != null && faixaIdx != null && faixaIdx >= 0) pp = partilhaOficial(anexoUsado, anoH, faixaIdx, aliqEfetiva);
+  let parcelaIbsNoDas = 0, parcelaCbsNoDas = 0;
+  if (opcao) {
+    if (pp) { parcelaIbsNoDas = dasMensal * ((pp.IBS || 0) / 100); parcelaCbsNoDas = dasMensal * ((pp.CBS || 0) / 100); }
+    else { parcelaIbsNoDas = (partilhaValores && partilhaValores.IBS) || 0; parcelaCbsNoDas = (partilhaValores && partilhaValores.CBS) || 0; }
+  }
   const parcelaConsumoDas = parcelaIbsNoDas + parcelaCbsNoDas;
   const dasSemIbsCbs = Math.max(dasMensal - parcelaConsumoDas, 0);
+  // o que permanece no DAS, por categoria (para a composição tributária)
+  const dasPartes = {};
+  const catDas = (k) => (k === "ICMS" || k === "ISS" ? "ICMS/ISS" : (k === "PIS" || k === "COFINS" ? "PIS/COFINS" : k));
+  if (pp) Object.keys(pp).forEach((k) => { if (k !== "CBS" && k !== "IBS") dasPartes[catDas(k)] = (dasPartes[catDas(k)] || 0) + dasMensal * (pp[k] / 100); });
+  else Object.keys(partilhaValores || {}).forEach((k) => { if (!opcao || (k !== "CBS" && k !== "IBS")) dasPartes[catDas(k)] = (dasPartes[catDas(k)] || 0) + partilhaValores[k]; });
 
   // ---- Tratamento tributário de IBS/CBS (alíquota padrão × redução/benefício
   // aplicável à operação, conforme LC 214/2025 — ver IBS_CBS_TRATAMENTOS) ----
   const aliqIbsCbs = aplicarTratamentoIbsCbs(cronoAno, tratamentoIbsCbs, aliquotaEfetivaManualPct);
-  const ibsDebito = faturamentoMensal * (aliqIbsCbs.ibsEfetivoPct / 100);
-  const cbsDebito = faturamentoMensal * (aliqIbsCbs.cbsEfetivoPct / 100);
+  const ibsDebito = opcao ? faturamentoMensal * (aliqIbsCbs.ibsEfetivoPct / 100) : 0;
+  const cbsDebito = opcao ? faturamentoMensal * (aliqIbsCbs.cbsEfetivoPct / 100) : 0;
   const creditoIbs = ibsDebito * ((creditoIbsPct || 0) / 100);
   const creditoCbs = cbsDebito * ((creditoCbsPct || 0) / 100);
   const ibsLiquido = Math.max(ibsDebito - creditoIbs, 0);
@@ -926,11 +1100,11 @@ function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaVa
   const totalMensal = dasSemIbsCbs + totalIbsCbsLiquido;
 
   return {
-    ano: cronoAno.ano, ibsPct: aliqIbsCbs.ibsEfetivoPct, cbsPct: aliqIbsCbs.cbsEfetivoPct, tributoConsumo,
+    ano: cronoAno.ano, opcao, ibsPct: aliqIbsCbs.ibsEfetivoPct, cbsPct: aliqIbsCbs.cbsEfetivoPct, tributoConsumo,
     ibsRefPct: aliqIbsCbs.ibsRefPct, cbsRefPct: aliqIbsCbs.cbsRefPct,
     reducaoAplicadaPct: aliqIbsCbs.reducaoAplicadaPct, tratamentoIbsCbsManual: aliqIbsCbs.manual,
     tratamentoIbsCbs: aliqIbsCbs.tratamento,
-    parcelaIbsNoDas, parcelaCbsNoDas, parcelaConsumoDas, dasSemIbsCbs,
+    parcelaIbsNoDas, parcelaCbsNoDas, parcelaConsumoDas, dasSemIbsCbs, dasPartes,
     ibsDebito, cbsDebito, creditoIbsPct: creditoIbsPct || 0, creditoCbsPct: creditoCbsPct || 0,
     creditoIbs, creditoCbs, ibsLiquido, cbsLiquido,
     totalIbsCbsLiquido, totalMensal, totalAnual: totalMensal * 12,
@@ -958,6 +1132,9 @@ function calcValorContratoParaCustoLiquido({ custoLiquidoDesejado, creditoPct, i
   return custoLiquidoDesejado / fator;
 }
 
+/* ============================================================================
+   BLOCO 25_helpers
+   ============================================================================ */
 /* ---------------------------------------------------------------------------
    HELPERS de formatação
    --------------------------------------------------------------------------- */
@@ -973,78 +1150,154 @@ function parseNum(str) {
 }
 function todayBR() { return new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }); }
 
-/* ---------------------------------------------------------------------------
-   STATE
-   --------------------------------------------------------------------------- */
-const NAV = [
-  { id: "dashboard", label: "Dashboard", ic: "grid" },
-  { id: "empresa", label: "Dados da Empresa", ic: "building" },
-  { id: "simples", label: "Simples Nacional", ic: "calculator" },
-  { id: "fatorr", label: "Fator R", ic: "percent" },
-  { id: "hibrido", label: "Simples Híbrido", ic: "layers" },
-  { id: "presumido", label: "Lucro Presumido", ic: "receipt" },
-  { id: "comparativo", label: "Comparativo", ic: "chart" },
-  { id: "equilibrio", label: "Ponto de Equilíbrio", ic: "scale" },
-  { id: "memoria", label: "Memória de Cálculo", ic: "filetext" },
-  { id: "relatorio", label: "Relatório PDF", ic: "download" },
-  { id: "fontes", label: "Fontes", ic: "info" },
-];
+/* ============================================================================
+   BLOCO 30_state
+   ============================================================================ */
 
-const state = {
-  active: "dashboard",
-  empresa: {
-    nome: "", cnpj: "", cnae: null, // registro CNAE (CONCLA/IBGE): {codigo,descricao,secao,divisao,grupo,classe,atividades} — puramente classificatório, não define Anexo/atividade tributária
-    faturamentoMensal: 18000,
-    rbt12Modo: "auto", rbt12Manual: 216000,
-    folha12m: 0, proLabore: 0,
-    anoAnalise: 2026,
+/* ---------------------------------------------------------------------------
+   ETAPAS, TIPOS DE ANÁLISE E ESTADO
+   --------------------------------------------------------------------------- */
+// Quatro etapas principais (antes eram 11 abas independentes). As antigas
+// abas continuam existindo como "detalhamento técnico" dentro de Resultados
+// (ver DETALHES) — nenhuma funcionalidade foi removida.
+const ETAPAS = [
+  { id: "inicio", n: 1, label: "Nova análise", dica: "Escolha o tipo de análise" },
+  { id: "preenchimento", n: 2, label: "Preenchimento", dica: "Informe os dados essenciais" },
+  { id: "resultados", n: 3, label: "Resultados", dica: "Compare os regimes" },
+  { id: "relatorio", n: 4, label: "Relatório", dica: "Gere o PDF" },
+];
+// Identificadores das antigas abas → etapa onde passaram a viver (e, quando
+// couber, o painel de detalhamento correspondente). Usado por setActive() para
+// manter compatível qualquer chamada/rascunho anterior.
+const LEGACY_TAB_MAP = {
+  dashboard: { etapa: "resultados" },
+  empresa: { etapa: "preenchimento" },
+  simples: { etapa: "resultados", detalhe: "simples" },
+  fatorr: { etapa: "resultados", detalhe: "fatorr" },
+  hibrido: { etapa: "resultados", detalhe: "hibrido" },
+  presumido: { etapa: "resultados", detalhe: "presumido" },
+  comparativo: { etapa: "resultados", detalhe: "tabela" },
+  equilibrio: { etapa: "resultados", detalhe: "equilibrio" },
+  memoria: { etapa: "resultados", detalhe: "memoria" },
+  relatorio: { etapa: "relatorio" },
+  fontes: { etapa: "resultados", detalhe: "fontes" },
+};
+const TIPOS_ANALISE = {
+  existente: {
+    label: "Empresa existente",
+    resumo: "Já opera e tem histórico de faturamento.",
+    detalhe: "Usa o faturamento, o RBT12 e a folha dos últimos 12 meses. Ideal para revisar o regime atual ou planejar o próximo ano.",
   },
-  // anexoModo "auto": em regra segue o Fator R (III/V); quando o CNAE
-  // selecionado identificar, com confiança, natureza de comércio ou
-  // indústria, o Anexo correspondente (I/II) é usado automaticamente — ver
-  // anexoKeyAtual(). "manual": usa sempre anexoManual, independente do CNAE.
-  simples: { anexoModo: "auto", anexoManual: "III" },
-  // atividadeModo "auto": a atividade (percentual de presunção do Lucro
-  // Presumido) é derivada do CNAE quando a classificação não estiver
-  // pendente de confirmação complementar — ver atividadeKeyAtual(). Caso
-  // contrário (sem CNAE, ou classificação pendente), usa `atividade` abaixo,
-  // exatamente como antes desta funcionalidade existir.
-  presumido: { atividade: "servicos_gerais", atividadeModo: "auto", receitaTrimestre: 54000, pisAliq: 0.65, cofinsAliq: 3.0, issAliq: 3.0, majoracao: false, anoProjecao: 2027 },
-  equilibrio: { custosFixos: 6000, custosVariaveisPct: 10, contratoBruto: 10000, contratoLiquido: 8500, creditoContratanteAtualPct: 0 },
-  hibrido: { anoProjecao: 2033, valorContratoAnual: 216000, creditoIbsPct: 0, creditoCbsPct: 0, creditoContratanteHibridoPct: 100 },
-  // Tratamento tributário de IBS/CBS aplicável à operação (compartilhado
-  // entre Simples Híbrido e Lucro Presumido — é a mesma empresa/operação em
-  // ambos). `tratamento` referencia uma chave de IBS_CBS_TRATAMENTOS;
-  // "padrao" (sem redução) é o padrão do sistema — nenhum benefício é
-  // assumido automaticamente quando não há CNAE ou quando `modo` é
-  // "manual". `modo` "auto": o tratamento é derivado do CNAE quando a
-  // classificação não estiver pendente de confirmação complementar — ver
-  // tratamentoIbsCbsKeyAtual(). `aliquotaEfetivaManualPct` é um override
-  // opcional (alíquota efetiva TOTAL de IBS+CBS informada diretamente pelo
-  // usuário), usado quando ele já sabe o valor exato e prioritário sobre o
-  // percentual de redução do tratamento selecionado (manual ou derivado).
-  ibscbs: { tratamento: "padrao", modo: "auto", aliquotaEfetivaManualPct: null, observacao: "" },
-  // Respostas do usuário às perguntas complementares de classificação (ver
-  // COMPLEMENTOS_CLASSIFICACAO), chaveadas pelo id da pergunta. Só existem
-  // quando o CNAE, isoladamente, não permite determinar a classificação.
-  classificacaoComplementos: {},
-  comparativo: { view: "detalhado" }, // "detalhado" (padrão, análise técnica completa) | "resumo" (Resumo Executivo)
+  nova: {
+    label: "Empresa nova",
+    resumo: "Ainda sem histórico de faturamento ou folha.",
+    detalhe: "Aplica as regras de início de atividade: RBT12 proporcionalizado e limite de receita proporcional aos meses de funcionamento.",
+  },
+  avulsa: {
+    label: "Simulação avulsa",
+    resumo: "Um contrato, operação ou receita específica.",
+    detalhe: "Analisa apenas o valor e o período informados, sem presumir faturamento anual recorrente. Pode ser feita para empresa nova ou existente.",
+  },
+};
+const STATE_VERSION = 2;
+
+// Chaves de state que representam o que o usuário digitou (entradas). São
+// elas que entram em rascunho, biblioteca de simulações, exportação e
+// comparação de cenários.
+const INPUT_KEYS = ["analise", "periodo", "empresa", "fatorR", "simples", "presumido", "equilibrio", "hibrido", "ibscbs", "classificacaoComplementos", "confirmados", "comparativo"];
+
+function estadoPadrao() {
+  return {
+    analise: { id: null, nome: "", tipo: null, regimeAtual: null },
+    // Período efetivamente analisado. Para "existente"/"nova" o padrão é 12
+    // meses de receita mensal fixa; para "avulsa" o usuário informa o total
+    // da operação e o número de meses (nunca é anualizado).
+    periodo: { mesInicio: 1, meses: 12, receitaModo: "constante", receitaTotal: 0, receitasMes: [], empresaAvulsa: "nova", rbt12Historico: null, rbt12Movel: false },
+    empresa: {
+      nome: "", cnpj: "", cnae: null, // registro CNAE (CONCLA/IBGE): {codigo,descricao,secao,divisao,grupo,classe,atividades}
+      faturamentoMensal: 18000,
+      rbt12Modo: "auto", rbt12Manual: 216000,
+      folha12m: 0, proLabore: 0,
+      anoAnalise: 2027, // ano global da análise; exceções por regime ficam nos ajustes avançados
+    },
+    // Fator R: "atual" usa a folha informada; "prolabore" simula pró-labore (+ salários);
+    // "necessaria" calcula a folha para atingir 28%; "nenhuma" considera sem folha.
+    fatorR: { modo: "atual", folhaMensalPrevista: null, proLaboreMensal: 0, salariosMensal: 0 },
+    simples: { anexoModo: "auto", anexoManual: "III" },
+    presumido: { atividade: "servicos_gerais", atividadeModo: "auto", receitaTrimestre: 54000, pisAliq: 0.65, cofinsAliq: 3.0, issAliq: 3.0, majoracao: false, anoProjecao: null },
+    equilibrio: { custosFixos: 6000, custosVariaveisPct: 10, contratoBruto: 10000, contratoLiquido: 8500, creditoContratanteAtualPct: 0, custosInformados: false },
+    hibrido: { anoProjecao: null, valorContratoAnual: null, creditoIbsPct: 0, creditoCbsPct: 0, creditoContratanteHibridoPct: 100 },
+    ibscbs: { tratamento: "padrao", modo: "auto", aliquotaEfetivaManualPct: null, observacao: "" },
+    classificacaoComplementos: {},
+    confirmados: {},
+    comparativo: { view: "detalhado" },
+  };
+}
+
+const state = Object.assign({
+  active: "inicio",
+  ui: { detalhes: {}, avancado: {}, resultadosVista: "resultado", cenariosSel: [] },
+  simId: null, // id da simulação da biblioteca atualmente aberta (se houver)
   result: null, // preenchido por computeAll()
   memoria: [],
-};
+}, estadoPadrao());
 
-function rbt12Atual() {
-  return state.empresa.rbt12Modo === "auto" ? state.empresa.faturamentoMensal * 12 : state.empresa.rbt12Manual;
+function clonar(o) { return JSON.parse(JSON.stringify(o)); }
+function snapshotInputs() {
+  const snap = {};
+  INPUT_KEYS.forEach((k) => { snap[k] = clonar(state[k]); });
+  return snap;
 }
+// Aplica um snapshot sobre os padrões (chaves ausentes — ex.: rascunhos de
+// versões anteriores — assumem o valor padrão atual).
+function aplicarInputs(snap) {
+  const base = estadoPadrao();
+  INPUT_KEYS.forEach((k) => {
+    const incoming = snap && snap[k] !== undefined ? snap[k] : undefined;
+    if (incoming && typeof incoming === "object" && !Array.isArray(incoming) && base[k] && typeof base[k] === "object") state[k] = Object.assign({}, base[k], clonar(incoming));
+    else state[k] = base[k];
+  });
+  migrarEstadoLegado(snap);
+}
+// Rascunhos anteriores à versão 2 não têm `analise`/`periodo`: assumem
+// empresa existente, 12 meses, e preservam o comportamento antigo.
+function migrarEstadoLegado(snap) {
+  if (!snap) return;
+  if (!snap.analise) {
+    state.analise.tipo = "existente";
+    // anos de projeção antigos eram padrões (2027 / 2033), não escolhas: voltam a seguir o ano global
+    if (state.presumido.anoProjecao === 2027) state.presumido.anoProjecao = null;
+    if (state.hibrido.anoProjecao === 2033) state.hibrido.anoProjecao = null;
+    if (snap.empresa && snap.empresa.anoAnalise === 2026 && !snap.confirmados) state.empresa.anoAnalise = 2027;
+  }
+  if (state.empresa.cnae && !state.empresa.cnae.codigo) state.empresa.cnae = null;
+  if (!Array.isArray(state.periodo.receitasMes)) state.periodo.receitasMes = [];
+  if (state.empresa.anoAnalise < 2026) state.empresa.anoAnalise = 2026;
+  if (state.empresa.anoAnalise > 2033) state.empresa.anoAnalise = 2033;
+}
+// Executa fn com um snapshot de entradas aplicado temporariamente e restaura
+// tudo em seguida. Usado para calcular/comparar cenários sem tocar na análise
+// aberta pelo usuário.
+function comEntradas(snap, fn) {
+  const guardado = snapshotInputs();
+  const guardadoResult = state.result, guardadoMemoria = state.memoria;
+  try {
+    aplicarInputs(snap);
+    return fn();
+  } finally {
+    INPUT_KEYS.forEach((k) => { state[k] = guardado[k]; });
+    state.result = guardadoResult;
+    state.memoria = guardadoMemoria;
+  }
+}
+
 function anexoKeyAtual() {
   // Em modo manual, a escolha do usuário sempre prevalece.
   if (state.simples.anexoModo === "manual") return state.simples.anexoManual;
   // Em modo automático: quando o CNAE identificar, com confiança, natureza
-  // de comércio ou indústria, usa o Anexo correspondente (I/II) — reaproveita
-  // a mesma informação já obtida a partir do CNAE (item 4 do complemento do
-  // usuário). Caso contrário (sem CNAE selecionado, ou atividade de serviço/
-  // financeira), aplica a regra do Fator R (Anexo III ou V), exatamente como
-  // antes desta funcionalidade existir.
+  // de comércio ou indústria, usa o Anexo correspondente (I/II). Caso
+  // contrário (sem CNAE selecionado, ou atividade de serviço/financeira),
+  // aplica a regra do Fator R (Anexo III ou V).
   const cls = classificarPorCnae();
   if (cls) {
     if (cls.natureza === "comercio") return "I";
@@ -1053,204 +1306,1207 @@ function anexoKeyAtual() {
   return "III_V";
 }
 
-function validarEntradas() {
-  const e = state.empresa, issues = [];
-  if (!e.faturamentoMensal || e.faturamentoMensal <= 0) issues.push({ tipo: "red", msg: "Informe um faturamento mensal maior que zero." });
-  const rbt12 = rbt12Atual();
-  if (rbt12 < e.faturamentoMensal) issues.push({ tipo: "yellow", msg: "O RBT12 informado é menor que o faturamento mensal — verifique se o valor está correto." });
-  if (rbt12 > 4800000) issues.push({ tipo: "yellow", msg: "RBT12 acima de R$ 4.800.000,00 — empresa fora do limite de permanência no Simples Nacional." });
-  if (e.folha12m > rbt12 && rbt12 > 0) issues.push({ tipo: "yellow", msg: "A folha de salários informada é maior que o RBT12 — confira os valores." });
+/* ============================================================================
+   BLOCO 40_motor_periodo
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   MOTOR DE PERÍODO
+   ---------------------------------------------------------------------------
+   Camada nova, construída POR CIMA do motor tributário já existente (as
+   funções calcSimplesNacional, calcSimplesHibrido, calcLucroPresumidoTrimestral
+   e as tabelas continuam sendo a única fonte das regras). Aqui só se organiza
+   QUANDO e COM QUAL BASE cada cálculo é chamado:
+
+   - Período efetivamente analisado (1 a 36 meses), com receita fixa, total
+     distribuído ou variável mês a mês — nunca anualizado.
+   - RBT12 e folha calculados mês a mês (janela móvel de 12 meses), com o
+     histórico da empresa existente, ou proporcionalizados no início de
+     atividade (LC 123/2006, art. 18, §§ 2º e 3º).
+   - Lucro Presumido apurado por trimestre-calendário (trimestres parciais
+     têm o limite do adicional de IRPJ proporcional aos meses).
+   - Ano do cronograma IBS/CBS por mês (ano global da análise, com exceções
+     por regime nos ajustes avançados).
+   --------------------------------------------------------------------------- */
+const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const MESES_NOME = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const LIMITE_SIMPLES = 4800000;
+const LIMITE_SIMPLES_MENSAL_INICIO = 400000; // LC 123/2006, art. 3º, § 2º
+// Sublimite para recolher ICMS, ISS e IBS pelo Simples (a partir de 2027): R$ 3.600.000 por ano e, no ano de início de atividade, R$ 300.000 × meses
+// (fração de mês conta como mês inteiro) — LC 123/2006, art. 13-A (LC 214/2025, art. 517) · Res. CGSN 140/2018, arts. 9º e 12, §§ 2º a 4º, na redação da Res. CGSN 190/2026.
+// V3.2.4: quando excedido, esses tributos são devidos fora do Simples e o DAS exibido não os substitui; o total fica INCOMPLETO e entra na elegibilidade/recomendação.
+const SUBLIMITE_ICMS_ISS_IBS = 3600000, SUBLIMITE_MENSAL_INICIO = 300000;
+const FATOR_R_LIMIAR = 0.28;
+
+/* ---- Parâmetros de folha (INSS / IRRF do pró-labore) — editáveis no código,
+   com fonte e status explícitos (ver FONTES). Valores de 2026.
+   V3.2.1 — conferidos em fonte oficial: teto do INSS (Portaria Interministerial
+   MPS/MF nº 13/2026, tabela do INSS); tabela mensal do IRRF e desconto
+   simplificado (Receita Federal, tabelas 2026); redução mensal (Lei 15.270/2025,
+   art. 3º-A da Lei 9.250/1995). Os valores NÃO foram alterados. ---- */
+const PARAMS_FOLHA = {
+  ano: 2026,
+  fgtsAliquota: 0.08,
+  inss: { aliquota: 0.11, teto: 8475.55, status: "oficial" },
+  irrf: {
+    status: "oficial",
+    tabela: [
+      { ate: 2428.80, aliq: 0, ded: 0 },
+      { ate: 2826.65, aliq: 0.075, ded: 182.16 },
+      { ate: 3751.05, aliq: 0.15, ded: 394.16 },
+      { ate: 4664.68, aliq: 0.225, ded: 675.49 },
+      { ate: Infinity, aliq: 0.275, ded: 908.73 },
+    ],
+    descontoSimplificado: 607.20,
+    isencaoAte: 5000,
+    reducaoAte: 7350,
+    reducaoConst: 978.62,
+    reducaoFator: 0.133145,
+  },
+};
+
+function numOr(v, d) { const n = Number(v); return isFinite(n) ? n : d; }
+function limitar(n, a, b) { return Math.min(b, Math.max(a, n)); }
+function soma(arr) { let s = 0; for (let i = 0; i < arr.length; i++) s += arr[i]; return s; }
+function media(arr) { return arr.length ? soma(arr) / arr.length : 0; }
+function arredCima2(v) { return Math.ceil(v * 100 - 1e-9) / 100; }
+
+function nMeses() { return limitar(Math.round(numOr(state.periodo.meses, 12)), 1, 36); }
+function anoGlobal() { return limitar(parseInt(state.empresa.anoAnalise, 10) || 2027, 2026, 2033); }
+function tipoAnalise() { return state.analise.tipo || "existente"; }
+function empresaEhNova() { return tipoAnalise() === "nova" || (tipoAnalise() === "avulsa" && state.periodo.empresaAvulsa === "nova"); }
+// Calendário do mês i (0 = primeiro mês do período).
+function mesCalendario(i) {
+  const base = limitar(Math.round(numOr(state.periodo.mesInicio, 1)), 1, 12) - 1 + i;
+  return { ano: anoGlobal() + Math.floor(base / 12), mes: base % 12 };
+}
+function rotuloMes(i) { const c = mesCalendario(i); return MESES_ABREV[c.mes] + "/" + c.ano; }
+function rotuloPeriodo() { const n = nMeses(); return n === 1 ? rotuloMes(0) : rotuloMes(0) + " a " + rotuloMes(n - 1); }
+function cronoParaAno(ano) {
+  const a = limitar(ano, IBS_CBS_CRONOGRAMA[0].ano, IBS_CBS_CRONOGRAMA[IBS_CBS_CRONOGRAMA.length - 1].ano);
+  return IBS_CBS_CRONOGRAMA.find((c) => c.ano === a);
+}
+// Ano usado no cronograma de cada regime: exceção (ajustes avançados) ou o
+// ano-calendário do próprio mês, partindo do ano global da análise.
+function anoHibridoDoMes(i) { return state.hibrido.anoProjecao ? state.hibrido.anoProjecao : mesCalendario(i).ano; }
+function anoPresumidoDoMes(i) { return state.presumido.anoProjecao ? state.presumido.anoProjecao : mesCalendario(i).ano; }
+
+function receitasDoPeriodo() {
+  const N = nMeses(), p = state.periodo;
+  if (p.receitaModo === "variavel") return Array.from({ length: N }, (_, i) => Math.max(0, numOr(p.receitasMes && p.receitasMes[i], 0)));
+  if (p.receitaModo === "total") return Array(N).fill(Math.max(0, numOr(p.receitaTotal, 0)) / N);
+  return Array(N).fill(Math.max(0, numOr(state.empresa.faturamentoMensal, 0)));
+}
+
+// Histórico anterior ao período (12 meses imediatamente anteriores).
+function historicoDaEmpresa(receitas) {
+  if (empresaEhNova()) return { nova: true, rbt12: 0, folha12: 0, origem: "nova" };
+  let rbt12, origem;
+  if (tipoAnalise() === "avulsa") {
+    const v = state.periodo.rbt12Historico;
+    if (v == null || v === "" || !isFinite(v)) { rbt12 = 0; origem = "pendente"; }
+    else { rbt12 = Math.max(0, Number(v)); origem = "manual"; }
+  } else if (state.empresa.rbt12Modo === "manual") {
+    rbt12 = Math.max(0, numOr(state.empresa.rbt12Manual, 0)); origem = "manual";
+  } else {
+    // histórico assumido igual à média do período (com receita fixa, é exatamente faturamento × 12)
+    rbt12 = media(receitas) * 12; origem = "auto";
+  }
+  return { nova: false, rbt12, folha12: Math.max(0, numOr(state.empresa.folha12m, 0)), origem };
+}
+
+// RBT12 móvel (janela dos 12 meses anteriores a cada mês)? Simulação avulsa
+// e empresa nova sempre usam a janela móvel; para empresa existente o padrão
+// é manter o RBT12 informado/estimado constante (comportamento anterior) e o
+// usuário pode ativar a janela móvel nos ajustes avançados.
+function rbt12MovelEfetivo() {
+  const t = tipoAnalise();
+  if (t === "avulsa" || t === "nova") return true;
+  return state.periodo.rbt12Movel === true;
+}
+// Folha elegível mensal conforme a política escolhida.
+//  atual      → folha informada (ou folha mensal prevista, se informada)
+//  prolabore  → pró-labore simulado + salários + FGTS sobre salários
+//  necessaria → folha mínima para o Fator R de 28% (+ R$ 0,01 de margem)
+//  nenhuma    → sem folha
+// Retorna também `const12`: folha de 12 meses usada quando o RBT12 é mantido
+// constante (empresa existente sem janela móvel).
+function folhaDoPeriodo(receitas, hist, politica, movel) {
+  const N = receitas.length;
+  if (politica === "nenhuma") return { mensal: Array(N).fill(0), historico12: 0, const12: 0, politica };
+  if (politica === "necessaria") {
+    if (!hist.nova && !movel) {
+      const m = arredCima2(hist.rbt12 * FATOR_R_LIMIAR / 12) + 0.01;
+      return { mensal: Array(N).fill(m), historico12: arredCima2(hist.rbt12 * FATOR_R_LIMIAR) + 0.01, const12: m * 12, politica };
+    }
+    return {
+      mensal: receitas.map((r) => (r > 0 ? arredCima2(r * FATOR_R_LIMIAR) + 0.01 : 0)),
+      historico12: hist.nova ? 0 : arredCima2(hist.rbt12 * FATOR_R_LIMIAR) + 0.01,
+      const12: arredCima2(hist.rbt12 * FATOR_R_LIMIAR) + 0.01,
+      politica,
+    };
+  }
+  if (politica === "prolabore") {
+    const fr = state.fatorR;
+    const m = Math.max(0, numOr(fr.proLaboreMensal, 0)) + Math.max(0, numOr(fr.salariosMensal, 0)) * (1 + PARAMS_FOLHA.fgtsAliquota);
+    return { mensal: Array(N).fill(m), historico12: hist.folha12, const12: m * 12, politica };
+  }
+  const prev = state.fatorR.folhaMensalPrevista;
+  const temPrev = prev != null && prev !== "" && isFinite(prev);
+  const m = temPrev ? Math.max(0, Number(prev)) : (hist.nova ? 0 : hist.folha12 / 12);
+  return { mensal: Array(N).fill(m), historico12: hist.folha12, const12: temPrev ? m * 12 : (hist.nova ? 0 : hist.folha12), politica };
+}
+
+/* ---- INSS e IRRF sobre pró-labore (estimativas — ver PARAMS_FOLHA) ---- */
+function calcInssProlabore(bruto) {
+  const b = Math.max(0, numOr(bruto, 0));
+  return Math.min(b, PARAMS_FOLHA.inss.teto) * PARAMS_FOLHA.inss.aliquota;
+}
+function calcIrrfMensal(rendimento, inss) {
+  const P = PARAMS_FOLHA.irrf;
+  const rend = Math.max(0, numOr(rendimento, 0));
+  const deducao = Math.max(numOr(inss, 0), P.descontoSimplificado);
+  const base = Math.max(rend - deducao, 0);
+  let imposto = 0;
+  for (let i = 0; i < P.tabela.length; i++) {
+    if (base <= P.tabela[i].ate) { imposto = Math.max(base * P.tabela[i].aliq - P.tabela[i].ded, 0); break; }
+  }
+  let reducao = 0;
+  if (rend <= P.isencaoAte) reducao = imposto;
+  else if (rend <= P.reducaoAte) reducao = Math.min(Math.max(P.reducaoConst - P.reducaoFator * rend, 0), imposto);
+  return Math.max(imposto - reducao, 0);
+}
+function calcEncargosProlabore(bruto) {
+  const b = Math.max(0, numOr(bruto, 0));
+  const inss = calcInssProlabore(b);
+  const irrf = calcIrrfMensal(b, inss);
+  return { bruto: b, inss, irrf, liquido: b - inss - irrf };
+}
+
+/* ---- Simples Nacional mês a mês ---- */
+function simularSimplesPeriodo(P) {
+  const rec = P.receitas, fol = P.folhaMensal, N = rec.length;
+  const histRecM = P.histRbt12 / 12, histFolM = P.histFolha12 / 12;
+  const rows = [];
+  let rbt12Ini = 0, folha12Ini = 0;
+  for (let k = 0; k < N; k++) {
+    let rbt12, folha12, regra, fatorRFixo = null, primeiraFaixa = false;
+    const c = mesCalendario(k);
+    const r27 = c.ano >= ANO_REGRAS_2027;   // período de apuração com as regras de 2027 (janela defasada em 1 mês)
+    if (P.nova) {
+      if (!r27) {
+        if (k === 0) {
+          rbt12 = rec[0] * 12;
+          folha12 = fol[0] * 12;
+          regra = "inicio-1";
+        } else if (k < 12) {
+          const sr = soma(rec.slice(0, k)), sf = soma(fol.slice(0, k));
+          rbt12 = (sr / k) * 12;
+          folha12 = (sf / k) * 12;     // folha anualizada pelo mesmo critério da receita (Res. CGSN 140, art. 26, § 4º) — vale também com receita zero nos meses anteriores
+          regra = "inicio-media";
+        } else {
+          rbt12 = soma(rec.slice(k - 12, k));
+          folha12 = soma(fol.slice(k - 12, k));
+          regra = "janela";
+        }
+      } else if (k < 2) {
+        // 1º e 2º mês de atividade (2027+): 1ª faixa dos Anexos I a V e fator "r" = 0,28 (Res. CGSN 190/2026, art. 22 § 2º, I e art. 26 § 6º)
+        const sr = soma(rec.slice(0, k + 1)), sf = soma(fol.slice(0, k + 1));
+        rbt12 = (sr / (k + 1)) * 12;                   // apenas informativo: a faixa e o fator "r" são fixados pela regra
+        folha12 = (sf / (k + 1)) * 12;                  // folha anualizada (informativa; o fator "r" aplicado é 0,28)
+        fatorRFixo = FATOR_R_LIMIAR; primeiraFaixa = true;
+        regra = "inicio-2027-1a-faixa";
+      } else if (k < 13) {
+        // 3º ao 13º mês (2027+): média dos meses ANTECEDENTES AO MÊS ANTERIOR × 12 (art. 22 § 2º, II; folha anualizada pelo mesmo critério, art. 26 § 4º)
+        const n = k - 1, sr = soma(rec.slice(0, n)), sf = soma(fol.slice(0, n));
+        rbt12 = (sr / n) * 12;
+        folha12 = (sf / n) * 12;
+        regra = "inicio-2027-media";
+      } else {
+        rbt12 = soma(rec.slice(k - 13, k - 1));
+        folha12 = soma(fol.slice(k - 13, k - 1));
+        regra = "janela-2027";
+      }
+    } else {
+      const lag = r27 ? 1 : 0;
+      const janela = (arr, hm) => { let t = 0; for (let j = k - 12 - lag; j < k - lag; j++) t += j < 0 ? hm : arr[j]; return t; };
+      rbt12 = janela(rec, histRecM);
+      folha12 = janela(fol, histFolM);
+      regra = r27 ? "janela-2027" : "janela";
+    }
+    if (k === 0) { rbt12Ini = rbt12; folha12Ini = folha12; }
+    if (!P.nova && P.movel === false) { rbt12 = rbt12Ini; folha12 = P.folha12Const != null ? P.folha12Const : folha12Ini; regra = "constante"; }
+    const sn = calcSimplesNacional({ faturamentoMensal: rec[k], rbt12, anexoKey: P.anexoKey, folha12m: folha12, ano: c.ano, fatorRFixo, primeiraFaixa });
+    rows.push({
+      i: k, rotulo: rotuloMes(k), ano: c.ano, mes: c.mes,
+      receita: rec[k], folha: fol[k], rbt12, folha12, regraRbt12: regra,
+      fatorR: sn.fatorR, anexoUsado: sn.anexoUsado, faixaIndex: sn.faixaIndex, faixaLabel: sn.faixaLabel,
+      aliqNominal: sn.aliqNominal, parcelaDeduzir: sn.parcelaDeduzir, aliqEfetiva: sn.aliqEfetiva, cargaEfetivaPct: sn.cargaEfetivaPct,
+      das: sn.dasMensal, partilha: sn.partilha, partilhaValores: sn.partilhaValores,
+      // preenchido por avaliarExclusaoSimples (efeitos da exclusão por excesso de receita) — ver agregarSimples
+      foraDoLimite: false, rbt12AcimaLimite: (P.nova && k < (r27 ? 13 : 12)) ? false : rbt12 > LIMITE_SIMPLES,
+    });
+  }
+  return rows;
+}
+
+// Limite de receita no ano de início de atividade: R$ 400.000 × meses de
+// funcionamento (frações contam como mês inteiro) — LC 123/2006, art. 3º, § 2º.
+function verificarLimiteInicioAtividade(rows) {
+  if (!empresaEhNova() || !rows.length) return { aplica: false };
+  const anoInicio = rows[0].ano;
+  const mesesFunc = 12 - rows[0].mes; // do mês de início até dezembro
+  const limite = LIMITE_SIMPLES_MENSAL_INICIO * mesesFunc;
+  const receitaAno = soma(rows.filter((r) => r.ano === anoInicio).map((r) => r.receita));
+  const sublimite = SUBLIMITE_MENSAL_INICIO * mesesFunc;
+  const sublimiteExcedido = anoInicio >= ANO_REGRAS_2027 && receitaAno > sublimite + 0.005;
+  return { aplica: true, anoInicio, mesesFuncionamento: mesesFunc, limite, receitaAno, excedeu: receitaAno > limite + 0.005,
+    sublimite, sublimiteExcedido, sublimitePctExcesso: sublimite > 0 ? (receitaAno / sublimite - 1) * 100 : 0 };
+}
+
+/* ---------------------------------------------------------------------------
+   EXCLUSÃO DO SIMPLES POR EXCESSO DE RECEITA (V3.1)
+   Fonte: Manual da Exclusão do Simples Nacional (Receita Federal, v. mar/2024),
+   itens 4.2 e 4.3 — base: LC 123/2006, arts. 28 a 32, e Res. CGSN 140/2018,
+   arts. 81 a 84. Regras aplicadas:
+   - Empresa em operação: limite R$ 4.800.000 de receita bruta acumulada no
+     ano-calendário (RBA). Excesso ≤ 20% (até R$ 5.760.000): efeitos a partir
+     de 1º de janeiro do ano seguinte. Excesso > 20%: efeitos a partir do mês
+     seguinte ao da ultrapassagem.
+   - Início de atividade: limite proporcional R$ 400.000 × meses de atividade
+     no ano-calendário (fração de mês conta como mês). Excesso ≤ 20%: efeitos
+     em 1º de janeiro do ano seguinte. Excesso > 20%: efeitos RETROATIVOS à
+     abertura do CNPJ.
+   O regime só sai da comparação nos meses em que a exclusão já produz efeitos.
+   --------------------------------------------------------------------------- */
+const LIMITE_EXCESSO_PCT = 0.20;
+function avaliarExclusaoSimples(rows, hist) {
+  const N = rows.length, nova = empresaEhNova();
+  const valido = Array(N).fill(true);
+  const res = {
+    situacao: "regular", pctExcesso: 0, base: null, tipoEfeito: null, efeitoIdx: null, efeitoRotulo: null,
+    efeitoTexto: "", valido, mesesVedados: 0, limiteRef: LIMITE_SIMPLES, receitaRef: 0, ano: null,
+    estimado: false, historicoIncompleto: false, retroativo: false, parcial: false, integral: false, futuro: false,
+  };
+  if (!N) return res;
+  const eventos = [];
+  const eps = 0.005;
+  const anoInicio = rows[0].ano;
+  // 1) início de atividade — ano de abertura
+  if (nova) {
+    const li = verificarLimiteInicioAtividade(rows);
+    if (li.aplica && li.limite > 0 && li.receitaAno > li.limite + eps) {
+      const pct = li.receitaAno / li.limite - 1;
+      const acima = pct > LIMITE_EXCESSO_PCT + 1e-9;
+      let idx = N;
+      if (acima) idx = 0;
+      else { const j = rows.findIndex((r) => r.ano > anoInicio); idx = j < 0 ? N : j; }
+      eventos.push({ tipo: acima ? "acima20" : "ate20", base: "inicio", pct, idx, retro: acima, ano: anoInicio, limite: li.limite, receita: li.receitaAno });
+    }
+  }
+  // 2) demais casos — receita bruta acumulada no ano-calendário (RBA)
+  const proxMensal = (!nova && hist && hist.origem !== "pendente") ? hist.rbt12 / 12 : 0;
+  if (!nova && hist && hist.origem === "pendente") res.historicoIncompleto = true;
+  const anos = Array.from(new Set(rows.map((r) => r.ano)));
+  anos.forEach((ano, ai) => {
+    if (nova && ano === anoInicio) return; // regido pela regra de início de atividade
+    const ks = rows.map((r, k) => k).filter((k) => rows[k].ano === ano);
+    const mesesAntes = (ai === 0 && !nova) ? rows[ks[0]].mes : 0; // meses do mesmo ano anteriores ao período (histórico estimado)
+    let acc = mesesAntes * proxMensal, kAcima = -1, kAcima20 = -1, max = acc;
+    if (mesesAntes > 0 && proxMensal > 0) res.estimado = true;
+    ks.forEach((k) => {
+      acc += rows[k].receita; max = Math.max(max, acc);
+      if (kAcima < 0 && acc > LIMITE_SIMPLES + eps) kAcima = k;
+      if (kAcima20 < 0 && acc > LIMITE_SIMPLES * (1 + LIMITE_EXCESSO_PCT) + eps) kAcima20 = k;
+    });
+    if (kAcima < 0) return;
+    const pct = max / LIMITE_SIMPLES - 1;
+    if (kAcima20 >= 0) eventos.push({ tipo: "acima20", base: "rba", pct, idx: Math.min(kAcima20 + 1, N), retro: false, ano, limite: LIMITE_SIMPLES, receita: max });
+    else {
+      const j = rows.findIndex((r) => r.ano > ano);
+      eventos.push({ tipo: "ate20", base: "rba", pct, idx: j < 0 ? N : j, retro: false, ano, limite: LIMITE_SIMPLES, receita: max });
+    }
+  });
+  if (!eventos.length) return res;
+  eventos.sort((a, b) => (a.idx - b.idx) || (a.tipo === "acima20" ? -1 : 1));
+  const ev = eventos[0];
+  res.situacao = ev.tipo === "acima20" ? "excesso-acima20" : "excesso-ate20";
+  res.pctExcesso = ev.pct * 100; res.base = ev.base; res.tipoEfeito = ev.retro ? "retroativo" : (ev.tipo === "acima20" ? "mes-seguinte" : "ano-seguinte");
+  res.retroativo = ev.retro; res.ano = ev.ano; res.limiteRef = ev.limite; res.receitaRef = ev.receita;
+  res.efeitoIdx = ev.idx < N ? ev.idx : null;
+  for (let k = ev.idx; k < N; k++) valido[k] = false;
+  res.mesesVedados = valido.filter((v) => !v).length;
+  res.integral = res.mesesVedados === N; res.parcial = res.mesesVedados > 0 && !res.integral; res.futuro = res.mesesVedados === 0;
+  const quando = ev.retro ? "retroativos à abertura do CNPJ (todo o período)"
+    : ev.tipo === "acima20" ? "a partir do mês seguinte à ultrapassagem" + (res.efeitoIdx != null ? " (" + rows[res.efeitoIdx].rotulo + ")" : " (depois do período analisado)")
+    : "a partir de 1º de janeiro de " + (ev.ano + 1) + (res.efeitoIdx != null ? "" : " (depois do período analisado)");
+  res.efeitoRotulo = res.efeitoIdx != null ? rows[res.efeitoIdx].rotulo : null;
+  res.efeitoTexto = "Receita de " + fmtBRL(ev.receita) + " contra o limite de " + fmtBRL(ev.limite) + (ev.base === "inicio" ? " (proporcional ao início de atividade)" : " (receita bruta acumulada em " + ev.ano + ")") +
+    ": excesso de " + fmtPct(ev.pct * 100) + " (" + (ev.tipo === "acima20" ? "acima de 20%" : "até 20%") + "). Efeitos da exclusão " + quando + ".";
+  return res;
+}
+
+/* ---------------------------------------------------------------------------
+   SUBLIMITE DE ICMS, ISS E IBS (V3.2.4)
+   Fontes: LC 123/2006, art. 13-A e art. 3º, §§ 9º a 13 (redação da LC 214/2025); Res. CGSN 140/2018, art. 12, na redação da Res. CGSN 190/2026:
+   - caput: se a receita bruta acumulada no ano-calendário ultrapassar o sublimite (R$ 3.600.000), a EPP fica impedida de recolher IBS, ICMS e ISS pelo
+     Simples (a CBS e os tributos federais continuam no DAS);
+   - § 1º: excesso superior a 20% → impedimento a partir do mês seguinte ao do excesso; excesso de até 20% → a partir do ano-calendário seguinte;
+   - §§ 2º a 4º: no início de atividade o sublimite é proporcional (R$ 300.000 × meses; fração = mês inteiro); excesso superior a 20% → efeitos
+     RETROATIVOS ao início da atividade; até 20% → ano seguinte;
+   - §§ 7º e 8º: o impedido recolhe esses tributos pelas normas gerais (com juros de mora se pagar antes de procedimento de ofício).
+   Além disso, nos meses em que o RBT12 está na 6ª faixa (acima de R$ 3,6 mi) a partilha oficial do Anexo não inclui ISS, ICMS nem IBS no DAS.
+   O app NÃO calcula esses tributos fora do DAS (alíquotas municipais/estaduais, créditos, juros): marca o total como INCOMPLETO. Ver `recomendacao`.
+   --------------------------------------------------------------------------- */
+function avaliarSublimite(rows, hist) {
+  const N = rows.length, nova = empresaEhNova();
+  const fora = Array(N).fill(false), motivo = Array(N).fill(null);
+  const res = { fora, motivo, mesesAfetados: 0, retroativo: false, eventos: [], porFaixa6: 0, porSublimite: 0, texto: "" };
+  if (!N) return res;
+  const eps = 0.005, anoInicio = rows[0].ano;
+  const eventos = [];
+  if (nova) {
+    const li = verificarLimiteInicioAtividade(rows);
+    if (li.aplica && anoInicio >= ANO_REGRAS_2027 && li.sublimite > 0 && li.receitaAno > li.sublimite + eps) {
+      const pct = li.receitaAno / li.sublimite - 1, acima = pct > LIMITE_EXCESSO_PCT + 1e-9;
+      const j = rows.findIndex((r) => r.ano > anoInicio);
+      eventos.push({ base: "inicio", acima20: acima, pct, idx: acima ? 0 : (j < 0 ? N : j), retro: acima, ano: anoInicio, limite: li.sublimite, receita: li.receitaAno, meses: li.mesesFuncionamento });
+    }
+  }
+  const proxMensal = (!nova && hist && hist.origem !== "pendente") ? hist.rbt12 / 12 : 0;
+  const anos = Array.from(new Set(rows.map((r) => r.ano)));
+  anos.forEach((ano, ai) => {
+    if (ano < ANO_REGRAS_2027 || (nova && ano === anoInicio)) return;
+    const ks = rows.map((r, k) => k).filter((k) => rows[k].ano === ano);
+    const mesesAntes = (ai === 0 && !nova) ? rows[ks[0]].mes : 0;
+    let acc = mesesAntes * proxMensal, kAcima = -1, kAcima20 = -1, max = acc;
+    ks.forEach((k) => {
+      acc += rows[k].receita; max = Math.max(max, acc);
+      if (kAcima < 0 && acc > SUBLIMITE_ICMS_ISS_IBS + eps) kAcima = k;
+      if (kAcima20 < 0 && acc > SUBLIMITE_ICMS_ISS_IBS * (1 + LIMITE_EXCESSO_PCT) + eps) kAcima20 = k;
+    });
+    if (kAcima < 0) return;
+    const pct = max / SUBLIMITE_ICMS_ISS_IBS - 1;
+    if (kAcima20 >= 0) eventos.push({ base: "rba", acima20: true, pct, idx: Math.min(kAcima20 + 1, N), retro: false, ano, limite: SUBLIMITE_ICMS_ISS_IBS, receita: max });
+    else { const j = rows.findIndex((r) => r.ano > ano); eventos.push({ base: "rba", acima20: false, pct, idx: j < 0 ? N : j, retro: false, ano, limite: SUBLIMITE_ICMS_ISS_IBS, receita: max }); }
+  });
+  eventos.forEach((ev) => { for (let k = ev.idx; k < N; k++) if (!fora[k]) { fora[k] = true; motivo[k] = "sublimite"; } });
+  // 6ª faixa (RBT12 acima de R$ 3,6 mi): a partilha oficial não traz ISS/ICMS/IBS dentro do DAS
+  rows.forEach((r, k) => { if (r.faixaIndex === 6 && !fora[k]) { fora[k] = true; motivo[k] = "faixa6"; } else if (r.faixaIndex === 6 && motivo[k] === "sublimite") motivo[k] = "sublimite+faixa6"; });
+  res.mesesAfetados = fora.filter(Boolean).length;
+  res.porFaixa6 = rows.filter((r, k) => fora[k] && /faixa6/.test(motivo[k] || "")).length;
+  res.porSublimite = rows.filter((r, k) => fora[k] && /sublimite/.test(motivo[k] || "")).length;
+  res.eventos = eventos; res.retroativo = eventos.some((e) => e.retro);
+  const partes = [];
+  eventos.forEach((ev) => {
+    partes.push((ev.base === "inicio" ? "Receita de " + fmtBRL(ev.receita) + " em " + ev.ano + " contra o sublimite proporcional de " + fmtBRL(ev.limite) + " (R$ 300.000 × " + ev.meses + (ev.meses === 1 ? " mês" : " meses") + ")"
+      : "Receita acumulada de " + fmtBRL(ev.receita) + " em " + ev.ano + " contra o sublimite de " + fmtBRL(ev.limite)) + ": excesso de " + fmtPct(ev.pct * 100) + " (" + (ev.acima20 ? "acima de 20%" : "até 20%") + ") — " +
+      (ev.retro ? "o impedimento de recolher ICMS, ISS e IBS pelo Simples tem efeitos retroativos ao início da atividade" : ev.acima20 ? "impedimento a partir do mês seguinte" : "impedimento a partir de 1º de janeiro de " + (ev.ano + 1) + (ev.idx >= N ? " (depois do período analisado)" : "")) + ".");
+  });
+  if (res.porFaixa6 > 0) partes.push("Em " + res.porFaixa6 + (res.porFaixa6 === 1 ? " mês" : " meses") + " o RBT12 está na 6ª faixa (acima de " + fmtBRL(SUBLIMITE_ICMS_ISS_IBS) + "): a partilha oficial do Anexo não inclui ISS, ICMS nem IBS no DAS.");
+  res.texto = partes.join(" ");
+  return res;
+}
+
+/* V3.2.4 — decisão pura (testável): quais regimes competem e se a recomendação é conclusiva. Ver comentário "Elegibilidade legal ANTES do custo". */
+function decidirRecomendacao(regimes, ex) {
+  const aptos = regimes.filter((x) => x.elegivel);
+  const completos = aptos.filter((x) => !x.incompleto);
+  const minBy = (a) => (a.length ? a.reduce((p, q) => (q.total < p.total ? q : p)) : null);
+  const maxBy = (a) => (a.length ? a.reduce((p, q) => (q.total > p.total ? q : p)) : null);
+  const melhorCompleto = minBy(completos), melhorReferencia = minBy(aptos);
+  const incompletosBaixos = aptos.filter((x) => x.incompleto && (!melhorCompleto || x.total < melhorCompleto.total - 0.005));
+  const motivosInc = [];
+  if (ex.integral && ex.retroativo) motivosInc.push("exclusao-retroativa");
+  if (ex.parcial) motivosInc.push("regime-misto");
+  if (incompletosBaixos.length) motivosInc.push("total-incompleto");
+  const recomendacao = {
+    estado: !aptos.length ? "indisponivel" : motivosInc.length ? "inconclusivo" : "conclusivo",
+    motivos: motivosInc, regimeId: !motivosInc.length && melhorCompleto ? melhorCompleto.id : null,
+    incompletos: incompletosBaixos.map((x) => x.id), referencia: melhorReferencia ? melhorReferencia.id : null,
+    elegiveis: regimes.filter((x) => x.estado === "elegivel").map((x) => x.label),
+    comRestricao: regimes.filter((x) => x.estado === "restricao").map((x) => x.label),
+    inaplicaveis: regimes.filter((x) => x.estado === "inaplicavel").map((x) => x.label),
+  };
+  const melhor = recomendacao.estado === "conclusivo" ? melhorCompleto : null;
+  return { recomendacao, melhor, pior: melhor ? maxBy(completos) : null, melhorReferencia, completos };
+}
+
+function agregarSimples(rows, receitaTotal, histOpt) {
+  const hist = histOpt || historicoDaEmpresa(rows.map((r) => r.receita));
+  const excesso = avaliarExclusaoSimples(rows, hist);
+  rows.forEach((r, k) => { r.foraDoLimite = !excesso.valido[k]; });
+  const sublimiteAv = avaliarSublimite(rows, hist);
+  rows.forEach((r, k) => { r.semIcmsIssIbs = sublimiteAv.fora[k]; });
+  const N = rows.length, total = soma(rows.map((r) => r.das));
+  const last = rows[N - 1], first = rows[0];
+  const partilhaTotais = {};
+  rows.forEach((r) => Object.keys(r.partilhaValores).forEach((t) => { partilhaTotais[t] = (partilhaTotais[t] || 0) + r.partilhaValores[t]; }));
+  const partilhaPct = {};
+  Object.keys(partilhaTotais).forEach((t) => { partilhaPct[t] = total > 0 ? (partilhaTotais[t] / total) * 100 : 0; });
+  const anexosUsados = Array.from(new Set(rows.map((r) => r.anexoUsado)));
+  const limiteInicio = verificarLimiteInicioAtividade(rows);
+  const mesesFora = rows.filter((r) => r.foraDoLimite).length;
+  return {
+    meses: rows, total, mediaMensal: total / N, receitaTotal,
+    cargaEfetivaPct: receitaTotal > 0 ? (total / receitaTotal) * 100 : 0,
+    anexoUsado: last.anexoUsado, anexosUsados, anexoMisto: anexosUsados.length > 1,
+    fatorR: last.fatorR, fatorRInicial: first.fatorR,
+    rbt12Inicial: first.rbt12, rbt12Final: last.rbt12, rbt12Max: Math.max.apply(null, rows.map((r) => r.rbt12)),
+    faixaIndex: last.faixaIndex, faixaLabel: last.faixaLabel, aliqNominal: last.aliqNominal, parcelaDeduzir: last.parcelaDeduzir,
+    aliqEfetivaFinalPct: last.cargaEfetivaPct,
+    partilha: last.partilha, partilhaTotais, partilhaPct,
+    // mesesForaDoLimite = meses em que a exclusão por excesso JÁ produz efeitos (ver avaliarExclusaoSimples)
+    mesesForaDoLimite: mesesFora, foraDoLimite: mesesFora > 0, limiteInicio, excesso, sublimiteAv,
+    rbt12AcimaLimite: rows.some((r) => r.rbt12AcimaLimite),
+    // compatibilidade com consumidores que liam valores "do mês"
+    dasMensal: total / N, aliqEfetiva: last.aliqEfetiva, partilhaValores: partilhaTotais,
+  };
+}
+
+/* ---- Simples Híbrido mês a mês (IBS/CBS por fora do DAS) ---- */
+function simularHibridoPeriodo(simplesRows, tratamento, aliquotaManualPct) {
+  return simplesRows.map((s, k) => {
+    const crono = cronoParaAno(anoHibridoDoMes(k));
+    const h = calcSimplesHibrido({
+      faturamentoMensal: s.receita, dasMensal: s.das, partilha: s.partilha, partilhaValores: s.partilhaValores,
+      cronoAno: crono, creditoIbsPct: state.hibrido.creditoIbsPct, creditoCbsPct: state.hibrido.creditoCbsPct,
+      tratamentoIbsCbs: tratamento, aliquotaEfetivaManualPct: aliquotaManualPct,
+      anexoUsado: s.anexoUsado, faixaIdx: s.faixaIndex - 1, aliqEfetiva: s.aliqEfetiva,
+    });
+    h.i = k; h.rotulo = s.rotulo; h.receita = s.receita;
+    return h;
+  });
+}
+function agregarHibrido(rows, receitaTotal) {
+  const N = rows.length, last = rows[N - 1];
+  const S = (campo) => soma(rows.map((h) => h[campo]));
+  const total = S("totalMensal");
+  return {
+    meses: rows, total, mediaMensal: total / N, receitaTotal,
+    cargaEfetivaPct: receitaTotal > 0 ? (total / receitaTotal) * 100 : 0,
+    ano: last.ano, anos: Array.from(new Set(rows.map((h) => h.ano))),
+    ibsPct: last.ibsPct, cbsPct: last.cbsPct, ibsRefPct: last.ibsRefPct, cbsRefPct: last.cbsRefPct,
+    reducaoAplicadaPct: last.reducaoAplicadaPct, tratamentoIbsCbsManual: last.tratamentoIbsCbsManual, tratamentoIbsCbs: last.tratamentoIbsCbs,
+    tributoConsumo: last.tributoConsumo,
+    parcelaIbsNoDas: S("parcelaIbsNoDas"), parcelaCbsNoDas: S("parcelaCbsNoDas"), parcelaConsumoDas: S("parcelaConsumoDas"),
+    dasSemIbsCbs: S("dasSemIbsCbs"), ibsDebito: S("ibsDebito"), cbsDebito: S("cbsDebito"),
+    // V3.2.3: o que permanece no DAS por categoria (soma dos meses) e meses em que a opção pelo regime regular existe (a partir de jan/2027)
+    dasPartesTotais: rows.reduce((acc, h) => { Object.keys(h.dasPartes).forEach((k) => { acc[k] = (acc[k] || 0) + h.dasPartes[k]; }); return acc; }, {}),
+    mesesComOpcao: rows.filter((h) => h.opcao).length, mesesSemOpcao: rows.filter((h) => !h.opcao).length,
+    creditoIbsPct: last.creditoIbsPct, creditoCbsPct: last.creditoCbsPct,
+    creditoIbs: S("creditoIbs"), creditoCbs: S("creditoCbs"), ibsLiquido: S("ibsLiquido"), cbsLiquido: S("cbsLiquido"),
+    totalIbsCbsLiquido: S("totalIbsCbsLiquido"),
+    totalMensal: total / N, totalPeriodo: total,
+  };
+}
+
+/* ---- Lucro Presumido por trimestre-calendário ----
+   IRPJ/CSLL são apurados por trimestre-calendário. O limite do adicional de
+   IRPJ (R$ 20.000 × meses do PERÍODO DE APURAÇÃO) só é proporcional no
+   trimestre de início de atividade (mês de início → fim do trimestre). Uma
+   simulação que cubra apenas parte do trimestre NÃO reduz o limite: o
+   trimestre é marcado como parcial ("estimativa parcial"), pois faltam as
+   receitas dos demais meses para a apuração completa (V3.1). */
+function simularPresumidoPeriodo(receitas, atividadeKey, tratamento, aliquotaManualPct) {
+  const grupos = [];
+  receitas.forEach((rec, k) => {
+    const c = mesCalendario(k);
+    const chave = c.ano * 4 + Math.floor(c.mes / 3);
+    let g = grupos.length ? grupos[grupos.length - 1] : null;
+    if (!g || g.chave !== chave) { g = { chave, ano: c.ano, trim: Math.floor(c.mes / 3), idx: [], rm: [], receita: 0 }; grupos.push(g); }
+    g.idx.push(k); g.rm.push(rec); g.receita += rec;
+  });
+  const nova = empresaEhNova();
+  const trimestres = grupos.map((g, gi) => {
+    const m1 = mesCalendario(g.idx[0]).mes, m2 = mesCalendario(g.idx[g.idx.length - 1]).mes;
+    const anoRef = state.presumido.anoProjecao ? state.presumido.anoProjecao : g.ano;
+    // meses do período de apuração: trimestre cheio (3), exceto o trimestre de início de atividade
+    const inicioAtividade = nova && gi === 0;
+    const mesesApuracao = inicioAtividade ? 3 - (m1 % 3) : 3;
+    // meses do período de apuração que a simulação não cobre (receita desconhecida)
+    const mesesCobertos = g.idx.length;
+    const mesesFaltantes = Math.max(mesesApuracao - mesesCobertos, 0);
+    const t = calcLucroPresumidoTrimestral({
+      receitaTrimestre: g.receita, atividade: atividadeKey,
+      pisAliq: state.presumido.pisAliq / 100, cofinsAliq: state.presumido.cofinsAliq / 100, issAliq: state.presumido.issAliq / 100,
+      aplicarMajoracao2026: state.presumido.majoracao, anoProjecao: limitar(anoRef, 2026, 2033),
+      tratamentoIbsCbs: tratamento, aliquotaEfetivaManualPct: aliquotaManualPct, mesesPeriodo: mesesApuracao,
+    });
+    return {
+      rotulo: "T" + (g.trim + 1) + "/" + g.ano + " (" + (m1 === m2 ? MESES_ABREV[m1] : MESES_ABREV[m1] + "–" + MESES_ABREV[m2]) + ")",
+      ano: g.ano, anoRef: t.ano, idx: g.idx, rm: g.rm, mesesCount: g.idx.length, receita: g.receita, t, total: t.totalTrimestre,
+      mesesApuracao, mesesFaltantes, parcial: mesesFaltantes > 0, inicioAtividade,
+      limiteAdicional: t.limiteAdicional,
+    };
+  });
+  return trimestres;
+}
+function agregarPresumido(trimestres, receitaTotal, N) {
+  const T = (campo) => soma(trimestres.map((q) => q.t[campo]));
+  const total = soma(trimestres.map((q) => q.total));
+  const last = trimestres[trimestres.length - 1].t;
+  // rateio mensal (IRPJ/CSLL são trimestrais; o consumo é proporcional à receita) para a visão temporal
+  const mensal = Array(N).fill(0);
+  trimestres.forEach((q) => q.idx.forEach((k, j) => { mensal[k] = q.receita > 0 ? q.total * (q.rm[j] / q.receita) : q.total / q.idx.length; }));
+  return {
+    trimestres, mensal, total, mediaMensal: total / N, receitaTotal,
+    cargaEfetivaPct: receitaTotal > 0 ? (total / receitaTotal) * 100 : 0,
+    atividade: last.atividade, irpjPctUsado: last.irpjPctUsado, csllPctUsado: last.csllPctUsado,
+    baseIRPJ: T("baseIRPJ"), baseCSLL: T("baseCSLL"),
+    irpjNormal: T("irpjNormal"), irpjAdicional: T("irpjAdicional"), irpjTotal: T("irpjTotal"), csllTotal: T("csllTotal"),
+    pis: T("pis"), cofins: T("cofins"), cbs: T("cbs"), ibs: T("ibs"), iss: T("iss"), consumoTotal: T("consumoTotal"),
+    ano: last.ano, substituidoPorCbs: last.substituidoPorCbs, algumSubstituidoPorCbs: trimestres.some((q) => q.t.substituidoPorCbs),
+    issAliqEfetivaPct: last.issAliqEfetivaPct, fatorRemanescenteIss: last.fatorRemanescenteIss,
+    ibsRefPct: last.ibsRefPct, cbsRefPct: last.cbsRefPct, ibsPctUsado: last.ibsPctUsado, cbsPctUsado: last.cbsPctUsado,
+    reducaoAplicadaPct: last.reducaoAplicadaPct, tratamentoIbsCbsManual: last.tratamentoIbsCbsManual, tratamentoIbsCbs: last.tratamentoIbsCbs,
+    notaMajoracao: trimestres.map((q) => q.t.notaMajoracao).find(Boolean) || null,
+    totalPeriodo: total,
+    // trimestres cuja apuração depende de meses não informados → "estimativa parcial"
+    parcial: trimestres.some((q) => q.parcial), trimestresParciais: trimestres.filter((q) => q.parcial),
+    limiteAdicionalMin: Math.min.apply(null, trimestres.map((q) => q.limiteAdicional)),
+  };
+}
+
+/* ---- Fator R: cenário atual × sem folha × com Fator R (28%) ----
+   V3.1 — FONTE ÚNICA da folha necessária: o valor exibido (folhaNecMensal,
+   folhaNecPeriodo, diferença, pró-labore) é calculado a partir da MESMA folha
+   que a simulação "com Fator R" efetivamente usa (com.folha.mensal), na mesma
+   base de RBT12 (histórico informado quando existe; proporcional no início de
+   atividade). Assim "necessária exibida" = "necessária simulada", sempre. */
+// V3.2.2 — texto do Fator R no início de atividade conforme os anos do período (regras de 2026 × 2027).
+function fatorRInicioTexto(r) {
+  const ms = r && r.simples && r.simples.meses ? r.simples.meses : [];
+  const tem27 = ms.some((m) => m.ano >= ANO_REGRAS_2027), tem26 = ms.some((m) => m.ano < ANO_REGRAS_2027);
+  const t27 = "A partir de jan/2027 o fator \"r\" dos 2 primeiros meses de atividade é fixado em 0,28 (Res. CGSN 140/2018, art. 26, § 6º, redação da Res. CGSN 190/2026) e, do 3º mês em diante, folha e receita são anualizadas pelo mesmo critério da RBT12 (média dos meses antecedentes ao mês anterior × 12) — os incisos do § 7º não foram conferidos integralmente (hipótese)";
+  const t26 = "Até dez/2026, folha e receita são acumuladas e proporcionalizadas desde o 1º mês (hipótese de planejamento — Manual do PGDAS-D, seção 8.3, não acessada)";
+  return tem27 && tem26 ? t26 + ". " + t27 : tem27 ? t27 : t26;
+}
+function calcFatorRComparativo(base) {
+  if (base.anexoKey !== "III_V") return { aplicavel: false };
+  const run = (politica) => {
+    const f = folhaDoPeriodo(base.receitas, base.hist, politica, base.movel);
+    const rows = simularSimplesPeriodo({ receitas: base.receitas, nova: base.hist.nova, histRbt12: base.hist.rbt12, histFolha12: f.historico12, folhaMensal: f.mensal, folha12Const: f.const12, anexoKey: "III_V", movel: base.movel });
+    return { politica, folha: f, ag: agregarSimples(rows, base.receitaTotal, base.hist) };
+  };
+  const atual = run(state.fatorR.modo), sem = run("nenhuma"), com = run("necessaria");
+  // "informada" = folha realmente digitada pelo usuário (base para medir o que falta), independente da política escolhida na tela
+  const informada = state.fatorR.modo === "atual" ? atual : run("atual");
+  const N = base.receitas.length;
+  const folhaNecMensal = media(com.folha.mensal);          // = folha usada na simulação "com Fator R"
+  const folhaNecPeriodo = soma(com.folha.mensal);
+  const folhaNecRbt12Ref = FATOR_R_LIMIAR * (base.hist.nova ? media(base.receitas) * 12 : base.hist.rbt12); // referência: 28% do RBT12 de partida
+  const folhaAtualMensal = media(informada.folha.mensal);
+  // Se a folha informada já dá Fator R ≥ 28% não há diferença a cobrir (a margem de R$ 0,01 da folha simulada não conta como falta)
+  const informadaEnquadrada = informada.ag.fatorR != null && informada.ag.fatorR >= FATOR_R_LIMIAR - 1e-9;
+  const difMensal = informadaEnquadrada ? 0 : Math.max(folhaNecMensal - folhaAtualMensal, 0);
+  const temFolhaInformada = informada.folha.const12 > 0.005 || informada.folha.mensal.some((v) => v > 0.005);
+  // Referência da economia: a folha que a empresa já tem; sem folha informada, o cenário sem folha (diferença potencial, não economia)
+  const refCen = temFolhaInformada ? informada : sem;
+  const economia = Math.max(refCen.ag.total - com.ag.total, 0);
+  // Pró-labore adicional estimado: toda a diferença via pró-labore dos sócios.
+  const p0 = Math.max(0, numOr(state.empresa.proLabore, 0));
+  const p1 = p0 + difMensal;
+  const enc0 = calcEncargosProlabore(p0), enc1 = calcEncargosProlabore(p1);
+  const inssInc = Math.max(enc1.inss - enc0.inss, 0), irrfInc = Math.max(enc1.irrf - enc0.irrf, 0);
+  const custoAdicional = (inssInc + irrfInc) * N;
+  const jaEnquadrado = informadaEnquadrada;
+  // Histórico: quando o enquadramento ocorre se a folha necessária passa a ser paga a partir do 1º mês do período
+  // (janela móvel de 12 meses, partindo da folha realmente informada). Início de atividade: proporcional desde o 1º mês.
+  let enquadraEm = null;
+  {
+    const fM = folhaDoPeriodo(base.receitas, base.hist, "necessaria", true);
+    const rowsM = simularSimplesPeriodo({ receitas: base.receitas, nova: base.hist.nova, histRbt12: base.hist.rbt12, histFolha12: base.hist.folha12, folhaMensal: fM.mensal, folha12Const: null, anexoKey: "III_V", movel: true });
+    const j = rowsM.findIndex((r) => r.fatorR != null && r.fatorR >= FATOR_R_LIMIAR - 1e-9);
+    enquadraEm = { idx: j < 0 ? null : j, rotulo: j < 0 ? null : rowsM[j].rotulo, fatorInicial: rowsM[0].fatorR, imediato: j === 0 };
+  }
+  const conf = (id) => !!(state.confirmados && state.confirmados[id]);
+  const premissasConfirmadas = conf("encargos-folha");
+  /* V3.2.1 — METODOLOGIA DA VANTAGEM (apenas apresentação; nenhum número do motor muda):
+       1) Economia no DAS ............ calculada (diferença de DAS entre os cenários);
+       2) Pró-labore adicional ....... remuneração do sócio: sai da empresa e entra no sócio (não é perda tributária);
+       3) Retenções do sócio ......... INSS + IRRF sobre o adicional — encargos da PESSOA FÍSICA, descontados do
+                                       pró-labore; NÃO são custo da empresa (o INSS gera direitos previdenciários e o
+                                       IRRF é antecipação do IRPF anual);
+       4) Encargos patronais ......... Anexos III e V: a CPP já está embutida no DAS (LC 123/2006, art. 13, VI) e o
+                                       pró-labore não gera FGTS → adicional de R$ 0,00 sobre o pró-labore.
+     Saldo estimado = (1) − (3), visão conjunta empresa + sócio. A conclusão ("compensa") só é afirmada quando não
+     falta informação para avaliá-la (`avaliacao.suficiente`); caso contrário é apenas um indicativo. */
+  const faltas = [];
+  if (!temFolhaInformada) faltas.push({ id: "folha-referencia", curto: "folha atual", texto: "a folha atual não foi informada — o valor é a diferença entre cenários, não a economia real" });
+  if (!premissasConfirmadas) faltas.push({ id: "encargos-folha", curto: "premissas de INSS e IRRF", texto: "as premissas de INSS e IRRF do sócio não foram confirmadas" });
+  if (base.hist.nova && !conf("fatorr-inicio")) faltas.push({ id: "fatorr-inicio", curto: "Fator R no início de atividade", texto: "a aplicação do Fator R no início de atividade não foi confirmada" });
+  if (!base.hist.nova && base.hist.origem === "auto" && !conf("rbt12-auto")) faltas.push({ id: "rbt12-auto", curto: "RBT12 real", texto: "o RBT12 é estimado e a folha necessária depende dele" });
+  if (!base.hist.nova && temFolhaInformada && !(p0 > 0) && !conf("prolabore-atual")) faltas.push({ id: "prolabore-atual", curto: "pró-labore atual", texto: "o pró-labore atual dos sócios não foi informado — INSS e IRRF só incidem sobre o acréscimo a partir dele" });
+  if (!base.hist.nova && difMensal > 0.005 && !enquadraEm.imediato) faltas.push({ id: "janela", curto: "janela de 12 meses", texto: (enquadraEm.idx == null ? "o Fator R de 28% não é atingido dentro do período (a janela de 12 meses ainda inclui a folha anterior)" : "o Fator R de 28% só é atingido em " + enquadraEm.rotulo) + " — a economia calculada supõe a folha necessária já nos 12 meses anteriores" });
+  if (!base.hist.nova && base.hist.origem === "pendente") faltas.push({ id: "rbt12Historico", curto: "RBT12 anterior", texto: "o RBT12 anterior à operação não foi informado" });
+  const suficiente = faltas.length === 0;
+  const saldo = economia - custoAdicional;
+  let veredito;
+  if (!(difMensal > 0.005)) veredito = "sem-economia";          // folha já atinge 28%: nada a acrescentar
+  else if (!(economia > 0.005)) veredito = "sem-ganho";           // acrescentar folha não reduz o DAS: não compensa, qualquer que seja o resto (as retenções só pioram)
+  else if (saldo > 0.005) veredito = suficiente ? "compensa" : "indicativo-favoravel";
+  else veredito = suficiente ? "nao-compensa" : "indicativo-desfavoravel";
+  return {
+    aplicavel: true, N, atual, sem, com, informada, temFolhaInformada,
+    folhaNecMensal, folhaNecPeriodo, folhaNecRbt12Ref, folhaAtualMensal, difMensal, difPeriodo: difMensal * N,
+    economia, referencia: temFolhaInformada ? "folha-informada" : "sem-folha", referenciaTotal: refCen.ag.total,
+    economiaRotulo: temFolhaInformada ? "Economia tributária potencial" : "Diferença potencial entre cenários",
+    proLaboreAdicionalMensal: difMensal, proLaboreTotalMensal: p1, proLaboreAtualMensal: p0,
+    inssInc, irrfInc, custoAdicionalMensal: inssInc + irrfInc, custoAdicional,
+    vantagemLiquida: saldo, enc0, enc1, jaEnquadrado,
+    // V3.2.1 — `compensa` só é verdadeiro com avaliação suficiente (ver `veredito`)
+    compensa: veredito === "compensa",
+    // a vantagem só deixa de ser "estimativa" quando o usuário confirma as premissas de encargos (INSS/IRRF) — e nunca é definitiva sem custos reais da folha
+    vantagemEstimada: !premissasConfirmadas,
+    vantagemRotulo: (veredito === "sem-economia" || veredito === "sem-ganho") ? "Saldo estimado (economia no DAS − retenções do sócio)" : suficiente ? "Saldo estimado (economia no DAS − retenções do sócio; premissas confirmadas)" : "Saldo indicativo (economia no DAS − retenções estimadas do sócio) — não conclusivo",
+    // componentes separados (V3.2.1)
+    economiaDas: economia, saldoEstimado: saldo, veredito,
+    retencoesSocio: { inssMensal: inssInc, irrfMensal: irrfInc, mensal: inssInc + irrfInc, periodo: custoAdicional },
+    encargosPatronais: { cppAdicionalMensal: 0, fgtsAdicionalMensal: 0, mensal: 0, periodo: 0 },
+    avaliacao: { suficiente, faltas },
+    fatorRAtual: atual.ag.fatorR, fatorRInformado: informada.ag.fatorR, enquadraEm,
+  };
+}
+
+/* ============================================================================
+   BLOCO 50_compute
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   COMPUTE — orquestra o motor tributário sobre o período analisado
+   --------------------------------------------------------------------------- */
+function rbt12Atual() {
+  // Compatibilidade: RBT12 "de referência" mostrado nos cartões (último mês do período).
+  return state.result ? state.result.rbt12 : (state.empresa.rbt12Modo === "auto" ? state.empresa.faturamentoMensal * 12 : state.empresa.rbt12Manual);
+}
+
+function aliquotaIbsCbsManual() {
+  const v = state.ibscbs.aliquotaEfetivaManualPct;
+  return (v != null && v !== "" && isFinite(v)) ? Number(v) : null;
+}
+
+// Validação objetiva das entradas (alimenta a área única de pendências).
+function validarEntradas(r) {
+  const issues = [];
+  const rec = r ? r.meta.receitas : receitasDoPeriodo();
+  const total = soma(rec);
+  if (!(total > 0)) issues.push({ tipo: "red", msg: "Informe uma receita maior que zero para o período." });
+  if (r && r.simples.excesso.situacao !== "regular") issues.push({ tipo: "yellow", msg: "Excesso do limite de receita do Simples Nacional. " + r.simples.excesso.efeitoTexto });
+  if (r && !r.meta.nova && r.meta.hist.folha12 > r.meta.hist.rbt12 && r.meta.hist.rbt12 > 0) issues.push({ tipo: "yellow", msg: "A folha de salários informada é maior que o RBT12 — confira os valores." });
   return issues;
 }
 
 function computeAll() {
-  const e = state.empresa;
-  const rbt12 = rbt12Atual();
+  const N = nMeses();
+  const receitas = receitasDoPeriodo();
+  const receitaTotal = soma(receitas);
+  const hist = historicoDaEmpresa(receitas);
+  const movel = rbt12MovelEfetivo();
   const anexoKey = anexoKeyAtual();
-  const memoria = [];
-
-  // ---- Classificação tributária a partir do CNAE (CNAE → Atividade →
-  // Presunção → Tratamento IBS/CBS) — resolvida UMA ÚNICA VEZ e reaproveitada
-  // em Simples Nacional/Fator R (anexoKeyAtual, acima), Lucro Presumido e
-  // Simples Híbrido/IBS-CBS (abaixo), evitando duplicidade de informação. ----
   const classificacao = classificarPorCnae();
   const atividadeKey = atividadeKeyAtual();
-  if (classificacao) {
-    const presK = classificacao.presuncao, ibsK = classificacao.ibscbs;
-    memoria.push({
-      titulo: "Classificação tributária identificada a partir do CNAE",
-      formula: "CNAE " + classificacao.cnae.codigo + " (" + classificacao.cnae.descricao + ") → Atividade: " + (state.presumido.atividadeModo === "manual" ? PRESUNCAO[atividadeKey].label + " (definida manualmente)" : (presK && !presK.pendente ? PRESUNCAO[presK.key].label : PRESUNCAO[atividadeKey].label + " (mantida — classificação automática pendente de confirmação)")) +
-        " → Presunção IRPJ " + fmtPct(PRESUNCAO[atividadeKey].irpj) + " / CSLL " + fmtPct(PRESUNCAO[atividadeKey].csll) +
-        " → Tratamento IBS/CBS: " + IBS_CBS_TRATAMENTOS[tratamentoIbsCbsKeyAtual()].label,
-      detalhe: (presK && !presK.pendente ? "Presunção — fonte: " + presK.fonte + " (confiança " + presK.confianca + "). " + presK.motivo : "Presunção do Lucro Presumido: classificação automática pendente de confirmação complementar — mantido o valor anteriormente em uso (\"" + PRESUNCAO[atividadeKey].label + "\") até a resposta do usuário.") +
-        " · " + (ibsK && !ibsK.pendente ? "Tratamento IBS/CBS — fonte: " + ibsK.fonte + " (confiança " + ibsK.confianca + "). " + ibsK.motivo : "Tratamento de IBS/CBS: classificação automática pendente de confirmação complementar — mantido o valor anteriormente em uso até a resposta do usuário.") +
-        (classificacao.pendencias.length ? " · Confirmação(ões) necessária(s): " + classificacao.pendencias.map((p) => p.pergunta).join(" | ") : ""),
-    });
-  }
+  const tratamento = tratamentoIbsCbsAtual();
+  const aliqManual = aliquotaIbsCbsManual();
+  const politica = state.fatorR.modo;
+  const memoria = [];
 
-  const simples = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey, folha12m: e.folha12m });
-  memoria.push({
-    titulo: "RBT12 — Receita Bruta dos últimos 12 meses",
-    formula: e.rbt12Modo === "auto" ? "RBT12 = Faturamento mensal × 12 = " + fmtBRL(e.faturamentoMensal) + " × 12 = " + fmtBRL(rbt12) : "RBT12 informado manualmente = " + fmtBRL(rbt12),
-    detalhe: e.rbt12Modo === "auto" ? "Calculado automaticamente a partir do faturamento mensal informado (uso simplificado — em uma apuração real, utilize a soma efetiva dos 12 meses anteriores)." : "Valor informado manualmente pelo usuário.",
+  const folha = folhaDoPeriodo(receitas, hist, politica, movel);
+  const rowsSimples = simularSimplesPeriodo({
+    receitas, nova: hist.nova, histRbt12: hist.rbt12, histFolha12: folha.historico12,
+    folhaMensal: folha.mensal, folha12Const: folha.const12, anexoKey, movel,
   });
-  if (anexoKey === "III_V") {
-    memoria.push({
-      titulo: "Fator R",
-      formula: "Fator R = Folha de salários (12m) ÷ RBT12 = " + fmtBRL(e.folha12m) + " ÷ " + fmtBRL(rbt12) + " = " + fmtPct(simples.fatorR * 100),
-      detalhe: "Fator R " + (simples.fatorR >= 0.28 ? "≥ 28% → tributação pelo Anexo III." : "< 28% → tributação pelo Anexo V."),
-    });
-  } else if (state.simples.anexoModo === "auto" && classificacao) {
-    memoria.push({
-      titulo: "Anexo do Simples Nacional — identificado a partir do CNAE",
-      formula: "Natureza da atividade (CNAE " + classificacao.cnae.codigo + ", Seção " + classificacao.cnae.secao + ") = " + (classificacao.natureza === "comercio" ? "comércio" : "indústria") + " → " + ANEXOS[anexoKey].nome,
-      detalhe: "Quando o CNAE identifica claramente natureza de comércio ou indústria, o Anexo correspondente (I ou II) é usado automaticamente, dispensando a regra do Fator R (aplicável apenas a serviços). Pode ser substituído manualmente a qualquer momento na aba Simples Nacional.",
-    });
-  }
-  memoria.push({
-    titulo: "Enquadramento e alíquota efetiva — " + ANEXOS[simples.anexoUsado].nome,
-    formula: "Alíquota efetiva = (RBT12 × Alíquota nominal − Parcela a deduzir) ÷ RBT12 = (" + fmtBRL(rbt12) + " × " + fmtPct(simples.aliqNominal * 100) + " − " + fmtBRL(simples.parcelaDeduzir) + ") ÷ " + fmtBRL(rbt12) + " = " + fmtPct(simples.cargaEfetivaPct),
-    detalhe: simples.faixaLabel + " de RBT12 (" + ANEXOS[simples.anexoUsado].nome + " — " + ANEXOS[simples.anexoUsado].desc + ").",
-  });
-  memoria.push({
-    titulo: "DAS mensal estimado",
-    formula: "DAS = Faturamento mensal × Alíquota efetiva = " + fmtBRL(e.faturamentoMensal) + " × " + fmtPct(simples.cargaEfetivaPct) + " = " + fmtBRL(simples.dasMensal),
-    detalhe: "Valor total anual estimado: " + fmtBRL(simples.dasAnual) + " (DAS mensal × 12).",
-  });
+  const simples = agregarSimples(rowsSimples, receitaTotal, hist);
+  const rowsHibrido = simularHibridoPeriodo(rowsSimples, tratamento, aliqManual);
+  const hibrido = agregarHibrido(rowsHibrido, receitaTotal);
+  const trimestres = simularPresumidoPeriodo(receitas, atividadeKey, tratamento, aliqManual);
+  const presumido = agregarPresumido(trimestres, receitaTotal, N);
+  presumido.trimestre = trimestres[trimestres.length - 1].t; // compatibilidade (último trimestre)
 
-  // ---- Tratamento tributário de IBS/CBS (alíquota padrão, reduções e
-  // benefícios aplicáveis à operação) — resolvido UMA VEZ e usado tanto pelo
-  // Lucro Presumido quanto pelo Simples Híbrido, para nunca divergir entre
-  // as duas telas (ver IBS_CBS_TRATAMENTOS / aplicarTratamentoIbsCbs). ----
-  const tratamentoIbsCbsCfg = tratamentoIbsCbsAtual();
-  const aliquotaIbsCbsManualPct = (state.ibscbs.aliquotaEfetivaManualPct != null && state.ibscbs.aliquotaEfetivaManualPct !== "" && isFinite(state.ibscbs.aliquotaEfetivaManualPct))
-    ? state.ibscbs.aliquotaEfetivaManualPct : null;
-
-  const presumido = calcLucroPresumidoAnual({
-    receitaTrimestre: e.faturamentoMensal * 3,
-    atividade: atividadeKey,
-    pisAliq: state.presumido.pisAliq / 100,
-    cofinsAliq: state.presumido.cofinsAliq / 100,
-    issAliq: state.presumido.issAliq / 100,
-    aplicarMajoracao2026: state.presumido.majoracao,
-    anoProjecao: state.presumido.anoProjecao,
-    tratamentoIbsCbs: tratamentoIbsCbsCfg,
-    aliquotaEfetivaManualPct: aliquotaIbsCbsManualPct,
-  });
-  const t = presumido.trimestre;
-  memoria.push({
-    titulo: "Tratamento tributário de IBS/CBS aplicável à operação",
-    formula: aliquotaIbsCbsManualPct != null
-      ? "Alíquota efetiva (IBS+CBS) informada manualmente pelo usuário = " + fmtPct(aliquotaIbsCbsManualPct) + " — substitui o percentual de redução do tratamento selecionado, mantida a mesma proporção relativa entre IBS e CBS da alíquota de referência."
-      : "Alíquota efetiva = Alíquota de referência × (1 − redução) = Alíquota de referência × (1 − " + fmtPct(tratamentoIbsCbsCfg.reducaoPct != null ? tratamentoIbsCbsCfg.reducaoPct : 0, 0) + ")",
-    detalhe: "Tratamento selecionado: \"" + tratamentoIbsCbsCfg.label + "\" (" + (tratamentoIbsCbsCfg.status === "oficial" ? "fonte oficial" : "hipótese — recomenda-se confirmação antes de aplicar em casos reais") + ") · Fonte/regra: " + tratamentoIbsCbsCfg.fonte + ". " + tratamentoIbsCbsCfg.observacao +
-      (state.ibscbs.observacao ? " · Observação do usuário: " + escHtml(state.ibscbs.observacao) : "") +
-      (state.ibscbs.modo === "auto" && classificacao && classificacao.ibscbs && !classificacao.ibscbs.pendente ? " · Origem: classificação automática a partir do CNAE (confiança " + classificacao.ibscbs.confianca + ")." : "") +
-      (state.ibscbs.modo === "auto" && classificacao && classificacao.pendencias.some((p) => p.aspecto === "ibscbs") ? " · Confirmação complementar pendente — ver aba Dados da Empresa." : ""),
-  });
-  memoria.push({
-    titulo: "Lucro Presumido — base de cálculo trimestral (" + t.atividade + ")",
-    formula: "Base IRPJ = Receita trimestral × " + fmtPct(t.irpjPctUsado) + " = " + fmtBRL(e.faturamentoMensal * 3) + " × " + fmtPct(t.irpjPctUsado) + " = " + fmtBRL(t.baseIRPJ) + "  |  Base CSLL = " + fmtBRL(t.baseCSLL),
-    detalhe: "Receita trimestral considerada: faturamento mensal × 3 = " + fmtBRL(e.faturamentoMensal * 3) + " · Ano de projeção: " + t.ano + ".",
-  });
-  memoria.push({
-    titulo: "IRPJ e CSLL — tributos trimestrais",
-    formula: "IRPJ normal = " + fmtBRL(t.baseIRPJ) + " × 15% = " + fmtBRL(t.irpjNormal) + "  |  Adicional = máx(" + fmtBRL(t.baseIRPJ) + " − R$ 60.000, 0) × 10% = " + fmtBRL(t.irpjAdicional) + "  |  CSLL = " + fmtBRL(t.baseCSLL) + " × 9% = " + fmtBRL(t.csllTotal),
-    detalhe: "IRPJ total do trimestre: " + fmtBRL(t.irpjTotal) + " · Apurados por trimestre (não mensalmente).",
-  });
-  memoria.push(t.substituidoPorCbs ? {
-    titulo: "CBS, IBS e ISS — tributos mensais (ano " + t.ano + ")",
-    formula: "CBS teórico = Receita × alíquota de referência (" + fmtPct(t.cbsRefPct, 2) + ") = " + fmtBRL(e.faturamentoMensal * 3 * t.cbsRefPct / 100) + "  (−) redução de " + fmtPct(t.reducaoAplicadaPct, 0) + "  ⇒  CBS efetivo = Receita × " + fmtPct(t.cbsPctUsado, 2) + " = " + fmtBRL(t.cbs) + "  |  IBS teórico = Receita × " + fmtPct(t.ibsRefPct, 2) + "  (−) redução de " + fmtPct(t.reducaoAplicadaPct, 0) + "  ⇒  IBS efetivo = Receita × " + fmtPct(t.ibsPctUsado, 2) + " = " + fmtBRL(t.ibs) + "  |  ISS = Receita × " + fmtPct(t.issAliqEfetivaPct) + " = " + fmtBRL(t.iss),
-    detalhe: "A partir de 2027, a LC 214/2025 extingue PIS e COFINS, substituídos pela CBS; o ISS informado (" + fmtPct(state.presumido.issAliq) + ") é aplicado " + (t.fatorRemanescenteIss < 1 ? "a " + fmtPct(t.fatorRemanescenteIss * 100, 0) + " de sua alíquota, conforme o cronograma de redução do ISS/ICMS" : "integralmente") + " — mesmo cronograma de transição (IBS_CBS_CRONOGRAMA) usado na aba Simples Híbrido. O IBS/CBS teórico usa a alíquota de referência do ano; a redução/benefício do tratamento tributário selecionado (\"" + t.tratamentoIbsCbs.label + "\") já está refletida no valor efetivo acima" + (t.tratamentoIbsCbsManual ? " (alíquota efetiva informada manualmente)" : "") + ". Total do trimestre: " + fmtBRL(t.totalTrimestre) + " · Carga efetiva: " + fmtPct(t.cargaEfetivaPct) + ".",
-  } : {
-    titulo: "PIS, COFINS e ISS — tributos mensais (ano " + t.ano + ")",
-    formula: "PIS = " + fmtBRL(t.pis) + "  |  COFINS = " + fmtBRL(t.cofins) + "  |  ISS = " + fmtBRL(t.iss),
-    detalhe: "Ano-teste da reforma (2026) ou anterior: PIS/COFINS/ISS permanecem pelas regras vigentes — o valor-teste de CBS/IBS é integralmente compensável, sem impacto financeiro líquido. Total do trimestre: " + fmtBRL(t.totalTrimestre) + " · Carga efetiva: " + fmtPct(t.cargaEfetivaPct) + ".",
-  });
-
-  // ---- Simples Híbrido — composição separada de DAS / IBS / CBS / créditos ----
-  const cronoAno = IBS_CBS_CRONOGRAMA.find((c) => c.ano === state.hibrido.anoProjecao) || IBS_CBS_CRONOGRAMA[IBS_CBS_CRONOGRAMA.length - 1];
-  const hibrido = calcSimplesHibrido({
-    faturamentoMensal: e.faturamentoMensal,
-    dasMensal: simples.dasMensal,
-    partilha: simples.partilha,
-    partilhaValores: simples.partilhaValores,
-    cronoAno,
-    creditoIbsPct: state.hibrido.creditoIbsPct,
-    creditoCbsPct: state.hibrido.creditoCbsPct,
-    tratamentoIbsCbs: tratamentoIbsCbsCfg,
-    aliquotaEfetivaManualPct: aliquotaIbsCbsManualPct,
-  });
-  memoria.push({
-    titulo: "Simples Híbrido — DAS sem IBS/CBS (ano " + hibrido.ano + ")",
-    formula: "DAS sem IBS/CBS = DAS total − parcela de " + (hibrido.tributoConsumo || "ICMS/ISS") + " (" + fmtBRL(hibrido.parcelaIbsNoDas) + ") − parcela de PIS/COFINS (" + fmtBRL(hibrido.parcelaCbsNoDas) + ") = " + fmtBRL(simples.dasMensal) + " − " + fmtBRL(hibrido.parcelaConsumoDas) + " = " + fmtBRL(hibrido.dasSemIbsCbs),
-    detalhe: "No mecanismo de apuração à parte (previsto a partir de 2027), as parcelas do DAS hoje correspondentes a " + (hibrido.tributoConsumo || "ICMS/ISS") + " (vira IBS) e a PIS/COFINS (vira CBS) saem da partilha do Simples e passam a ser recolhidas separadamente, em regime não cumulativo. IRPJ, CSLL e CPP permanecem no DAS.",
-  });
-  memoria.push({
-    titulo: "IBS e CBS — alíquota de referência, redução e débito",
-    formula: "IBS teórico = Faturamento × alíquota de referência (" + fmtPct(hibrido.ibsRefPct, 2) + ") = " + fmtBRL(e.faturamentoMensal * hibrido.ibsRefPct / 100) + "  (−) redução de " + fmtPct(hibrido.reducaoAplicadaPct, 0) + "  ⇒  IBS débito = Faturamento × " + fmtPct(hibrido.ibsPct, 2) + " = " + fmtBRL(hibrido.ibsDebito) + "  |  CBS teórico = Faturamento × " + fmtPct(hibrido.cbsRefPct, 2) + "  (−) redução de " + fmtPct(hibrido.reducaoAplicadaPct, 0) + "  ⇒  CBS débito = Faturamento × " + fmtPct(hibrido.cbsPct, 2) + " = " + fmtBRL(hibrido.cbsDebito),
-    detalhe: "Tratamento tributário selecionado: \"" + hibrido.tratamentoIbsCbs.label + "\" (" + (hibrido.tratamentoIbsCbs.status === "oficial" ? "fonte oficial" : "hipótese — confirmar antes de aplicar em casos reais") + (hibrido.tratamentoIbsCbsManual ? "; alíquota efetiva informada manualmente pelo usuário" : "") + "). Crédito IBS informado: " + fmtPct(hibrido.creditoIbsPct, 1) + " do débito (" + fmtBRL(hibrido.creditoIbs) + ") · Crédito CBS informado: " + fmtPct(hibrido.creditoCbsPct, 1) + " do débito (" + fmtBRL(hibrido.creditoCbs) + "). Os percentuais de CRÉDITO são PARÂMETROS DE SIMULAÇÃO, ajustáveis pelo usuário conforme os créditos de insumos efetivamente apurados pela empresa — não são alíquota legal e não é assumido crédito integral por padrão. O crédito de IBS não é compensado contra o débito de CBS (créditos apurados separadamente).",
-  });
-  memoria.push({
-    titulo: "Total Híbrido líquido",
-    formula: "IBS líquido = " + fmtBRL(hibrido.ibsDebito) + " − " + fmtBRL(hibrido.creditoIbs) + " = " + fmtBRL(hibrido.ibsLiquido) + "  |  CBS líquido = " + fmtBRL(hibrido.cbsDebito) + " − " + fmtBRL(hibrido.creditoCbs) + " = " + fmtBRL(hibrido.cbsLiquido) + "  |  Total Híbrido = " + fmtBRL(hibrido.dasSemIbsCbs) + " + " + fmtBRL(hibrido.ibsLiquido) + " + " + fmtBRL(hibrido.cbsLiquido) + " = " + fmtBRL(hibrido.totalMensal),
-    detalhe: "Carga efetiva do Híbrido: " + fmtPct(hibrido.cargaEfetivaPct) + " (Simples Normal: " + fmtPct(simples.cargaEfetivaPct) + ") · Total anual: " + fmtBRL(hibrido.totalAnual) + ".",
-  });
-
-  const pe = calcPontoEquilibrio({
-    custosFixosMensais: state.equilibrio.custosFixos,
-    custosVariaveisPct: state.equilibrio.custosVariaveisPct,
-    cargaTributariaPct: simples.cargaEfetivaPct,
-  });
-
-  // ---- Ponto de equilíbrio — PRESTADORA: receita necessária no Híbrido para
-  // manter o mesmo resultado líquido mensal de hoje (Simples Normal). ----
-  const custosVarAtual = e.faturamentoMensal * (state.equilibrio.custosVariaveisPct / 100);
-  const resultadoAtualPrestadora = e.faturamentoMensal - custosVarAtual - state.equilibrio.custosFixos - simples.dasMensal;
-  const receitaHibridoParaMesmoResultado = calcReceitaParaResultado({
-    resultadoDesejadoMensal: resultadoAtualPrestadora,
-    custosFixosMensais: state.equilibrio.custosFixos,
-    custosVariaveisPct: state.equilibrio.custosVariaveisPct,
-    cargaTributariaPct: hibrido.cargaEfetivaPct,
-  });
-  const pePrestadora = {
-    valorAtualContrato: e.faturamentoMensal,
-    resultadoAtual: resultadoAtualPrestadora,
-    valido: receitaHibridoParaMesmoResultado.valido,
-    receitaNecessariaHibrido: receitaHibridoParaMesmoResultado.valido ? receitaHibridoParaMesmoResultado.receita : null,
+  const meta = {
+    tipo: tipoAnalise(), tipoLabel: TIPOS_ANALISE[tipoAnalise()].label, nova: hist.nova, hist, movel,
+    nMeses: N, receitas, receitaTotal, receitaMedia: receitaTotal / N,
+    labels: receitas.map((_, i) => rotuloMes(i)), periodo: rotuloPeriodo(), ano: anoGlobal(),
+    receitaModo: state.periodo.receitaModo, politicaFolha: politica, folha,
+    pontual: tipoAnalise() === "avulsa",
   };
 
-  // ---- Ponto de equilíbrio — CONTRATANTE: custo líquido hoje x valor de
-  // contrato equivalente no Híbrido para manter o mesmo custo líquido. ----
-  const contratoAtualEquilibrio = state.equilibrio.contratoBruto;
-  const creditoContratanteAtualPct = state.equilibrio.creditoContratanteAtualPct || 0;
-  const creditoContratanteAtual = contratoAtualEquilibrio * (creditoContratanteAtualPct / 100);
-  const custoLiquidoContratanteAtual = contratoAtualEquilibrio - creditoContratanteAtual;
+  /* ---- Comparativo de regimes (mesma base: o período analisado) ----
+     V3.1: o Simples/Híbrido só sai do ranking nos meses em que a exclusão por
+     excesso de receita JÁ produz efeitos (excesso ≤ 20% → ano seguinte;
+     > 20% → mês seguinte; início de atividade > 20% → retroativo). Se os
+     efeitos caem depois do período, o regime permanece, com ressalva. */
+  const ex = simples.excesso;
+  const regimes = [
+    { id: "simples", label: "Simples Nacional", total: simples.total, cargaPct: simples.cargaEfetivaPct, mediaMensal: simples.mediaMensal, elegivel: ex.mesesVedados === 0 },
+    { id: "hibrido", label: "Simples Híbrido", total: hibrido.total, cargaPct: hibrido.cargaEfetivaPct, mediaMensal: hibrido.mediaMensal, elegivel: ex.mesesVedados === 0 },
+    { id: "presumido", label: "Lucro Presumido", total: presumido.total, cargaPct: presumido.cargaEfetivaPct, mediaMensal: presumido.mediaMensal, elegivel: true },
+  ];
+  regimes.forEach((x) => {
+    const sn = x.id !== "presumido";
+    x.situacao = !sn ? "regular" : (ex.situacao === "regular" ? "regular" : (ex.mesesVedados === 0 ? "excesso-futuro" : (ex.integral ? "vedado" : "vedado-parcial")));
+    x.mesesVedados = sn ? ex.mesesVedados : 0;
+    x.validoAte = sn && ex.parcial && ex.efeitoIdx != null ? rotuloMes(ex.efeitoIdx - 1) : null;
+  });
+  /* ---- V3.2.4 — Elegibilidade legal ANTES do custo ----
+     estado do regime: "elegivel" | "restricao" (aplicável, mas com restrição legal ou total incompleto) | "inaplicavel" (exclusão em vigor em todo o período).
+     `incompleto`: há ICMS/ISS/IBS devido(s) fora do DAS que o app não calcula (sublimite / 6ª faixa) — o total calculado é um PISO, não o custo.
+     Recomendação (r.recomendacao): "conclusivo" só se o menor custo vem de um regime com cálculo completo e nenhum regime incompleto/restrito
+     poderia ser mais barato; "inconclusivo" em exclusão retroativa (regras gerais desde a abertura, com efeitos não calculados), em regime misto
+     ou quando um total incompleto é menor que o melhor completo; "indisponivel" quando nenhum regime é aplicável. */
+  const sb = simples.sublimiteAv;
+  regimes.forEach((x) => {
+    const sn = x.id !== "presumido";
+    x.estado = "elegivel"; x.restricoes = []; x.incompleto = false; x.mesesIncompletos = 0; x.retroativo = false;
+    if (!sn) { x.referenciaGeral = !!(ex.integral && ex.retroativo); return; }
+    if (ex.integral) { x.estado = "inaplicavel"; x.retroativo = ex.retroativo; }
+    else if (ex.parcial) { x.estado = "restricao"; x.restricoes.push("valido-ate"); }
+    else if (ex.situacao !== "regular") { x.estado = "restricao"; x.restricoes.push("excesso-futuro"); }
+    if (sb.mesesAfetados > 0 && x.estado !== "inaplicavel") { x.estado = "restricao"; x.incompleto = true; x.mesesIncompletos = sb.mesesAfetados; x.restricoes.push("sublimite"); }
+  });
+  const { recomendacao, melhor, pior, melhorReferencia, completos } = decidirRecomendacao(regimes, ex);
+  const refId = state.analise.regimeAtual && regimes.find((x) => x.id === state.analise.regimeAtual) ? state.analise.regimeAtual : null;
+  const ref = refId ? regimes.find((x) => x.id === refId) : null;
+  const refOk = ref && !ref.incompleto && ref.estado !== "inaplicavel";
+  // "Economia" só existe com referência válida (regime atual informado e aplicável, com total completo). Sem ele, a comparação é uma
+  // "diferença potencial entre cenários" (maior × menor custo calculados) — não uma economia garantida.
+  const economia = melhor && (refOk || pior)
+    ? {
+      base: refOk ? ref.label : pior.label, baseId: refOk ? ref.id : pior.id, baseTotal: refOk ? ref.total : pior.total,
+      valor: Math.max((refOk ? ref.total : pior.total) - melhor.total, 0), referenciaEscolhida: !!refOk,
+      tipo: refOk ? "economia" : "diferenca-potencial",
+      rotulo: refOk ? "Economia estimada" : "Diferença potencial entre cenários",
+      descricao: refOk ? "frente ao regime atual informado (" + ref.label + ")" : "entre o regime de maior e o de menor custo calculados — sem regime atual informado, não é economia garantida",
+    }
+    : null;
+  const custosOk = state.equilibrio.custosInformados === true;
+  const custoVar = receitaTotal * (state.equilibrio.custosVariaveisPct / 100);
+  const custoFixo = state.equilibrio.custosFixos * N;
+  regimes.forEach((x) => { x.resultadoLiquido = custosOk ? receitaTotal - custoVar - custoFixo - x.total : null; });
+  const liquido = { disponivel: custosOk, custoVariavel: custoVar, custoFixo };
+
+  /* ---- Fator R inteligente ---- */
+  const fatorRComp = calcFatorRComparativo({ anexoKey, receitas, receitaTotal, hist, movel });
+
+  /* ---- Ponto de equilíbrio (valores mensais médios do período) ---- */
+  const recMedia = receitaTotal / N;
+  const pe = calcPontoEquilibrio({ custosFixosMensais: state.equilibrio.custosFixos, custosVariaveisPct: state.equilibrio.custosVariaveisPct, cargaTributariaPct: simples.cargaEfetivaPct });
+  const resultadoAtualPrestadora = recMedia - recMedia * (state.equilibrio.custosVariaveisPct / 100) - state.equilibrio.custosFixos - simples.mediaMensal;
+  const recHib = calcReceitaParaResultado({ resultadoDesejadoMensal: resultadoAtualPrestadora, custosFixosMensais: state.equilibrio.custosFixos, custosVariaveisPct: state.equilibrio.custosVariaveisPct, cargaTributariaPct: hibrido.cargaEfetivaPct });
+  const pePrestadora = { valorAtualContrato: recMedia, resultadoAtual: resultadoAtualPrestadora, valido: recHib.valido, receitaNecessariaHibrido: recHib.valido ? recHib.receita : null };
+  const contratoAtual = state.equilibrio.contratoBruto;
+  const credAtualPct = state.equilibrio.creditoContratanteAtualPct || 0;
+  const credAtual = contratoAtual * (credAtualPct / 100);
   const peContratante = {
-    valorAtualContrato: contratoAtualEquilibrio,
-    creditoAtualPct: creditoContratanteAtualPct,
-    creditoAtual: creditoContratanteAtual,
-    custoLiquidoAtual: custoLiquidoContratanteAtual,
-    valorEquivalenteHibrido: calcValorContratoParaCustoLiquido({
-      custoLiquidoDesejado: custoLiquidoContratanteAtual,
-      creditoPct: state.hibrido.creditoContratanteHibridoPct,
-      ibsPct: hibrido.ibsPct, cbsPct: hibrido.cbsPct,
-    }),
+    valorAtualContrato: contratoAtual, creditoAtualPct: credAtualPct, creditoAtual: credAtual, custoLiquidoAtual: contratoAtual - credAtual,
+    valorEquivalenteHibrido: calcValorContratoParaCustoLiquido({ custoLiquidoDesejado: contratoAtual - credAtual, creditoPct: state.hibrido.creditoContratanteHibridoPct, ibsPct: hibrido.ibsPct, cbsPct: hibrido.cbsPct }),
   };
 
-  state.result = { rbt12, anexoKey, simples, presumido, hibrido, pe, pePrestadora, peContratante, issues: validarEntradas(), timestamp: new Date(), tratamentoIbsCbs: tratamentoIbsCbsCfg, classificacao, atividadeKey };
+  const composicao = montarComposicao(simples, hibrido, presumido);
+  const temporal = {
+    labels: meta.labels, receita: receitas,
+    simples: rowsSimples.map((x) => x.das), hibrido: rowsHibrido.map((x) => x.totalMensal), presumido: presumido.mensal,
+  };
+  const r = {
+    meta, composicao, temporal, rbt12: simples.rbt12Final, rbt12Inicial: simples.rbt12Inicial, anexoKey, simples, hibrido, presumido, regimes, melhor, pior, economia, liquido, recomendacao, melhorReferencia,
+    fatorRComp, pe, pePrestadora, peContratante, classificacao, atividadeKey, tratamentoIbsCbs: tratamento, aliqManualPct: aliqManual,
+    timestamp: new Date(), issues: [], pendencias: [], ressalvas: [],
+  };
+  r.issues = validarEntradas(r);
+
+  memoria.push(...montarMemoria(r));
+  state.result = r;
   state.memoria = memoria;
-  return state.result;
+  r.pendencias = buildPendencias(r);
+  r.ressalvas = buildRessalvas(r);
+  r.confianca = classificarConfianca(r);
+  r.conclusao = avaliarConclusao(r);
+  r.ressalvas = buildRessalvas(r); // recompõe com a conclusão
+  return r;
 }
 
 /* ---------------------------------------------------------------------------
-   DOM helpers
+   CONFIANÇA DO RESULTADO (V3.1) — diferencia, por regime:
+     "calculo"   → cálculo com dados informados e regra oficial aplicada;
+     "estimativa"→ algum dado foi estimado/parcial (RBT12 estimado, trimestre incompleto, parâmetro padrão);
+     "hipotese"  → depende de regra/premissa ainda não confirmada (início de atividade no Fator R,
+                   tratamento de IBS/CBS marcado como hipótese, majoração da presunção).
+   --------------------------------------------------------------------------- */
+const CONFIANCA_ROTULO = { calculo: "Cálculo confirmado", estimativa: "Estimativa", hipotese: "Hipótese" };
+function classificarConfianca(r) {
+  const M = r.meta, S = r.simples, L = r.presumido, H = r.hibrido;
+  const conf = (id) => !!(state.confirmados && state.confirmados[id]);
+  const out = {};
+  const mk = (motivosHip, motivosEst) => ({ nivel: motivosHip.length ? "hipotese" : motivosEst.length ? "estimativa" : "calculo", motivos: motivosHip.concat(motivosEst) });
+  // Simples
+  {
+    const hip = [], est = [];
+    if (r.anexoKey === "III_V" && M.nova && !conf("fatorr-inicio")) hip.push("Fator R no início de atividade (aplicação a confirmar)");
+    if (M.hist.origem === "auto" && !conf("rbt12-auto")) est.push("RBT12 estimado a partir da receita informada");
+    if (M.hist.origem === "pendente") est.push("histórico de receita (RBT12) não informado");
+    if (S.excesso.situacao !== "regular") est.push("excesso do limite de receita (" + (S.excesso.situacao === "excesso-acima20" ? "acima de 20%" : "até 20%") + ")");
+    if (S.excesso.estimado) est.push("receita dos meses anteriores do ano estimada pelo RBT12");
+    if (r.anexoKey === "III_V" && M.politicaFolha !== "atual" && M.politicaFolha !== "nenhuma") est.push("folha simulada (não é folha real)");
+    out.simples = mk(hip, est);
+  }
+  // Híbrido
+  {
+    const hip = [], est = [];
+    const tr = r.tratamentoIbsCbs;
+    if (tr && tr.status !== "oficial") hip.push("tratamento de IBS/CBS marcado como hipótese");
+    if (H.meses.some((h) => h.ano >= 2027)) est.push("créditos de IBS/CBS são parâmetros de simulação");
+    out.hibrido = mk(hip.concat(out.simples.nivel === "hipotese" ? out.simples.motivos.filter((m) => /Fator R/.test(m)) : []), est.concat(out.simples.motivos.filter((m) => !/Fator R/.test(m))));
+  }
+  // Presumido
+  {
+    const hip = [], est = [];
+    const tr = r.tratamentoIbsCbs;
+    if (state.presumido.majoracao) hip.push("majoração da presunção (regra recente)");
+    if (tr && tr.status !== "oficial" && L.algumSubstituidoPorCbs) hip.push("tratamento de IBS/CBS marcado como hipótese");
+    if (L.parcial) est.push("trimestre incompleto — estimativa parcial");
+    if (!conf("lp-aliquotas") && !state.presumido._tocado) est.push("ISS e PIS/COFINS padrão");
+    out.presumido = mk(hip, est);
+  }
+  /* V3.2.1 — "projeção": o regime depende de alíquotas de IBS/CBS de 2027 em diante, que ainda não foram fixadas
+     oficialmente (alíquota de referência por resolução do Senado). Só rotula; não altera nenhum cálculo. */
+  out.simples.projecao = false;
+  out.hibrido.projecao = H.meses.some((h) => h.ano >= 2027);
+  out.presumido.projecao = !!L.algumSubstituidoPorCbs;
+  return out;
+}
+
+/* Conclusão: só é "definitiva" (pode-se dizer qual regime é o melhor) se nenhum dado essencial falta. */
+function avaliarConclusao(r) {
+  const M = r.meta, motivos = [];
+  if (!(M.receitaTotal > 0)) motivos.push("receita do período não informada");
+  if (M.tipo === "avulsa" && !M.nova && M.hist.origem === "pendente") motivos.push("RBT12 anterior à operação não informado");
+  if (!state.empresa.cnae) motivos.push("CNAE não informado (classificação genérica)");
+  if (r.classificacao && r.classificacao.pendencias.length) motivos.push("confirmação da atividade pendente");
+  if (r.presumido.parcial) motivos.push("trimestre incompleto no Lucro Presumido (estimativa parcial)");
+  if (r.anexoKey === "III_V" && r.pendencias.some((p) => p.id === "folha")) motivos.push("folha/pró-labore não informado (Fator R)");
+  if (r.simples.excesso.mesesVedados > 0) motivos.push(r.simples.excesso.integral ? "Simples e Híbrido inaplicáveis: exclusão do Simples em vigor em todo o período" + (r.simples.excesso.retroativo ? " (retroativa à abertura)" : "") : "o Simples Nacional deixa de valer em parte do período por excesso de receita");
+  { const RI = recomendacaoInfo(r); if (RI && r.recomendacao.estado === "inconclusivo") motivos.push("comparativo inconclusivo: " + RI.motivoCurto); }
+  const definitiva = motivos.length === 0;
+  const nivelGeral = ["simples", "hibrido", "presumido"].some((k) => r.confianca[k].nivel === "hipotese") ? "hipotese"
+    : ["simples", "hibrido", "presumido"].some((k) => r.confianca[k].nivel === "estimativa") ? "estimativa" : "calculo";
+  /* V3.2.1 — estado exibido: "definitivo" = dados essenciais completos E nenhuma premissa do resultado
+     por confirmar; "preliminar" = falta dado essencial OU há premissa/estimativa por confirmar.
+     `definitiva` (dados essenciais) segue exatamente como na v3.2. As premissas listadas em `aConfirmar` são as
+     que alteram os totais dos regimes (as retenções do Fator R não entram: só afetam o saldo do Fator R). */
+  const aConfirmar = (r.pendencias || [])
+    .filter((p) => !p.confirmado && p.escopo !== "fatorr" && (p.nivel === "pendente" || (p.nivel === "estimativa" && p.confirmavel)))
+    .map((p) => ({ id: p.id, curto: p.curto || p.titulo, nivel: p.nivel, foco: p.foco || null }));
+  const estado = definitiva && aConfirmar.length === 0 ? "definitivo" : "preliminar";
+  return { definitiva, motivos, nivelGeral, rotulo: definitiva ? "Resultado com dados suficientes" : "Resultado preliminar", estado, aConfirmar };
+}
+
+/* ---------------------------------------------------------------------------
+   MEMÓRIA DE CÁLCULO
+   --------------------------------------------------------------------------- */
+function montarMemoria(r) {
+  const m = [], M = r.meta, S = r.simples, H = r.hibrido, L = r.presumido, cl = r.classificacao;
+  const N = M.nMeses;
+  m.push({
+    titulo: "Período analisado e receita",
+    formula: M.periodo + " (" + N + (N === 1 ? " mês" : " meses") + ") · Receita total do período = " + fmtBRL(M.receitaTotal) + " · média mensal = " + fmtBRL(M.receitaMedia),
+    detalhe: (M.receitaModo === "variavel" ? "Receita informada mês a mês." : M.receitaModo === "total" ? "Valor total distribuído em partes iguais entre os " + N + " meses (" + fmtBRL(M.receitaMedia) + " por mês)." : "Receita mensal constante de " + fmtBRL(M.receitaMedia) + ".") +
+      " Todos os totais referem-se exclusivamente a este período — nada é anualizado." + (M.pontual ? " Simulação avulsa: o valor não é presumido como receita anual recorrente." : ""),
+  });
+  if (cl) {
+    const presK = cl.presuncao, ibsK = cl.ibscbs;
+    m.push({
+      titulo: "Classificação tributária identificada a partir do CNAE",
+      formula: "CNAE " + cl.cnae.codigo + " (" + cl.cnae.descricao + ") → Atividade: " + (state.presumido.atividadeModo === "manual" ? PRESUNCAO[r.atividadeKey].label + " (definida manualmente)" : (presK && !presK.pendente ? PRESUNCAO[presK.key].label : PRESUNCAO[r.atividadeKey].label + " (mantida — classificação automática pendente de confirmação)")) +
+        " → Presunção IRPJ " + fmtPct(PRESUNCAO[r.atividadeKey].irpj) + " / CSLL " + fmtPct(PRESUNCAO[r.atividadeKey].csll) +
+        " → Tratamento IBS/CBS: " + IBS_CBS_TRATAMENTOS[tratamentoIbsCbsKeyAtual()].label,
+      detalhe: (presK && !presK.pendente ? "Presunção — fonte: " + presK.fonte + " (confiança " + presK.confianca + "). " + presK.motivo : "Presunção do Lucro Presumido: classificação automática pendente de confirmação complementar — mantido o valor anteriormente em uso (\"" + PRESUNCAO[r.atividadeKey].label + "\") até a resposta do usuário.") +
+        " · " + (ibsK && !ibsK.pendente ? "Tratamento IBS/CBS — fonte: " + ibsK.fonte + " (confiança " + ibsK.confianca + "). " + ibsK.motivo : "Tratamento de IBS/CBS: classificação automática pendente de confirmação complementar — mantido o valor anteriormente em uso até a resposta do usuário.") +
+        (cl.pendencias.length ? " · Confirmação(ões) necessária(s): " + cl.pendencias.map((p) => p.pergunta).join(" | ") : ""),
+    });
+  }
+  // RBT12
+  const h = M.hist, first = S.meses[0], last = S.meses[N - 1];
+  if (h.nova) {
+    m.push({
+      titulo: "RBT12 — regra de início de atividade (empresa nova)",
+      formula: (first.ano < ANO_REGRAS_2027
+        ? "Até dez/2026: 1º mês: RBT12 = receita do mês × 12 = " + fmtBRL(first.receita) + " × 12 = " + fmtBRL(first.rbt12) + " · do 2º ao 12º mês: RBT12 = (soma das receitas dos meses anteriores ÷ nº de meses) × 12 · a partir do 13º mês: soma dos 12 meses anteriores"
+        : "") + (last.ano >= ANO_REGRAS_2027
+        ? (first.ano < ANO_REGRAS_2027 ? " · " : "") + "A partir de jan/2027 (Res. CGSN 190/2026): 1º e 2º mês de atividade = 1ª faixa dos Anexos I a V e fator \"r\" = 0,28 · do 3º ao 13º mês: RBT12 = (soma das receitas dos meses antecedentes ao mês anterior ÷ nº desses meses) × 12 · a partir do 14º mês: soma dos 12 meses antecedentes ao mês anterior"
+        : "") + (N > 1 ? " · último mês do período: " + fmtBRL(last.rbt12) : ""),
+      detalhe: "Sem histórico de 12 meses, a receita bruta acumulada é proporcionalizada ao número de meses de atividade (LC 123/2006, art. 18, §§ 2º e 3º; Res. CGSN 140/2018, art. 22, na redação da Res. CGSN 190/2026 para 2027 em diante). O limite de receita no ano de início é de R$ 400.000 × meses de funcionamento" + (S.limiteInicio.aplica ? " = " + fmtBRL(S.limiteInicio.limite) + " (receita do ano: " + fmtBRL(S.limiteInicio.receitaAno) + ")." : "."),
+    });
+  } else if (h.origem === "pendente") {
+    m.push({ titulo: "RBT12 — histórico não informado", formula: "RBT12 anterior ao período = não informado → considerado R$ 0,00", detalhe: "Sem o histórico dos 12 meses anteriores, o RBT12 cresce apenas com a receita do próprio período (janela móvel) e a alíquota da 1ª faixa é aplicada no primeiro mês. Informe o RBT12 anterior para um resultado completo." });
+  } else {
+    m.push({
+      titulo: "RBT12 — Receita Bruta dos últimos 12 meses",
+      formula: !M.movel
+        ? (h.origem === "auto" ? "RBT12 = receita mensal média × 12 = " + fmtBRL(M.receitaMedia) + " × 12 = " + fmtBRL(h.rbt12) : "RBT12 informado manualmente = " + fmtBRL(h.rbt12)) + " (mantido constante no período)"
+        : "RBT12 anterior ao período = " + fmtBRL(h.rbt12) + " (" + (h.origem === "auto" ? "estimado" : "informado") + ") → atualizado mês a mês pela janela móvel de 12 meses" + (first.ano >= ANO_REGRAS_2027 || last.ano >= ANO_REGRAS_2027 ? " (a partir de jan/2027 a janela são os 12 meses antecedentes ao mês anterior — LC 123, art. 18, § 1º, redação da LC 214/2025)" : "") + " · 1º mês: " + fmtBRL(first.rbt12) + " · último mês: " + fmtBRL(last.rbt12),
+      detalhe: (h.origem === "auto" ? "Calculado a partir da receita informada (uso simplificado — em uma apuração real, utilize a soma efetiva dos 12 meses anteriores)." : "Valor informado manualmente pelo usuário.") + (first.ano >= ANO_REGRAS_2027 || last.ano >= ANO_REGRAS_2027 ? " Em 2027 o mês imediatamente anterior sai da janela; como o histórico é tratado como receita média mensal, a diferença só aparece quando a receita do período varia." : ""),
+    });
+  }
+  if (r.anexoKey === "III_V") {
+    m.push({
+      titulo: "Fator R",
+      formula: "Fator R = Folha de salários (12m) ÷ RBT12 · 1º mês: " + fmtBRL(first.folha12) + " ÷ " + fmtBRL(first.rbt12) + " = " + fmtPct((first.fatorR || 0) * 100) + (N > 1 ? " · último mês: " + fmtPct((last.fatorR || 0) * 100) : ""),
+      detalhe: "Fator R " + (last.fatorR >= FATOR_R_LIMIAR ? "≥ 28% → Anexo III" : "< 28% → Anexo V") + " no último mês" + (S.anexoMisto ? " (o Anexo muda ao longo do período: " + S.anexosUsados.join(" / ") + ")" : "") + ". Política de folha: " + ({ atual: "folha atual informada", prolabore: "pró-labore simulado", necessaria: "folha necessária para 28%", nenhuma: "sem folha" })[M.politicaFolha] + "." +
+        (h.nova ? " Início de atividade: " + fatorRInicioTexto(r) + " — confirmar no caso concreto." : ""),
+    });
+  } else if (state.simples.anexoModo === "auto" && cl) {
+    m.push({
+      titulo: "Anexo do Simples Nacional — identificado a partir do CNAE",
+      formula: "Natureza da atividade (CNAE " + cl.cnae.codigo + ", Seção " + cl.cnae.secao + ") = " + (cl.natureza === "comercio" ? "comércio" : "indústria") + " → " + ANEXOS[r.anexoKey].nome,
+      detalhe: "Quando o CNAE identifica claramente natureza de comércio ou indústria, o Anexo correspondente (I ou II) é usado automaticamente, dispensando a regra do Fator R (aplicável apenas a serviços). Pode ser substituído nos ajustes avançados do preenchimento.",
+    });
+  }
+  m.push({
+    titulo: "Enquadramento e alíquota efetiva — " + ANEXOS[S.anexoUsado].nome,
+    formula: "Alíquota efetiva = (RBT12 × Alíquota nominal − Parcela a deduzir) ÷ RBT12 · último mês: (" + fmtBRL(last.rbt12) + " × " + fmtPct(last.aliqNominal * 100) + " − " + fmtBRL(last.parcelaDeduzir) + ") ÷ " + fmtBRL(last.rbt12) + " = " + fmtPct(last.cargaEfetivaPct),
+    detalhe: last.faixaLabel + " de RBT12 (" + ANEXOS[S.anexoUsado].nome + " — " + ANEXOS[S.anexoUsado].desc + ")." + (N > 1 ? " Alíquota efetiva do 1º mês: " + fmtPct(first.cargaEfetivaPct) + "." : ""),
+  });
+  m.push({
+    titulo: "DAS do período",
+    formula: "DAS = Σ (receita do mês × alíquota efetiva do mês) = " + fmtBRL(S.total) + " (média " + fmtBRL(S.mediaMensal) + "/mês) · carga efetiva do período = " + fmtPct(S.cargaEfetivaPct),
+    detalhe: "Cada mês usa o RBT12 e o Fator R próprios. Total do período — não anualizado.",
+  });
+  // Limite de receita / exclusão
+  {
+    const ex = S.excesso;
+    m.push({
+      titulo: "Limite de receita do Simples Nacional e efeitos da exclusão",
+      formula: ex.situacao === "regular"
+        ? "Receita bruta acumulada no ano-calendário ≤ R$ 4.800.000,00" + (S.limiteInicio.aplica ? " (início de atividade: limite proporcional R$ 400.000 × " + S.limiteInicio.mesesFuncionamento + " meses = " + fmtBRL(S.limiteInicio.limite) + ", receita do ano " + fmtBRL(S.limiteInicio.receitaAno) + ")" : "") + " → sem excesso no período"
+        : ex.efeitoTexto,
+      detalhe: "Regras (Manual da Exclusão do Simples Nacional — Receita Federal; LC 123/2006 arts. 28 a 32; Res. CGSN 140/2018 arts. 81 a 84): excesso de até 20% sobre o limite → exclusão com efeitos a partir de 1º de janeiro do ano seguinte; excesso acima de 20% → efeitos a partir do mês seguinte à ultrapassagem; no início de atividade, acima de 20% os efeitos retroagem à abertura do CNPJ. O regime só deixa a comparação nos meses em que a exclusão já produz efeitos." +
+        (ex.situacao !== "regular" ? " Neste cenário: " + (ex.mesesVedados > 0 ? ex.mesesVedados + " mês(es) do período sem direito ao Simples." : "o efeito ocorre depois do período; o Simples segue válido dentro dele.") : "") +
+        (ex.estimado ? " Receita dos meses anteriores do ano estimada pela média do RBT12 informado." : "") + (ex.historicoIncompleto ? " RBT12 anterior não informado — receita acumulada pode estar subestimada." : ""),
+    });
+  }
+  // V3.2.4 — elegibilidade e recomendação
+  {
+    const RI = recomendacaoInfo(r), R = r.recomendacao, sbv = S.sublimiteAv;
+    m.push({
+      titulo: "Elegibilidade legal e recomendação",
+      formula: categoriasRegimesTexto(r) + " · Recomendação: " + (R.estado === "conclusivo" ? "conclusiva (" + r.melhor.label + ")" : R.estado === "inconclusivo" ? "INCONCLUSIVA" : "indisponível"),
+      detalhe: RI
+        ? "A elegibilidade legal vem antes do custo (LC 123, art. 3º, §§ 9º a 13 e art. 13-A; Res. CGSN 140, art. 12). " + RI.detalhe + (sbv && sbv.mesesAfetados > 0 ? " Meses com ICMS/ISS/IBS fora do DAS: " + sbv.mesesAfetados + " (" + sbv.porSublimite + " por sublimite; " + sbv.porFaixa6 + " por RBT12 na 6ª faixa)." : "")
+        : "Nenhuma exclusão ou sublimite impede a comparação: a elegibilidade legal é verificada antes do custo (LC 123, art. 3º, §§ 9º a 13 e art. 13-A; Res. CGSN 140, art. 12).",
+    });
+  }
+  // IBS/CBS tratamento
+  const tr = r.tratamentoIbsCbs;
+  m.push({
+    titulo: "Tratamento tributário de IBS/CBS aplicável à operação",
+    formula: r.aliqManualPct != null
+      ? "Alíquota efetiva (IBS+CBS) informada manualmente pelo usuário = " + fmtPct(r.aliqManualPct) + " — substitui o percentual de redução do tratamento selecionado, mantida a mesma proporção relativa entre IBS e CBS da alíquota de referência."
+      : "Alíquota efetiva = Alíquota de referência × (1 − redução) = Alíquota de referência × (1 − " + fmtPct(tr.reducaoPct != null ? tr.reducaoPct : 0, 0) + ")",
+    detalhe: "Tratamento selecionado: \"" + tr.label + "\" (" + (tr.status === "oficial" ? "fonte oficial" : "hipótese — recomenda-se confirmação antes de aplicar em casos reais") + ") · Fonte/regra: " + tr.fonte + ". " + tr.observacao +
+      (state.ibscbs.observacao ? " · Observação do usuário: " + escHtml(state.ibscbs.observacao) : "") +
+      (state.ibscbs.modo === "auto" && cl && cl.ibscbs && !cl.ibscbs.pendente ? " · Origem: classificação automática a partir do CNAE (confiança " + cl.ibscbs.confianca + ")." : "") +
+      (state.ibscbs.modo === "auto" && cl && cl.pendencias.some((p) => p.aspecto === "ibscbs") ? " · Confirmação complementar pendente — ver Pendências." : ""),
+  });
+  // Lucro Presumido
+  m.push({
+    titulo: "Lucro Presumido — apuração por trimestre-calendário (" + L.atividade + ")",
+    formula: "Base IRPJ = Receita do trimestre × " + fmtPct(L.irpjPctUsado) + "  |  Base CSLL = Receita do trimestre × " + fmtPct(L.csllPctUsado) + " · Total do período: base IRPJ " + fmtBRL(L.baseIRPJ) + " · base CSLL " + fmtBRL(L.baseCSLL),
+    detalhe: L.trimestres.map((q) => q.rotulo + ": receita " + fmtBRL(q.receita) + " (" + q.mesesCount + (q.mesesCount === 1 ? " mês" : " meses") + ")").join(" · "),
+  });
+  m.push({
+    titulo: "IRPJ e CSLL — tributos trimestrais",
+    formula: "IRPJ normal = base × 15% = " + fmtBRL(L.irpjNormal) + "  |  Adicional = máx(base − R$ 20.000 × meses do trimestre, 0) × 10% = " + fmtBRL(L.irpjAdicional) + "  |  CSLL = base × 9% = " + fmtBRL(L.csllTotal),
+    detalhe: "IRPJ total do período: " + fmtBRL(L.irpjTotal) + ". Apurados por trimestre-calendário (não mensalmente). O limite do adicional é de R$ 20.000 × meses do período de apuração (Lei 9.249/1995, art. 3º, §1º): R$ 60.000 no trimestre completo; só é proporcional no trimestre de início de atividade — um período simulado mais curto NÃO reduz o limite." + (L.parcial ? " ATENÇÃO — ESTIMATIVA PARCIAL: " + L.trimestresParciais.map((q) => q.rotulo + " cobre " + q.mesesCount + " de " + q.mesesApuracao + " meses (limite do adicional " + fmtBRL(q.limiteAdicional) + ")").join("; ") + "; faltam as receitas dos demais meses para a apuração completa." : "") + (L.notaMajoracao ? " Majoração de 10% da presunção sobre o excedente de R$ 1,25 mi/trimestre aplicada (hipótese — IN RFB 2.305/2025 e 2.306/2026)." : ""),
+  });
+  const anyCbs = L.algumSubstituidoPorCbs;
+  m.push(anyCbs ? {
+    titulo: "CBS, IBS e ISS — tributos mensais (ano " + L.ano + ")",
+    formula: "CBS efetivo = Receita × " + fmtPct(L.cbsPctUsado, 2) + " = " + fmtBRL(L.cbs) + "  |  IBS efetivo = Receita × " + fmtPct(L.ibsPctUsado, 2) + " = " + fmtBRL(L.ibs) + "  |  ISS = Receita × " + fmtPct(L.issAliqEfetivaPct) + " = " + fmtBRL(L.iss) + (L.pis + L.cofins > 0 ? "  |  PIS " + fmtBRL(L.pis) + " · COFINS " + fmtBRL(L.cofins) + " (trimestres anteriores a 2027)" : ""),
+    detalhe: "A partir de 2027, a LC 214/2025 extingue PIS e COFINS, substituídos pela CBS; o ISS informado (" + fmtPct(state.presumido.issAliq) + ") é aplicado " + (L.fatorRemanescenteIss < 1 ? "a " + fmtPct(L.fatorRemanescenteIss * 100, 0) + " de sua alíquota, conforme o cronograma de redução do ISS/ICMS" : "integralmente") + ". O IBS/CBS usa a alíquota de referência do ano menos a redução do tratamento selecionado (\"" + L.tratamentoIbsCbs.label + "\")" + (L.tratamentoIbsCbsManual ? " (alíquota efetiva informada manualmente)" : "") + ". Total do período: " + fmtBRL(L.total) + " · Carga efetiva: " + fmtPct(L.cargaEfetivaPct) + ".",
+  } : {
+    titulo: "PIS, COFINS e ISS — tributos mensais (ano " + L.ano + ")",
+    formula: "PIS = " + fmtBRL(L.pis) + "  |  COFINS = " + fmtBRL(L.cofins) + "  |  ISS = " + fmtBRL(L.iss),
+    detalhe: "Ano-teste da reforma (2026) ou anterior: PIS/COFINS/ISS permanecem pelas regras vigentes — o valor-teste de CBS/IBS é integralmente compensável, sem impacto financeiro líquido. Total do período: " + fmtBRL(L.total) + " · Carga efetiva: " + fmtPct(L.cargaEfetivaPct) + ".",
+  });
+  // Híbrido
+  m.push({
+    titulo: "Simples Híbrido — DAS sem IBS/CBS" + (H.anos.length === 1 ? " (ano " + H.ano + ")" : " (anos " + H.anos.join(", ") + ")"),
+    formula: "DAS sem IBS/CBS = DAS total − parcela de IBS (" + fmtBRL(H.parcelaIbsNoDas) + ") − parcela de CBS (" + fmtBRL(H.parcelaCbsNoDas) + ") = " + fmtBRL(S.total) + " − " + fmtBRL(H.parcelaConsumoDas) + " = " + fmtBRL(H.dasSemIbsCbs),
+    detalhe: "Na opção pelo regime regular de IBS e CBS (a partir de 2027), o DAS é calculado normalmente e dele se deduzem apenas as parcelas de CBS e de IBS previstas para o Anexo, a faixa e o ano (Res. CGSN 140/2018, art. 22-A, na redação da Res. CGSN 190/2026; partilha da LC 214/2025, Anexos XVIII a XXII). IRPJ, CSLL, CPP e o ISS/ICMS (que a própria tabela reduz ano a ano) permanecem no DAS; a CBS e o IBS passam a ser recolhidos pelo regime regular, não cumulativo, nas alíquotas de referência do cronograma (projeção)." +
+      (H.mesesSemOpcao > 0 ? " Em " + H.mesesSemOpcao + (H.mesesSemOpcao === 1 ? " mês" : " meses") + " de 2026 não há opção pelo regime regular (efeitos a partir de 01/01/2027): o Híbrido é o próprio DAS, sem IBS/CBS." : ""),
+  });
+  m.push({
+    titulo: "IBS e CBS — alíquota de referência, redução e débito",
+    formula: "IBS débito = Receita × " + fmtPct(H.ibsPct, 2) + " (referência " + fmtPct(H.ibsRefPct, 2) + ", redução " + fmtPct(H.reducaoAplicadaPct, 0) + ") = " + fmtBRL(H.ibsDebito) + "  |  CBS débito = Receita × " + fmtPct(H.cbsPct, 2) + " (referência " + fmtPct(H.cbsRefPct, 2) + ") = " + fmtBRL(H.cbsDebito),
+    detalhe: "Tratamento selecionado: \"" + H.tratamentoIbsCbs.label + "\" (" + (H.tratamentoIbsCbs.status === "oficial" ? "fonte oficial" : "hipótese — confirmar antes de aplicar em casos reais") + (H.tratamentoIbsCbsManual ? "; alíquota efetiva informada manualmente" : "") + "). Crédito IBS informado: " + fmtPct(H.creditoIbsPct, 1) + " do débito (" + fmtBRL(H.creditoIbs) + ") · Crédito CBS informado: " + fmtPct(H.creditoCbsPct, 1) + " do débito (" + fmtBRL(H.creditoCbs) + "). Os percentuais de CRÉDITO são PARÂMETROS DE SIMULAÇÃO, ajustáveis conforme os créditos de insumos efetivamente apurados — não são alíquota legal e não é assumido crédito integral por padrão. O crédito de IBS não é compensado contra o débito de CBS.",
+  });
+  m.push({
+    titulo: "Total Híbrido líquido",
+    formula: "IBS líquido = " + fmtBRL(H.ibsDebito) + " − " + fmtBRL(H.creditoIbs) + " = " + fmtBRL(H.ibsLiquido) + "  |  CBS líquido = " + fmtBRL(H.cbsDebito) + " − " + fmtBRL(H.creditoCbs) + " = " + fmtBRL(H.cbsLiquido) + "  |  Total Híbrido = " + fmtBRL(H.dasSemIbsCbs) + " + " + fmtBRL(H.ibsLiquido) + " + " + fmtBRL(H.cbsLiquido) + " = " + fmtBRL(H.total),
+    detalhe: "Carga efetiva do Híbrido no período: " + fmtPct(H.cargaEfetivaPct) + " (Simples Normal: " + fmtPct(S.cargaEfetivaPct) + ").",
+  });
+  // Fator R comparativo
+  const F = r.fatorRComp;
+  if (F.aplicavel) {
+    m.push({
+      titulo: "Fator R — comparação com e sem enquadramento",
+      formula: "Folha elegível necessária para 28% = 28% × " + (M.nova ? "receita do período (proporcional desde o 1º mês)" : M.movel ? "receita de cada mês (janela móvel de 12 meses)" : "RBT12 de " + fmtBRL(M.hist.rbt12)) + " → " + fmtBRL(F.folhaNecMensal) + "/mês (é a mesma folha usada na simulação \"com Fator R\") · folha atual informada = " + fmtBRL(F.folhaAtualMensal) + "/mês · diferença = " + fmtBRL(F.difMensal) + "/mês",
+      detalhe: "Sem folha: DAS " + fmtBRL(F.sem.ag.total) + " (Anexo " + F.sem.ag.anexosUsados.join("/") + ") · Com Fator R de 28%: DAS " + fmtBRL(F.com.ag.total) + " (Anexo " + F.com.ag.anexosUsados.join("/") + ") · " + F.economiaRotulo + " = " + fmtBRL(F.economia) + " (referência: " + (F.referencia === "folha-informada" ? "folha atual informada, DAS " + fmtBRL(F.referenciaTotal) : "cenário sem folha — não é economia garantida") + ")" +
+        ". Pró-labore bruto estimado: " + fmtBRL(F.proLaboreTotalMensal) + "/mês (adicional de " + fmtBRL(F.proLaboreAdicionalMensal) + ", remuneração do sócio — não é perda tributária). Retenções do sócio sobre o adicional (INSS de 11% até o teto + IRRF eventual; não são custo da empresa): " + fmtBRL(F.retencoesSocio.periodo) + " no período. Encargos patronais sobre o adicional: " + fmtBRL(0) + " (CPP já no DAS dos Anexos III e V; pró-labore não gera FGTS). " + F.vantagemRotulo + " = " + fmtBRL(F.saldoEstimado) +
+        ({ "compensa": " — compensa, com as premissas confirmadas", "nao-compensa": " — não compensa, com as premissas confirmadas", "indicativo-favoravel": " — indicativo favorável, ainda não conclusivo (depende de: " + F.avaliacao.faltas.map((x) => x.curto).join("; ") + ")", "indicativo-desfavoravel": " — indicativo desfavorável, ainda não conclusivo (depende de: " + F.avaliacao.faltas.map((x) => x.curto).join("; ") + ")", "sem-economia": " — sem economia de DAS a avaliar", "sem-ganho": " — não compensa: o Fator R não reduz o DAS neste cenário" })[F.veredito] +
+        ". " + (M.nova ? "Início de atividade: " + fatorRInicioTexto(r) + " — confirmar." : (F.enquadraEm.idx == null ? "Com a folha necessária paga a partir do 1º mês do período, o Fator R de 28% não é atingido dentro do período (a folha informada dos 12 meses anteriores pesa na janela)." : F.enquadraEm.imediato ? "" : "Partindo da folha informada dos 12 meses anteriores e pagando a folha necessária desde o 1º mês, o Fator R de 28% é atingido em " + F.enquadraEm.rotulo + ".")) +
+        " A \"folha elegível\" considerada é a folha bruta (pró-labore + salários + FGTS sobre salários), sem a CPP patronal: o manual do PGDAS-D da Receita inclui na folha do Fator R também a CPP efetivamente recolhida (inclusive a paga no DAS); esse acréscimo não foi aplicado, o que deixa a folha necessária no lado conservador (a confirmar). O pró-labore líquido do sócio, o custo empresarial e as retenções não se confundem com esse valor. O saldo é indicativo enquanto as premissas de INSS/IRRF e os demais dados não forem confirmados.",
+    });
+  }
+  return m;
+}
+
+/* ---------------------------------------------------------------------------
+   PENDÊNCIAS INTELIGENTES — uma única área, com níveis distintos.
+   nivel: "atencao" (laranja) | "pendente" | "estimativa" | "opcional" | "confirmado"
+   --------------------------------------------------------------------------- */
+function buildPendencias(r) {
+  const P = [], M = r.meta, e = state.empresa;
+  const add = (o) => P.push(o);
+  const confirmado = (id) => state.confirmados && state.confirmados[id] === true;
+  const tipo = M.tipo;
+
+  // ---- Essenciais ----
+  if (!(M.receitaTotal > 0)) add({ id: "receita", nivel: "pendente", essencial: true, curto: "receita do período", titulo: "Receita do período", texto: "Sem receita não há tributo a calcular. Informe o faturamento mensal ou o valor total da operação.", foco: "campo-receita" });
+  if (tipo === "avulsa" && !M.nova && M.hist.origem === "pendente") add({
+    id: "rbt12Historico", nivel: "pendente", essencial: true, curto: "RBT12 anterior à operação", titulo: "RBT12 anterior à operação",
+    pergunta: "Qual foi a receita bruta dos 12 meses anteriores ao início da operação?",
+    texto: "Define a faixa do Simples Nacional no início do período. Sem esse dado o cálculo parte de R$ 0,00 (alíquota da 1ª faixa) e o DAS tende a ser subestimado.",
+    foco: "campo-rbt12-historico", limitacao: "Resultado do Simples/Híbrido calculado sem histórico de receita.",
+  });
+  // ---- Classificação (CNAE) ----
+  if (!e.cnae) add({
+    id: "cnae", nivel: "pendente", curto: "CNAE", titulo: "CNAE da atividade",
+    pergunta: "Qual é o CNAE principal?",
+    texto: "O CNAE define sozinho o Anexo do Simples, a presunção do Lucro Presumido e o tratamento de IBS/CBS. Sem ele, usa-se Anexo III/V pelo Fator R, presunção de serviços gerais (32%) e IBS/CBS sem redução.",
+    foco: "campo-cnae", limitacao: "Classificação tributária genérica (serviços em geral).",
+  });
+  if (r.classificacao) r.classificacao.pendencias.forEach((p) => add({
+    id: "compl:" + p.id, nivel: "pendente", curto: "confirmação da atividade", titulo: "Confirmação da atividade", pergunta: p.pergunta, texto: p.explicacao,
+    complemento: { id: p.id, opcoes: p.opcoes }, aspecto: p.aspecto,
+    limitacao: p.aspecto === "ibscbs" ? "Tratamento de IBS/CBS mantido sem benefício até a resposta." : "Presunção do Lucro Presumido mantida no valor anterior até a resposta.",
+  }));
+  // ---- Fator R / folha ----
+  if (r.anexoKey === "III_V") {
+    const semFolha = M.politicaFolha === "atual" && M.folha.const12 <= 0 && M.folha.mensal.every((v) => v <= 0);
+    if (semFolha) add({
+      id: "folha", nivel: "pendente", curto: "folha ou pró-labore", titulo: "Folha de pagamento / pró-labore",
+      pergunta: "Há folha ou pró-labore? Quer simular o Fator R?",
+      texto: "Sem folha informada o Fator R é 0% e o Simples usa o Anexo V (mais caro). Informe a folha, simule um pró-labore ou deixe o sistema calcular a folha necessária para atingir 28%.",
+      foco: "bloco-fatorr", limitacao: "Enquadrado no Anexo V por ausência de folha informada.",
+    });
+    if (S_anexoMisto(r)) add({ id: "anexo-misto", nivel: "estimativa", titulo: "Anexo muda no período", texto: "Com " + (M.nova ? "o acúmulo proporcional de folha e receita" : "a janela móvel") + ", o Fator R cruza 28% durante o período e o Simples alterna entre Anexo III e V.", });
+    if (M.nova) add({ id: "fatorr-inicio", nivel: "estimativa", curto: "Fator R no início de atividade", titulo: "Fator R no início de atividade", texto: fatorRInicioTexto(r) + ". Confirme o tratamento no caso concreto.", confirmavel: true, confirmado: confirmado("fatorr-inicio") });
+    if (M.politicaFolha === "prolabore" || (r.fatorRComp.aplicavel && r.fatorRComp.difMensal > 0)) add({ id: "encargos-folha", nivel: "estimativa", escopo: "fatorr", curto: "INSS e IRRF do pró-labore", titulo: "Retenções do sócio sobre o pró-labore (INSS e IRRF)", texto: "Estimadas com INSS de 11% até o teto de " + fmtBRL(PARAMS_FOLHA.inss.teto) + " e a tabela do IRRF de " + PARAMS_FOLHA.ano + " (com a redução da Lei 15.270/2025). São retenções do sócio, descontadas do pró-labore — não são custo da empresa; a CPP patronal dos Anexos III e V já está no DAS. Não inclui deduções pessoais (dependentes etc.), outras rendas do sócio, INSS já recolhido por outra fonte nem custos de contabilidade da folha. Enquanto não confirmadas, o saldo do Fator R é só um indicativo.", confirmavel: true, confirmado: confirmado("encargos-folha"), foco: "bloco-fatorr" });
+  }
+  // ---- Estimativas ----
+  if (tipo === "existente" && M.hist.origem === "auto") add({ id: "rbt12-auto", nivel: "estimativa", curto: "RBT12 estimado", titulo: "RBT12 estimado", texto: "Calculado como receita média × 12 (" + fmtBRL(M.hist.rbt12) + "), porque o histórico real não foi informado. A faixa do Simples e o Fator R dependem dele: informe o RBT12 real (receita bruta dos 12 meses anteriores) ou confirme a estimativa.", confirmavel: true, confirmado: confirmado("rbt12-auto"), foco: "campo-rbt12" });
+  if (M.nova) add({ id: "rbt12-inicio", nivel: "estimativa", titulo: "RBT12 proporcional (início de atividade)", texto: "Sem histórico, o RBT12 é proporcionalizado pela receita dos meses de atividade, conforme a LC 123/2006, art. 18, §§ 2º e 3º. A partir de jan/2027 (Res. CGSN 190/2026), o 1º e o 2º mês usam a 1ª faixa dos Anexos e o RBT12 do 3º ao 13º mês considera os meses antecedentes ao mês anterior. Regra oficial aplicada automaticamente.", confirmavel: false });
+  if (r.presumido.parcial) {
+    const tp = r.presumido.trimestresParciais;
+    add({
+      id: "lp-parcial", nivel: "estimativa", titulo: "Lucro Presumido: trimestre incompleto — estimativa parcial",
+      pergunta: "Qual foi (ou será) a receita dos demais meses do trimestre?",
+      texto: "IRPJ e CSLL são apurados por trimestre-calendário. O período analisado cobre " + tp.map((q) => q.mesesCount + " de " + q.mesesApuracao + " meses em " + q.rotulo).join("; ") +
+        ". O limite do adicional de IRPJ segue o trimestre completo (R$ 20.000 × " + tp[0].mesesApuracao + " meses" + (tp[0].mesesApuracao === 3 ? " = R$ 60.000" : "") + ") e NÃO é reduzido por a simulação ser mais curta; sem a receita dos meses que faltam, o adicional (e o total do Lucro Presumido) pode estar subestimado. Para o cálculo completo, amplie o período até fechar o trimestre.",
+      limitacao: "Lucro Presumido em estimativa parcial: trimestre incompleto (" + tp.map((q) => q.rotulo).join(", ") + ").",
+    });
+  }
+  const haIbs = r.hibrido.meses.some((h) => h.ano >= 2027) || r.presumido.algumSubstituidoPorCbs;
+  if (haIbs && (state.hibrido.creditoIbsPct || 0) === 0 && (state.hibrido.creditoCbsPct || 0) === 0) add({ id: "creditos", nivel: "estimativa", curto: "créditos de IBS/CBS", titulo: "Créditos de IBS/CBS no Híbrido", texto: "Considerados 0% (nenhum crédito de insumos assumido). Se a empresa tem compras com crédito, informe nos ajustes avançados — isso reduz o custo do Híbrido.", confirmavel: true, confirmado: confirmado("creditos"), foco: "bloco-creditos" });
+  if (!confirmado("lp-aliquotas") && !state.presumido._tocado) add({ id: "lp-aliquotas", nivel: "estimativa", curto: "ISS e PIS/COFINS do Presumido", titulo: "ISS e PIS/COFINS do Lucro Presumido", texto: "Usando ISS de " + fmtPct(state.presumido.issAliq) + " (varia de 2% a 5% por município) e PIS/COFINS cumulativos de 0,65% / 3,00%. Ajuste o ISS do seu município nos ajustes avançados.", confirmavel: true, confirmado: confirmado("lp-aliquotas"), foco: "bloco-lp" });
+  if (e.cnae && (!r.classificacao || (r.classificacao.ibscbs && !r.classificacao.ibscbs.pendente && r.classificacao.ibscbs.confianca !== "alta")) && state.ibscbs.modo === "auto" && r.classificacao) add({ id: "ibs-confianca", nivel: "estimativa", curto: "tratamento de IBS/CBS", titulo: "Tratamento de IBS/CBS sugerido pelo CNAE", texto: r.classificacao.ibscbs.motivo, confirmavel: true, confirmado: confirmado("ibs-confianca") });
+  if (state.presumido.majoracao) add({ id: "majoracao", nivel: "estimativa", titulo: "Majoração da presunção (hipótese)", texto: "Ativada nos ajustes avançados — regra recente (IN RFB 2.305/2025 e 2.306/2026); confirme antes de usar como definitivo." });
+  // ---- Atenção ----
+  if (r.simples.excesso.situacao !== "regular") {
+    const ex = r.simples.excesso;
+    add({
+      id: "limite-simples", nivel: "atencao", titulo: ex.situacao === "excesso-acima20" ? "Excesso de receita acima de 20% no Simples Nacional" : "Excesso de receita de até 20% no Simples Nacional",
+      texto: ex.efeitoTexto + (ex.mesesVedados > 0
+        ? " " + ex.mesesVedados + " mês(es) do período ficam fora do Simples" + (ex.integral ? (ex.retroativo ? ": a empresa deve ser tributada pelas regras gerais desde a abertura (LC 123, art. 3º, § 10). Simples e Híbrido são inaplicáveis; os valores calculados para eles são só um cálculo de referência." : ": Simples e Híbrido são inaplicáveis no período; os valores calculados para eles são só um cálculo de referência.") : "; esses valores são apenas referência e o regime não entra no ranking de menor custo.")
+        : " Dentro do período analisado o Simples continua válido; o efeito vem depois — planeje a migração de regime.") +
+        (ex.estimado ? " A receita dos meses anteriores do mesmo ano foi estimada pela média do RBT12 informado." : "") +
+        (ex.historicoIncompleto ? " Sem o RBT12 anterior, a receita acumulada do ano pode estar subestimada." : ""),
+      foco: "bloco-rbt12",
+    });
+  }
+  // V3.2.3/V3.2.4 — sublimite de ICMS/ISS/IBS: total do Simples/Híbrido INCOMPLETO (não é só um alerta: entra na recomendação)
+  if (r.simples.sublimiteAv && r.simples.sublimiteAv.mesesAfetados > 0) {
+    const sbv = r.simples.sublimiteAv;
+    add({ id: "sublimite", nivel: "atencao", titulo: "Sublimite de ICMS, ISS e IBS — total do Simples incompleto",
+      texto: sbv.texto + " Em " + sbv.mesesAfetados + (sbv.mesesAfetados === 1 ? " mês" : " meses") + " do período o ICMS, o ISS e o IBS são devidos pelas normas gerais, fora do Simples (LC 123, art. 13-A; Res. CGSN 140, art. 12), e o app não os calcula: o custo de Simples e Híbrido está subestimado e esses regimes ficam com restrição na comparação.", foco: "bloco-rbt12" });
+  }
+  { const RI = recomendacaoInfo(r); if (RI && r.recomendacao.estado === "inconclusivo") add({ id: "comparativo-inconclusivo", nivel: "atencao", titulo: "Comparativo inconclusivo", texto: RI.curto + ". " + RI.detalhe + " " + categoriasRegimesTexto(r) + "." }); }
+  if (!M.nova && M.hist.folha12 > M.hist.rbt12 && M.hist.rbt12 > 0) add({ id: "folha-maior", nivel: "atencao", titulo: "Folha maior que o RBT12", texto: "A folha informada supera a receita dos 12 meses — confira os valores." });
+  if (r.tratamentoIbsCbs && r.tratamentoIbsCbs.tipo === "especifico") add({ id: "regime-especifico", nivel: "atencao", titulo: "Regime específico de IBS/CBS", texto: "A atividade tem apuração própria de IBS/CBS; o valor calculado é apenas uma referência e deve ser confirmado." });
+  // ---- Opcionais ----
+  if (!state.equilibrio.custosInformados) add({ id: "custos", nivel: "opcional", titulo: "Custos do período", texto: "Informe custos fixos e variáveis para ver o resultado líquido após tributos e o ponto de equilíbrio com seus números.", foco: "bloco-custos" });
+  if (!e.nome) add({ id: "nome", nivel: "opcional", titulo: "Nome da empresa ou da simulação", texto: "Aparece no relatório em PDF. Não afeta o cálculo.", foco: "campo-nome" });
+  // ---- Confirmados ----
+  add({ id: "ok-tipo", nivel: "confirmado", titulo: "Tipo de análise", texto: M.tipoLabel });
+  if (M.receitaTotal > 0) add({ id: "ok-receita", nivel: "confirmado", titulo: "Receita do período", texto: fmtBRL(M.receitaTotal) + " em " + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + " (" + M.periodo + ")" });
+  if (e.cnae) add({ id: "ok-cnae", nivel: "confirmado", titulo: "CNAE", texto: e.cnae.codigo + " — " + e.cnae.descricao });
+  add({ id: "ok-ano", nivel: "confirmado", titulo: "Ano de análise", texto: String(M.ano) });
+  return P;
+}
+function S_anexoMisto(r) { return r.simples.anexoMisto; }
+
+/* Principais ressalvas mostradas na tela de resultados (curtas e únicas). */
+function buildRessalvas(r) {
+  const out = [], M = r.meta;
+  if (M.pontual) out.push("Simulação avulsa: os valores referem-se somente ao período de " + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + ", sem projeção anual.");
+  r.pendencias.filter((p) => p.limitacao).forEach((p) => out.push(p.limitacao));
+  r.pendencias.filter((p) => p.nivel === "atencao").forEach((p) => out.push(p.titulo + ": " + p.texto));
+  if (M.nova) out.push("Empresa nova: RBT12 e Fator R proporcionalizados pelos meses de atividade.");
+  if (r.conclusao && !r.conclusao.definitiva) out.push("Resultado preliminar: " + r.conclusao.motivos.join("; ") + ".");
+  if (r.hibrido.meses.some((h) => h.ano < 2027)) out.push("Em 2026 (ano-teste) a opção pelo regime regular de IBS/CBS ainda não existe: o Simples Híbrido é igual ao Simples Normal (DAS integral); o Lucro Presumido segue as regras vigentes e IBS/CBS ainda não geram desembolso.");
+  if (r.hibrido.meses.some((h) => h.ano >= 2027) && (state.hibrido.creditoIbsPct || 0) === 0 && (state.hibrido.creditoCbsPct || 0) === 0) out.push("Créditos de IBS/CBS considerados em 0% no Híbrido.");
+  if (r.pendencias.some((p) => p.id === "rbt12-auto" && !p.confirmado)) out.push("RBT12 estimado a partir da receita informada.");
+  return Array.from(new Set(out)).slice(0, 7);
+}
+
+/* Composição tributária por regime (mesmas categorias nos três regimes, para
+   o gráfico empilhado e a tabela correspondente). A soma de cada regime é
+   igual ao total do período exibido nos cartões. */
+const COMPOSICAO_CATS = ["IRPJ", "CSLL", "CPP", "IPI", "ICMS/ISS", "PIS/COFINS", "CBS", "IBS"];
+function montarComposicao(S, H, L) {
+  const z = () => COMPOSICAO_CATS.map(() => 0);
+  const idx = (c) => COMPOSICAO_CATS.indexOf(c);
+  const sim = z(), hib = z(), lp = z();
+  const T = S.partilhaTotais;
+  // Simples: partilha do DAS (até 2026 com PIS/COFINS; de 2027 com CBS e IBS dentro do DAS)
+  Object.keys(T).forEach((k) => {
+    const v = T[k];
+    if (k === "IRPJ" || k === "CSLL" || k === "CPP" || k === "IPI" || k === "CBS" || k === "IBS") sim[idx(k)] += v;
+    else if (k === "ICMS" || k === "ISS") sim[idx("ICMS/ISS")] += v;
+    else if (k === "PIS" || k === "COFINS") sim[idx("PIS/COFINS")] += v;
+  });
+  // Híbrido: o que permanece no DAS (sem as parcelas de CBS e IBS, que passam ao regime regular) + CBS e IBS líquidos do regime regular
+  Object.keys(H.dasPartesTotais).forEach((k) => { if (idx(k) >= 0) hib[idx(k)] += H.dasPartesTotais[k]; });
+  hib[idx("IBS")] += H.ibsLiquido; hib[idx("CBS")] += H.cbsLiquido;
+  lp[idx("IRPJ")] = L.irpjTotal; lp[idx("CSLL")] = L.csllTotal; lp[idx("ICMS/ISS")] = L.iss; lp[idx("PIS/COFINS")] = L.pis + L.cofins; lp[idx("CBS")] = L.cbs; lp[idx("IBS")] = L.ibs;
+  return { cats: COMPOSICAO_CATS, simples: sim, hibrido: hib, presumido: lp };
+}
+
+/* ============================================================================
+   BLOCO 60_ui_core
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   UI — núcleo: helpers de DOM, navegação em 4 etapas, vinculação de campos
+   e regiões "vivas" (atualizadas sem recriar o formulário).
    --------------------------------------------------------------------------- */
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 function el(tag, attrs, children) {
   const node = document.createElement(tag);
   if (attrs) Object.keys(attrs).forEach((k) => {
+    if (attrs[k] == null) return;
     if (k === "class") node.className = attrs[k];
     else if (k === "html") node.innerHTML = attrs[k];
     else if (k.startsWith("on")) node.addEventListener(k.slice(2), attrs[k]);
@@ -1259,329 +2515,808 @@ function el(tag, attrs, children) {
   (children || []).forEach((c) => { if (c) node.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
   return node;
 }
-function badge(text, kind, iconName) {
-  return '<span class="badge badge-' + kind + '">' + (iconName ? icon(iconName) : "") + text + "</span>";
+const TONES = { green: "ok", ok: "ok", blue: "prog", prog: "prog", yellow: "attn", attn: "attn", red: "err", err: "err", neutral: "info", info: "info", outline: "outline" };
+function badge(text, tone, iconName) {
+  return '<span class="badge badge-' + (TONES[tone] || "info") + '">' + (iconName ? icon(iconName) : "") + text + "</span>";
 }
-function alertBox(kind, iconName, html) {
-  return '<div class="alert alert-' + kind + '">' + icon(iconName) + '<div>' + html + '</div></div>';
+// Aviso em linha. kind: attn (laranja — só para atenção real), ok, err, info.
+function noteBox(kind, iconName, html) {
+  return '<div class="note ' + (kind === "info" ? "" : kind) + '">' + icon(iconName) + "<div>" + html + "</div></div>";
+}
+const alertBox = (kind, iconName, html) => noteBox(kind === "yellow" ? "attn" : kind === "red" ? "err" : kind === "green" ? "ok" : "info", iconName, html);
+function escAttr(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;"); }
+function fmtInput(v) {
+  if (v == null || v === "" || !isFinite(v)) return "";
+  return Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 2, useGrouping: true });
+}
+function confirm2(msg) { try { return window.confirm(msg); } catch (err) { return true; } }
+let _toastTimer = null;
+function toast(msg) {
+  let t = $("#toast");
+  if (!t) { t = el("div", { class: "toast", id: "toast", role: "status" }); document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+}
+function debounce(fn, ms) { let t; return function () { const a = arguments; clearTimeout(t); t = setTimeout(() => fn.apply(null, a), ms); }; }
+function getPath(o, path) { return path.split(".").reduce((x, k) => (x == null ? undefined : x[k]), o); }
+function setPath(o, path, v) {
+  const ks = path.split("."); let x = o;
+  for (let i = 0; i < ks.length - 1; i++) {
+    if (x[ks[i]] == null) x[ks[i]] = /^\d+$/.test(ks[i + 1]) ? [] : {};
+    x = x[ks[i]];
+  }
+  x[ks[ks.length - 1]] = v;
 }
 
 /* ---------------------------------------------------------------------------
-   NAV / SHELL
+   Componentes de formulário (HTML) — todos vinculados por data-bind.
+   kind: money | pct | int | text | select | check
    --------------------------------------------------------------------------- */
+function fieldHTML(o) {
+  const id = o.id || ("f_" + o.path.replace(/\W+/g, "_"));
+  const val = o.value !== undefined ? o.value : getPath(state, o.path);
+  const attrs = ' id="' + id + '" data-bind="' + o.path + '" data-kind="' + (o.kind || "text") + '"' + (o.rerender ? ' data-rerender="1"' : "") + (o.num ? ' data-num="1"' : "") + (o.nullable ? ' data-nullable="1"' : "");
+  let inner;
+  if (o.kind === "select") {
+    inner = '<select' + attrs + ">" + o.options.map((op) => '<option value="' + escAttr(op.value) + '"' + (String(op.value) === String(val == null ? "" : val) ? " selected" : "") + ">" + escHtml(op.label) + "</option>").join("") + "</select>";
+  } else if (o.kind === "money") {
+    inner = '<div class="unit" data-unit="R$"><input type="text" inputmode="decimal" autocomplete="off"' + attrs + ' value="' + escAttr(Number(val) === 0 && !o.showZero ? "" : fmtInput(val)) + '" placeholder="' + escAttr(o.placeholder || "Ex.: 10.000") + '"></div>';
+  } else if (o.kind === "pct") {
+    inner = '<div class="unit suf" data-unit="%"><input type="text" inputmode="decimal" autocomplete="off"' + attrs + ' value="' + escAttr(fmtInput(val)) + '" placeholder="' + escAttr(o.placeholder || "Ex.: 3") + '"></div>';
+  } else if (o.kind === "int") {
+    inner = '<input type="text" inputmode="numeric" autocomplete="off"' + attrs + ' value="' + escAttr(val == null ? "" : val) + '" placeholder="' + escAttr(o.placeholder || "") + '">';
+  } else {
+    inner = '<input type="text" autocomplete="off"' + attrs + ' value="' + escAttr(val == null ? "" : val) + '" placeholder="' + escAttr(o.placeholder || "") + '">';
+  }
+  const lbl = o.label + (o.opt ? ' <span class="opt">(opcional)</span>' : "");
+  const labelHTML = o.help
+    ? '<div class="lbl-row"><label for="' + id + '">' + lbl + '</label><span class="help" tabindex="0" role="img" aria-label="' + escAttr(o.help) + '" data-tip="' + escAttr(o.help) + '">?</span></div>'
+    : '<label for="' + id + '">' + lbl + "</label>";
+  return '<div class="field' + (o.cls ? " " + o.cls : "") + '"' + (o.wrapId ? ' id="' + o.wrapId + '"' : "") + (o.showIf ? ' data-showif="' + o.showIf + '"' : "") + ">" + labelHTML + inner + (o.hint ? '<span class="hint">' + o.hint + "</span>" : "") + '<span class="field-err" id="err_' + id + '" role="alert" hidden></span></div>';
+}
+/* Mensagens de validação junto ao campo (V3.2). Retorna {t, req, warn} ou null.
+   Nunca altera valores nem impede o cálculo — apenas explica. */
+function mensagemCampo(path) {
+  const v = getPath(state, path);
+  if (path === "empresa.faturamentoMensal" || path === "periodo.receitaTotal") return !(Number(v) > 0) ? { t: "Informe um valor maior que zero.", req: true } : null;
+  if (path === "periodo.meses") {
+    const n = Number(v);
+    if (!(n >= 1)) return { t: "Informe de 1 a 36 meses.", req: false };
+    if (n > 36) return { t: "O máximo é 36 meses — o cálculo usa 36.", warn: true };
+    return null;
+  }
+  if (path === "empresa.folha12m" && tipoAnalise() === "existente" && state.periodo.receitaModo === "constante") {
+    const rec12 = Number(state.empresa.faturamentoMensal) * 12;
+    if (rec12 > 0 && Number(v) > rec12) return { t: "A folha supera a receita dos 12 meses — confira o valor.", warn: true };
+    return null;
+  }
+  if (/(Pct|Aliq)$/.test(path) && Number(v) > 100) return { t: "Use um percentual entre 0 e 100.", req: false };
+  return null;
+}
+function validarCampo(inp) {
+  const wrap = inp.closest(".field"); if (!wrap) return;
+  const box = wrap.querySelector(".field-err"); if (!box) return;
+  const m = mensagemCampo(inp.dataset.bind);
+  const mostrar = m && (!m.req || inp.dataset.touched === "1" || state.ui.mostrarErros);
+  box.hidden = !mostrar; box.className = "field-err" + (mostrar && m.warn ? " warn" : "");
+  box.textContent = mostrar ? m.t : "";
+  wrap.classList.toggle("invalid", !!(mostrar && !m.warn));
+}
+/* Máscara monetária enquanto digita: pontos de milhar automáticos, vírgula decimal (até 2 casas). */
+function mascaraMoeda(inp) {
+  const v = inp.value, pos = inp.selectionStart == null ? v.length : inp.selectionStart;
+  const i = v.indexOf(",");
+  let ent = (i < 0 ? v : v.slice(0, i)).replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  const dec = i < 0 ? null : v.slice(i + 1).replace(/\D/g, "").slice(0, 2);
+  const nv = ent.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + (dec !== null ? "," + dec : "");
+  if (nv === v) return;
+  const antes = v.slice(0, pos).replace(/[^\d,]/g, "").length;
+  inp.value = nv;
+  let n = 0, np = 0;
+  while (np < nv.length && n < antes) { if (/[\d,]/.test(nv[np])) n++; np++; }
+  try { inp.setSelectionRange(np, np); } catch (e) { /* campo não focado */ }
+}
+/* Campos que só aparecem quando fazem sentido (sem recriar o formulário). */
+const MOSTRAR_SE = {
+  proLabore: () => Number(state.empresa.folha12m) > 0 || Number(state.empresa.proLabore) > 0,
+};
+function atualizarVisibilidades(root) {
+  $$("[data-showif]", root || document).forEach((n) => { const f = MOSTRAR_SE[n.dataset.showif]; if (f) n.hidden = !f(); });
+}
+function checkHTML(path, label, hint, rerender) {
+  const id = "c_" + path.replace(/\W+/g, "_");
+  return '<label class="checkbox-row" for="' + id + '"><input type="checkbox" id="' + id + '" data-bind="' + path + '" data-kind="check"' + (rerender ? ' data-rerender="1"' : "") + (getPath(state, path) ? " checked" : "") + '><span>' + label + (hint ? '<br><span class="small muted">' + hint + "</span>" : "") + "</span></label>";
+}
+// Controle segmentado: cada botão grava `valor` em `path`.
+function segHTML(path, options, rerender) {
+  const cur = getPath(state, path);
+  return '<div class="seg" role="group">' + options.map((o) =>
+    '<button type="button" data-seg="' + path + '" data-val="' + escAttr(o.value) + '"' + (rerender === false ? ' data-norerender="1"' : "") + ' aria-pressed="' + (String(cur) === String(o.value)) + '">' + o.label + "</button>").join("") + "</div>";
+}
+function readField(inp) {
+  const kind = inp.dataset.kind;
+  if (kind === "check") return inp.checked;
+  if (kind === "money" || kind === "pct") {
+    if (inp.dataset.nullable === "1" && inp.value.trim() === "") return null;
+    return Math.max(parseNum(inp.value), 0);
+  }
+  if (kind === "int") { if (inp.dataset.nullable === "1" && inp.value.trim() === "") return null; return Math.max(Math.round(parseNum(inp.value)), 0); }
+  if (kind === "select") {
+    if (inp.dataset.num === "1") return inp.value === "" ? null : Number(inp.value);
+    if (inp.value === "__null") return null;
+    return inp.value;
+  }
+  return inp.value;
+}
+function wireBindings(root) {
+  $$("[data-bind]", root).forEach((inp) => {
+    const path = inp.dataset.bind, full = inp.dataset.rerender === "1";
+    const commit = () => {
+      setPath(state, path, readField(inp));
+      if (/^equilibrio\.(custos)/.test(path)) state.equilibrio.custosInformados = true;
+      if (/^presumido\.(pisAliq|cofinsAliq|issAliq)$/.test(path)) state.presumido._tocado = true;
+      if (path === "empresa.anoAnalise") { const my = $("#metaYear"); if (my) my.textContent = state.empresa.anoAnalise; }
+      validarCampo(inp);
+      afterChange(full);
+    };
+    inp.addEventListener("change", commit);
+    if (inp.dataset.kind !== "select" && inp.dataset.kind !== "check" && !full) {
+      inp.addEventListener("input", debounce(() => {
+        setPath(state, path, readField(inp));
+        if (/^equilibrio\.(custos)/.test(path)) state.equilibrio.custosInformados = true;
+        if (/^presumido\.(pisAliq|cofinsAliq|issAliq)$/.test(path)) state.presumido._tocado = true;
+        validarCampo(inp);
+        afterChange(false);
+      }, 220));
+    }
+    if (inp.dataset.kind === "money") {
+      inp.addEventListener("input", () => mascaraMoeda(inp));
+      inp.addEventListener("paste", (ev) => {
+        const t = (ev.clipboardData && ev.clipboardData.getData("text") || "").trim();
+        if (/^\d+\.\d{1,2}$/.test(t)) { ev.preventDefault(); inp.value = t.replace(".", ","); mascaraMoeda(inp); inp.dispatchEvent(new Event("input", { bubbles: true })); }
+      });
+    }
+    if (inp.dataset.kind === "money" || inp.dataset.kind === "pct" || inp.dataset.kind === "int") {
+      inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") inp.blur(); });
+      inp.addEventListener("blur", () => { inp.dataset.touched = "1"; if (inp.dataset.kind !== "int" && inp.value.trim() !== "") inp.value = fmtInput(readField(inp)); validarCampo(inp); });
+    }
+    validarCampo(inp);
+  });
+  atualizarVisibilidades(root);
+  $$("[data-seg]", root).forEach((b) => {
+    b.addEventListener("click", () => {
+      const path = b.dataset.seg;
+      let v = b.dataset.val;
+      if (v === "true") v = true; else if (v === "false") v = false; else if (v !== "" && !isNaN(Number(v)) && /^(periodo\.meses|empresa\.anoAnalise)$/.test(path)) v = Number(v);
+      setPath(state, path, v);
+      afterChange(b.dataset.norerender !== "1");
+    });
+  });
+}
+function afterChange(full) {
+  saveDraft();
+  if (full) renderContent(); else refreshLive();
+}
+
+/* Regiões "vivas": blocos de saída (resumo, pendências, Fator R…) que são
+   recalculados a cada alteração sem recriar os campos que o usuário está
+   editando. Cada tela registra seus blocos em LIVE. */
+let LIVE = [];
+function refreshLive() {
+  const r = computeAll();
+  atualizarVisibilidades(document);
+  LIVE.forEach((reg) => {
+    const node = $(reg.sel);
+    if (!node) return;
+    node.innerHTML = reg.fn(r);
+    wireLive(node);
+  });
+  renderCrumb();
+}
+function wireLive(root) {
+  wireBindings(root);
+  wirePendencias(root);
+  wireGoto(root);
+}
+
+/* ---------------------------------------------------------------------------
+   Navegação: 4 etapas
+   --------------------------------------------------------------------------- */
+function etapaLiberada(id) { return id === "inicio" || !!state.analise.tipo; }
 function renderNav() {
   const nav = $("#nav");
+  if (!nav) return;
   nav.innerHTML = "";
-  NAV.forEach((item) => {
+  const idxAtivo = ETAPAS.findIndex((e) => e.id === state.active);
+  ETAPAS.forEach((item, i) => {
+    const liberada = etapaLiberada(item.id);
     const btn = el("button", {
-      class: "nav-item", "aria-current": item.id === state.active ? "page" : null,
-      html: icon(item.ic) + "<span>" + item.label + "</span>",
+      class: "nav-item" + (i < idxAtivo && liberada ? " done" : ""), type: "button",
+      "aria-current": item.id === state.active ? "page" : null, disabled: liberada ? null : "",
+      html: '<span class="n">' + item.n + '</span><span class="t">' + item.label + "<small>" + item.dica + "</small></span>",
       onclick: () => { setActive(item.id); closeSidebarMobile(); },
     });
     nav.appendChild(btn);
   });
+  const extra = $("#sideExtra");
+  if (extra) {
+    const n = listarSimulacoes().length;
+    extra.innerHTML =
+      '<div class="nav-label">Ferramentas</div>' +
+      '<button type="button" class="nav-link" id="navLib">' + icon("folder") + 'Simulações salvas<span class="cnt">' + n + "</span></button>" +
+      '<button type="button" class="nav-link" id="navCmp">' + icon("swap") + "Comparar cenários</button>" +
+      '<button type="button" class="nav-link" id="navMem">' + icon("filetext") + "Memória de cálculo</button>" +
+      '<button type="button" class="nav-link" id="navFon">' + icon("info") + "Fontes</button>";
+    $("#navLib").onclick = () => { abrirBiblioteca(); closeSidebarMobile(); };
+    $("#navCmp").onclick = () => { abrirDetalhe("cenarios"); closeSidebarMobile(); };
+    $("#navMem").onclick = () => { abrirDetalhe("memoria"); closeSidebarMobile(); };
+    $("#navFon").onclick = () => { abrirDetalhe("fontes"); closeSidebarMobile(); };
+  }
+  renderCrumb();
+}
+function descricaoAnalise() {
+  if (!state.analise.tipo) return "";
+  const parts = [TIPOS_ANALISE[state.analise.tipo].label, rotuloPeriodo()];
+  return parts.join(" · ");
+}
+function renderCrumb() {
+  const c = $("#crumb");
+  if (!c) return;
+  const etapa = ETAPAS.find((e) => e.id === state.active) || ETAPAS[0];
+  const nome = state.analise.nome || state.empresa.nome;
+  c.innerHTML = "Etapa " + etapa.n + " de 4 · <b>" + etapa.label + "</b>" + (state.analise.tipo ? ' <span class="chip">' + escHtml(descricaoAnalise()) + "</span>" : "") + (nome ? ' <span class="chip">' + escHtml(nome) + "</span>" : "");
+  const my = $("#metaYear"); if (my) my.textContent = state.empresa.anoAnalise;
 }
 function setActive(id) {
+  const m = LEGACY_TAB_MAP[id];
+  if (m) {
+    if (m.detalhe) { state.ui.detalhes[m.detalhe] = true; }
+    id = m.etapa;
+  }
+  if (!ETAPAS.some((e) => e.id === id)) id = "inicio";
+  if (!etapaLiberada(id)) id = "inicio";
   state.active = id;
   renderNav();
   renderContent();
-  $("#content").scrollTo && window.scrollTo({ top: 0, behavior: "smooth" });
+  window.scrollTo({ top: 0 });
   saveDraft();
 }
+function abrirDetalhe(id) {
+  state.ui.detalhes[id] = true;
+  if (state.active !== "resultados") setActive("resultados");
+  else renderContent();
+  setTimeout(() => { const n = $("#det_" + id); if (n) { n.open = true; n.scrollIntoView({ block: "start" }); } }, 30);
+}
 function closeSidebarMobile() {
-  $("#sidebar").classList.remove("open");
-  $("#scrim").classList.remove("open");
+  const s = $("#sidebar"), c = $("#scrim");
+  if (s) s.classList.remove("open");
+  if (c) c.classList.remove("open");
+}
+// Leva o usuário a um campo da etapa 2 (abrindo a seção retrátil que o contém).
+function focarCampo(foco) {
+  const go = () => {
+    const alvo = document.getElementById(foco) || $('[data-foco="' + foco + '"]');
+    if (!alvo) return;
+    let p = alvo.parentElement;
+    while (p) { if (p.tagName === "DETAILS") { p.open = true; const k = p.dataset.adv; if (k) state.ui.avancado[k] = true; } p = p.parentElement; }
+    alvo.scrollIntoView({ block: "center", behavior: "smooth" });
+    const inp = alvo.matches("input,select,textarea,button") ? alvo : $("input,select,textarea,button", alvo);
+    if (inp) setTimeout(() => inp.focus({ preventScroll: true }), 250);
+  };
+  if (state.active !== "preenchimento") { state.active = "preenchimento"; renderNav(); renderContent(); setTimeout(go, 60); } else go();
 }
 
 const RENDERERS = {
-  dashboard: renderDashboard,
-  empresa: renderEmpresa,
-  simples: renderSimples,
-  fatorr: renderFatorR,
-  hibrido: renderHibrido,
-  presumido: renderPresumido,
-  comparativo: renderComparativo,
-  equilibrio: renderEquilibrio,
-  memoria: renderMemoria,
-  relatorio: renderRelatorio,
-  fontes: renderFontes,
+  inicio: (root) => renderInicio(root),
+  preenchimento: (root) => renderPreenchimento(root),
+  resultados: (root) => renderResultados(root),
+  relatorio: (root) => renderRelatorio(root),
 };
-
-/* ---------------------------------------------------------------------------
-   RENDER: DASHBOARD
-   --------------------------------------------------------------------------- */
-function alertsHTML(issues) {
-  if (!issues || !issues.length) {
-    return alertBox("green", "check", "<b>Parâmetros suficientes para realizar a simulação.</b> Os cálculos abaixo refletem os dados informados.");
-  }
-  return issues.map((i) => alertBox(i.tipo === "red" ? "red" : "yellow", i.tipo === "red" ? "alert" : "alert", i.msg)).join("");
-}
-
-function renderDashboard(root) {
-  const r = computeAll();
-  const e = state.empresa;
-  root.appendChild(el("div", { class: "section-head", html:
-    '<div><h2>Dashboard</h2><p class="sub">Visão geral da simulação tributária' + (e.nome ? " — " + e.nome : "") + '</p></div>' +
-    '<div class="section-actions">' + badge("Simulação", "blue", "info") + (r.issues.length ? badge("Atenção", "yellow", "alert") : badge("Calculado", "green", "check")) + "</div>" }));
-
-  root.appendChild(el("div", { html: alertsHTML(r.issues) }));
-
-  const kpiWrap = el("div", { class: "grid grid-4" });
-  kpiWrap.innerHTML =
-    kpiCard("wallet", "Faturamento mensal", fmtBRL(e.faturamentoMensal), "12 meses considerados", false) +
-    kpiCard("trending", "RBT12", fmtBRL(r.rbt12), e.rbt12Modo === "auto" ? "Calculado automaticamente" : "Informado manualmente", e.rbt12Modo === "auto") +
-    kpiCard("landmark", "Regime simulado", "Simples Nacional", ANEXOS[r.simples.anexoUsado].nome, false) +
-    kpiCard("filetext", "Anexo aplicado", ANEXOS[r.simples.anexoUsado].nome.replace("Anexo ", ""), ANEXOS[r.simples.anexoUsado].desc, false) +
-    kpiCard("percent", "Fator R", r.simples.fatorR == null ? "Não aplicável" : fmtPct(r.simples.fatorR * 100), r.simples.fatorR == null ? "Anexo fixo (sem Fator R)" : (r.simples.fatorR >= 0.28 ? "≥ 28% · Anexo III" : "< 28% · Anexo V"), false) +
-    kpiCard("calculator", "Carga tributária efetiva", fmtPct(r.simples.cargaEfetivaPct), r.simples.faixaLabel + " de RBT12", false, true);
-  root.appendChild(kpiWrap);
-
-  const regimesWrap = el("div", { class: "grid grid-3" });
-  regimesWrap.innerHTML =
-    regimeCard("Simples Normal", r.simples.dasMensal, r.simples.cargaEfetivaPct, r.simples.dasAnual, ANEXOS[r.simples.anexoUsado].nome, true) +
-    regimeCard("Simples Híbrido", r.hibrido.totalMensal, r.hibrido.cargaEfetivaPct, r.hibrido.totalAnual, "DAS + IBS/CBS líquidos — ano " + r.hibrido.ano, false) +
-    regimeCard("Lucro Presumido", r.presumido.trimestre.totalTrimestre / 3, r.presumido.cargaEfetivaPct, r.presumido.totalAnual, r.presumido.trimestre.atividade, false);
-  root.appendChild(regimesWrap);
-
-  const chartCard = el("div", { class: "card", html:
-    '<div class="card-title">' + icon("chart") + "Custo tributário anual — comparação rápida<span class=\"grow\"></span></div>" +
-    '<div class="chart-box"><canvas id="chartDashboard"></canvas></div>' });
-  root.appendChild(chartCard);
-
-  root.appendChild(el("div", { class: "flex", style: "justify-content:flex-end", html:
-    '<button class="btn btn-primary" id="btnGotoRelatorio">' + icon("download") + "Gerar relatório</button>" }));
-  setTimeout(() => { const b = $("#btnGotoRelatorio"); if (b) b.onclick = () => setActive("relatorio"); }, 0);
-}
-
-function kpiCard(ic, label, value, sub, calcBadge, big) {
-  return '<div class="kpi">' +
-    '<div class="kpi-top"><div class="kpi-icon' + (big ? " green" : "") + '">' + icon(ic) + '</div>' + (calcBadge ? badge("Auto", "green") : "") + '</div>' +
-    '<div class="kpi-label">' + label + '</div>' +
-    '<div class="kpi-value' + (big ? " green" : "") + '">' + value + '</div>' +
-    '<div class="kpi-sub">' + sub + '</div></div>';
-}
-function regimeCard(nome, mensal, cargaPct, anual, sub, selected) {
-  return '<div class="regime-card' + (selected ? " selected" : "") + '">' +
-    '<div class="rh"><h3>' + nome + '</h3>' + (selected ? badge("Selecionado", "green", "check") : badge("Simulação", "blue")) + '</div>' +
-    '<div><div class="kpi-label">Custo tributário estimado / mês</div><div class="val">' + fmtBRL(mensal) + '</div></div>' +
-    '<div class="row"><span>Carga efetiva</span><b>' + fmtPct(cargaPct) + '</b></div>' +
-    '<div class="row"><span>Total anual</span><b>' + fmtBRL(anual) + '</b></div>' +
-    '<div class="row"><span>Detalhe</span><b>' + sub + '</b></div></div>';
-}
-// Card minimalista do "Resumo Executivo" — propositalmente NÃO mostra IRPJ,
-// CSLL, DAS, IBS, CBS ou qualquer detalhamento técnico: apenas o nome do
-// regime, o custo mensal (número grande) e a carga efetiva. O detalhamento
-// tributário completo fica só na opção "Detalhado".
-function resumoExecCard(nome, mensal, cargaPct, hl) {
-  return '<div class="regime-card' + (hl ? " selected" : "") + '" style="align-items:center;text-align:center;gap:8px">' +
-    (hl ? badge("Destaque", "green", "check") : "") +
-    '<h3 style="font-size:15px">' + nome + '</h3>' +
-    '<div><div class="kpi-label">Custo tributário / mês</div><div class="val" style="font-size:30px">' + fmtBRL(mensal) + '</div></div>' +
-    '<div class="row" style="border-top:none;justify-content:center;gap:8px;padding-top:0"><span>Carga efetiva</span><b>' + fmtPct(cargaPct) + '</b></div>' +
-    '</div>';
-}
-
 function renderContent() {
   const c = $("#content");
-  c.innerHTML = "";
-  const wrap = el("div", { class: "section fade-in" });
-  c.appendChild(wrap);
-  RENDERERS[state.active](wrap);
+  if (!c) return;
+  LIVE = [];
   destroyCharts();
-  wireCommonInputs(wrap);
-  if (state.active === "dashboard" || state.active === "comparativo") requestAnimationFrame(() => buildChartsForActive());
+  c.innerHTML = "";
+  const wrap = el("div", { class: "section fade-in", id: "stepRoot", "data-step": state.active });
+  c.appendChild(wrap);
+  (RENDERERS[state.active] || RENDERERS.inicio)(wrap);
+  wireBindings(wrap);
+  wirePendencias(wrap);
+  wireGoto(wrap);
+  renderCrumb();
+  requestAnimationFrame(() => renderCharts());
 }
 
+function stepFootHTML(prevId, nextId, nextLabel, nextDisabled) {
+  return '<div class="step-foot">' +
+    (prevId ? '<button class="btn btn-secondary" data-goto="' + prevId + '">' + icon("arrowl") + "Voltar</button>" : "<span></span>") +
+    (nextId ? '<button class="btn btn-primary" data-goto="' + nextId + '"' + (nextDisabled ? " disabled" : "") + ">" + (nextLabel || "Continuar") + icon("arrowr") + "</button>" : "") +
+    "</div>";
+}
+function wireGoto(root) {
+  $$("[data-goto]", root).forEach((b) => b.addEventListener("click", () => setActive(b.dataset.goto)));
+}
 
+/* ============================================================================
+   BLOCO 62_ui_inicio
+   ============================================================================ */
 
 /* ---------------------------------------------------------------------------
-   RENDER: DADOS DA EMPRESA
+   ETAPA 1 — NOVA ANÁLISE
    --------------------------------------------------------------------------- */
-function renderEmpresa(root) {
-  const e = state.empresa;
-  const rPre = computeAll();
-  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Dados da Empresa</h2><p class="sub">Informações usadas em todos os módulos de cálculo</p></div>' }));
-  root.appendChild(el("div", { html: alertsHTML(rPre.issues) }));
-
-  const grid = el("div", { class: "grid grid-2" });
-  grid.innerHTML =
-    '<div class="card">' +
-      '<div class="card-title">' + icon("building") + 'Identificação</div>' +
-      '<div class="field"><label for="fNome">Nome / Razão social</label><input type="text" id="fNome" placeholder="Ex.: Clínica Modelo Ltda." value="' + escAttr(e.nome) + '"></div>' +
-      '<div style="height:12px"></div>' +
-      '<div class="field"><label for="fCnpj">CNPJ</label><input type="text" id="fCnpj" placeholder="00.000.000/0000-00" value="' + escAttr(e.cnpj) + '"></div>' +
-      '<div style="height:12px"></div>' +
-      '<div class="field autocomplete"><label for="fCnae">Atividade (CNAE)</label>' +
-        '<input type="text" id="fCnae" autocomplete="off" placeholder="Busque por código ou descrição — ex.: promoção de vendas" value="' + (e.cnae ? escAttr(e.cnae.codigo + " — " + e.cnae.descricao) : "") + '">' +
-        '<div class="ac-list" id="acList" hidden></div>' +
-        '<span class="hint">' + cnaeHintHTML(e.cnae) + '</span>' +
-        '<div class="cnae-status">' + cnaeStatusBadgeHTML() + '<button type="button" class="btn btn-ghost btn-sm" id="btnImportCnae">' + icon("upload") + 'Importar base oficial (JSON/CSV)</button><input type="file" id="fCnaeImport" accept=".json,.csv" hidden></div>' +
-      '</div>' +
-    '</div>' +
-    '<div class="card">' +
-      '<div class="card-title">' + icon("wallet") + 'Faturamento e base de cálculo</div>' +
-      '<div class="field"><label for="fFat">Faturamento mensal</label><input type="text" inputmode="decimal" id="fFat" placeholder="R$ 18.000,00" value="' + fmtInput(e.faturamentoMensal) + '"></div>' +
-      '<div style="height:12px"></div>' +
-      '<div class="field"><label>RBT12 — Receita Bruta dos últimos 12 meses</label>' +
-        '<div class="radio-pills">' +
-          '<button type="button" class="radio-pill' + (e.rbt12Modo === "auto" ? " active" : "") + '" data-rbt12mode="auto">Automático (fat. × 12)</button>' +
-          '<button type="button" class="radio-pill' + (e.rbt12Modo === "manual" ? " active" : "") + '" data-rbt12mode="manual">Informar manualmente</button>' +
-        '</div>' +
-        (e.rbt12Modo === "auto"
-          ? '<div style="margin-top:10px" class="field-row">' + badge("Calculado automaticamente", "green", "check") + '<span class="num" style="font-weight:700;color:var(--navy)">' + fmtBRL(rbt12Atual()) + '</span></div>'
-          : '<div style="margin-top:10px"><input type="text" inputmode="decimal" id="fRbt12" value="' + fmtInput(e.rbt12Manual) + '"></div>') +
-      '</div>' +
-    '</div>' +
-    '<div class="card">' +
-      '<div class="card-title">' + icon("percent") + 'Folha de pagamento (para Fator R)</div>' +
-      '<div class="field"><label for="fFolha">Folha de salários dos últimos 12 meses</label><input type="text" inputmode="decimal" id="fFolha" placeholder="Inclui pró-labore, encargos, 13º e férias" value="' + fmtInput(e.folha12m) + '"><span class="hint">Necessário apenas para atividades sujeitas ao Fator R (Anexo III/V).</span></div>' +
-      '<div style="height:12px"></div>' +
-      '<div class="field"><label for="fProlabore">Pró-labore mensal dos sócios</label><input type="text" inputmode="decimal" id="fProlabore" value="' + fmtInput(e.proLabore) + '"><span class="hint">Já deve estar incluído na folha de 12 meses acima.</span></div>' +
-    '</div>' +
-    '<div class="card">' +
-      '<div class="card-title">' + icon("filetext") + 'Ano da análise</div>' +
-      '<div class="field"><label for="fAno">Ano-calendário</label><select id="fAno">' +
-        [2025, 2026, 2027].map((y) => '<option value="' + y + '"' + (e.anoAnalise === y ? " selected" : "") + '>' + y + '</option>').join("") +
-      '</select><span class="hint">Define o cronograma de IBS/CBS considerado na aba Simples Híbrido.</span></div>' +
-    '</div>';
-  root.appendChild(grid);
-
-  const classCard = el("div", { class: "card" });
-  classCard.innerHTML = classificacaoCardHTML(rPre);
-  root.appendChild(classCard);
-
-  root.appendChild(el("div", { class: "flex", style: "justify-content:flex-end;gap:10px", html:
-    '<button class="btn btn-secondary" id="btnLimpar">Limpar dados</button>' +
-    '<button class="btn btn-success" id="btnCalcular">' + icon("calculator") + 'Calcular análise</button>' }));
-
-  const resultHolder = el("div", { id: "resultHolder" });
-  root.appendChild(resultHolder);
-  if (state.calculated) renderResultBanner(resultHolder);
-
-  setTimeout(() => {
-    $("#btnCalcular").onclick = () => { computeAll(); state.calculated = true; saveDraft(); renderResultBanner(resultHolder); resultHolder.scrollIntoView({ behavior: "smooth", block: "start" }); };
-    $("#btnLimpar").onclick = () => { if (confirm2("Limpar todos os dados informados?")) resetState(); };
-    $$('[data-rbt12mode]').forEach((b) => b.onclick = () => { state.empresa.rbt12Modo = b.dataset.rbt12mode; renderContent(); });
-    $("#fNome").onchange = (ev) => { state.empresa.nome = ev.target.value; saveDraft(); };
-    $("#fCnpj").onchange = (ev) => { state.empresa.cnpj = ev.target.value; saveDraft(); };
-    $("#fFat").onchange = (ev) => { state.empresa.faturamentoMensal = parseNum(ev.target.value); renderContent(); };
-    const rbt12Input = $("#fRbt12"); if (rbt12Input) rbt12Input.onchange = (ev) => { state.empresa.rbt12Manual = parseNum(ev.target.value); renderContent(); };
-    $("#fFolha").onchange = (ev) => { state.empresa.folha12m = parseNum(ev.target.value); renderContent(); };
-    $("#fProlabore").onchange = (ev) => { state.empresa.proLabore = parseNum(ev.target.value); saveDraft(); };
-    $("#fAno").onchange = (ev) => { state.empresa.anoAnalise = parseInt(ev.target.value, 10); renderContent(); };
-    setupCnaeAutocomplete();
-    $$("[data-complemento]", classCard).forEach((sel) => sel.onchange = (ev) => {
-      const id = sel.dataset.complemento;
-      if (ev.target.value) state.classificacaoComplementos[id] = ev.target.value; else delete state.classificacaoComplementos[id];
-      renderContent();
-    });
-  }, 0);
-}
-
-/* ---------------------------------------------------------------------------
-   CARD: "Classificação tributária identificada" (CNAE → Atividade →
-   Presunção → Tratamento IBS/CBS) — visualmente simples, exibido na aba
-   Dados da Empresa logo após a seleção do CNAE. Mostra a cadeia completa no
-   formato pedido pelo usuário, com nível de confiança sempre visível e, se
-   necessário, a(s) pergunta(s) complementar(es) para resolver ambiguidade.
-   --------------------------------------------------------------------------- */
-function confiancaBadgeHTML(confianca) {
-  if (!confianca) return badge("Confirmação necessária", "yellow", "alert");
-  if (confianca === "alta") return badge("Automático — confiança alta", "green", "check");
-  if (confianca === "media") return badge("Automático — confirmar", "yellow", "alert");
-  return badge("Automático — baixa confiança, confirmar", "yellow", "alert");
-}
-function classificacaoCardHTML(r) {
-  const cls = r.classificacao;
-  const header = '<div class="card-title">' + icon("filetext") + 'Classificação tributária identificada<span class="grow"></span>' + badge("CNAE → Atividade → Presunção → IBS/CBS", "blue", "info") + '</div>';
-  if (!cls) {
-    return header + '<p class="tiny muted">Selecione o CNAE da empresa acima para identificar automaticamente a atividade, o percentual de presunção do Lucro Presumido e o tratamento de IBS/CBS aplicável — reaproveitados em todas as abas (Simples Nacional, Fator R, Lucro Presumido, Simples Híbrido, Comparativo, Memória de Cálculo e Relatório em PDF).</p>';
+function escolherTipo(tipo) {
+  const anterior = state.analise.tipo;
+  // Primeira escolha: o faturamento padrão de demonstração (R$ 18.000) é descartado — a análise começa em branco.
+  if (!anterior && state.empresa.faturamentoMensal === 18000) state.empresa.faturamentoMensal = 0;
+  state.analise.tipo = tipo;
+  if (tipo === "avulsa" && anterior !== "avulsa") {
+    state.periodo.meses = 3; state.periodo.receitaModo = "total";
+    if (anterior && state.empresa.faturamentoMensal > 0 && !state.periodo.receitaTotal) state.periodo.receitaTotal = state.empresa.faturamentoMensal * 12;
+  } else if (tipo !== "avulsa" && anterior === "avulsa") {
+    state.periodo.meses = 12; state.periodo.receitaModo = "constante";
   }
+  saveDraft();
+  setActive("preenchimento");
+}
+function novaAnaliseDoZero() {
+  if (!confirm2("Começar uma nova análise do zero? Os dados atuais não salvos serão descartados.")) return;
+  aplicarInputs(null);
+  state.empresa.faturamentoMensal = 0; state.empresa.rbt12Manual = 0;
+  state.simId = null; state.result = null; state.memoria = [];
+  state.confirmados = {};
+  state.ui.avancado = {}; state.ui.mostrarErros = false;
+  saveDraft();
+  renderNav(); renderContent();
+}
+/* Descrições curtas (V3.2): um resumo de uma linha + uma linha de contexto por modalidade. */
+const DESC_TIPO_CURTA = {
+  existente: "Revisar o regime atual ou planejar o próximo ano.",
+  nova: "Sem histórico: RBT12 e limite proporcionais ao início.",
+  avulsa: "Contrato ou operação pontual, só no período informado.",
+};
+function renderInicio(root) {
+  const tipoAtual = state.analise.tipo;
+  root.appendChild(el("div", { class: "section-head", html:
+    "<div><h2>Nova análise</h2><p class=\"sub\">O que você quer analisar? Escolha uma opção para começar.</p></div>" }));
+  const cards = Object.keys(TIPOS_ANALISE).map((k) => {
+    const t = TIPOS_ANALISE[k];
+    return '<button type="button" class="choice" data-tipo="' + k + '" aria-pressed="' + (tipoAtual === k) + '" title="' + escAttr(t.detalhe) + '">' +
+      "<h3>" + t.label + '</h3><span class="d1">' + t.resumo + '</span><span class="d2">' + DESC_TIPO_CURTA[k] + '</span><span class="go">' + (tipoAtual === k ? "Continuar com esta" : "Começar") + icon("arrowr") + "</span></button>";
+  }).join("");
+  root.appendChild(el("div", { class: "choice-grid", html: cards }));
+
+  const salvas = listarSimulacoes();
+  root.appendChild(el("div", { class: "resume-row", html:
+    "<span>Já tem uma análise?</span>" +
+    '<button type="button" class="btn btn-ghost btn-sm" id="btnAbrirLib">' + icon("folder") + "Abrir simulação salva (" + salvas.length + ")</button>" +
+    '<button type="button" class="btn btn-ghost btn-sm" id="btnImportSim">' + icon("upload") + "Importar arquivo</button>" +
+    '<input type="file" id="fileImportSim" accept=".json,application/json" hidden>' +
+    (tipoAtual ? '<button type="button" class="btn btn-ghost btn-sm" id="btnZerar">' + icon("refresh") + "Começar do zero</button>" : "") }));
+  if (tipoAtual) root.appendChild(el("div", { class: "step-foot", html: "<span class=\"small muted\">Em andamento: " + escHtml(descricaoAnalise()) + "</span>" + '<button class="btn btn-primary" data-goto="preenchimento">Continuar o preenchimento' + icon("arrowr") + "</button>" }));
+
+  $$("[data-tipo]", root).forEach((b) => b.addEventListener("click", () => escolherTipo(b.dataset.tipo)));
+  const lib = $("#btnAbrirLib", root); if (lib) lib.onclick = () => abrirBiblioteca();
+  const imp = $("#btnImportSim", root), fi = $("#fileImportSim", root);
+  if (imp && fi) { imp.onclick = () => fi.click(); fi.onchange = (ev) => { const f = ev.target.files && ev.target.files[0]; if (f) importarArquivoSimulacoes(f); }; }
+  const z = $("#btnZerar", root); if (z) z.onclick = novaAnaliseDoZero;
+}
+
+/* ============================================================================
+   BLOCO 63_ui_preenchimento
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   ETAPA 2 — PREENCHIMENTO
+   Dados essenciais em blocos curtos; tudo que é técnico fica em "Ajustes
+   avançados" (seções retráteis). Resumo e pendências ficam numa única
+   coluna lateral, atualizada enquanto o usuário digita.
+   --------------------------------------------------------------------------- */
+const OPCOES_MES = MESES_NOME.map((n, i) => ({ value: i + 1, label: n.charAt(0).toUpperCase() + n.slice(1) }));
+const OPCOES_ANO = [2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033].map((y) => ({ value: y, label: String(y) }));
+
+function advDetails(key, titulo, hint, bodyHTML, focoId) {
+  const aberto = !!state.ui.avancado[key];
+  return '<details class="collapse" data-adv="' + key + '"' + (focoId ? ' id="' + focoId + '"' : "") + (aberto ? " open" : "") + '><summary>' + titulo + (hint ? ' <span class="sum-hint">' + hint + "</span>" : "") + icon("chevron", "chev") + '</summary><div class="collapse-body">' + bodyHTML + "</div></details>";
+}
+
+function renderPreenchimento(root) {
+  const tipo = state.analise.tipo || "existente";
+  const T = TIPOS_ANALISE[tipo];
+  root.appendChild(el("div", { class: "section-head", html:
+    '<div><h2>Preenchimento</h2><p class="sub">' + T.label + ". Informe o essencial — o restante vem do CNAE e pode ser ajustado em “Ajustes avançados”.</p></div>" +
+    '<div class="section-actions"><button type="button" class="btn btn-secondary btn-sm" id="btnSalvarSim">' + icon("save") + "Salvar simulação</button></div>" }));
+
+  // garante receitasMes com o tamanho do período
+  const N = nMeses();
+  const rm = state.periodo.receitasMes;
+  while (rm.length < N) rm.push(0);
+
+  const split = el("div", { class: "split" });
+  const form = el("div", { class: "panel plain" });
+  const aside = el("aside", { class: "stack aside-sticky", html: '<div id="liveAside"></div>' });
+  split.appendChild(form); split.appendChild(aside);
+  root.appendChild(split);
+
+  const modo = state.periodo.receitaModo;
+  const avulsa = tipo === "avulsa";
+  const novaEmp = tipo === "nova" || (avulsa && state.periodo.empresaAvulsa === "nova");
+  const ak = anexoKeyAtual();
+
+  /* ---- 1. Atividade ---- */
+  const cnaeOff = CNAE_STATUS.estado === "erro";
+  let h = '<div class="group"><div class="group-title"><span class="gt-n">1</span>Atividade</div>' +
+    '<div class="field autocomplete" id="campo-cnae"><div class="lbl-row"><label for="fCnae">CNAE principal</label><span class="help" tabindex="0" role="img" aria-label="O CNAE define o Anexo do Simples, a presunção do Lucro Presumido e o tratamento de IBS/CBS." data-tip="O CNAE define o Anexo do Simples, a presunção do Lucro Presumido e o tratamento de IBS/CBS.">?</span></div>' +
+      '<input type="text" id="fCnae" autocomplete="off" placeholder="Código ou palavra-chave — ex.: 6201 ou consultoria" title="' + (state.empresa.cnae ? escAttr(state.empresa.cnae.descricao) : "") + '" value="' + (state.empresa.cnae ? escAttr(state.empresa.cnae.codigo + " — " + state.empresa.cnae.descricao) : "") + '">' +
+      '<div class="ac-list" id="acList" hidden></div>' +
+      (state.empresa.cnae ? '<span class="cnae-full">' + escHtml(state.empresa.cnae.codigo + " — " + state.empresa.cnae.descricao) + "</span>" : "") +
+      (cnaeOff ? '<span class="hint">A base de CNAEs não carregou. <button type="button" class="link-btn" data-foco="bloco-cnaebase">Importar a base</button> ou siga sem CNAE (serviços em geral).</span>' : "") +
+    "</div>" +
+    '<div id="liveClass" style="margin-top:12px"></div></div>';
+
+  /* ---- 2. Receita e período ---- */
+  const mensalLabel = avulsa ? "Receita mensal" : "Faturamento mensal";
+  const hintReceita = '<span id="liveReceitaHint"></span>';
+  let rec = "";
+  if (modo === "constante") rec = fieldHTML({ label: mensalLabel, path: "empresa.faturamentoMensal", kind: "money", wrapId: "campo-receita", placeholder: "Ex.: 40.000", hint: hintReceita });
+  else if (modo === "total") rec = fieldHTML({ label: avulsa ? "Valor total do contrato ou operação" : "Valor total do período", path: "periodo.receitaTotal", kind: "money", wrapId: "campo-receita", placeholder: "Ex.: 1.500.000", hint: hintReceita });
+  else {
+    rec = '<div class="field" id="campo-receita"><span class="lbl">Receita de cada mês</span><div class="months-grid">' +
+      Array.from({ length: N }, (_, i) => fieldHTML({ label: rotuloMes(i), path: "periodo.receitasMes." + i, kind: "money", id: "rm_" + i, placeholder: "Ex.: 40.000" })).join("") +
+      '</div><div class="row" style="margin-top:2px"><button type="button" class="btn btn-ghost btn-sm" id="btnRepetir">Repetir o 1º mês em todos</button><span class="hint" id="liveReceitaHint"></span></div></div>';
+  }
+  const campoMes = fieldHTML({ label: "Mês de início", path: "periodo.mesInicio", kind: "select", num: true, rerender: true, options: OPCOES_MES });
+  const campoDur = fieldHTML({ label: "Duração (meses)", path: "periodo.meses", kind: "int", rerender: true, placeholder: "Ex.: 3", help: "De 1 a 36 meses." });
+  const campoAno = fieldHTML({ label: "Ano-base", path: "empresa.anoAnalise", kind: "select", num: true, rerender: true, options: OPCOES_ANO, help: "Ano de referência de toda a análise (define o cronograma de IBS/CBS)." });
+  const formaReceita = '<div class="field"><span class="lbl">Forma de informar a receita</span>' +
+    segHTML("periodo.receitaModo", [{ value: "constante", label: "Mensal fixa" }, { value: "variavel", label: "Mês a mês" }, { value: "total", label: "Valor total" }]).replace('class="seg"', 'class="seg sm"') + "</div>";
+  h += '<div class="group"><div class="group-title"><span class="gt-n">2</span>Receita e período</div><div class="form-stack">';
+  if (avulsa) {
+    // valor e duração lado a lado (o que define o contrato); início e ano-base ficam recolhidos (padrão: jan do ano-base)
+    h += (modo === "variavel" ? rec + '<div class="field-row r2">' + campoDur + "</div>" : '<div class="field-row r2">' + rec + campoDur + "</div>") +
+      advDetails("periodo", "Início e ano-base", '<span id="liveResumoPeriodo"></span>', '<div class="field-row r2">' + campoMes + campoAno + "</div>") + formaReceita +
+      '<div class="field"><span class="lbl">Quem realiza a operação</span>' + segHTML("periodo.empresaAvulsa", [{ value: "nova", label: "Empresa nova" }, { value: "existente", label: "Empresa existente" }]) + "</div>";
+    if (state.periodo.empresaAvulsa === "existente") {
+      h += fieldHTML({ label: "Receita dos 12 meses anteriores (RBT12)", path: "periodo.rbt12Historico", kind: "money", nullable: true, opt: true, wrapId: "campo-rbt12-historico", placeholder: "Ex.: 1.200.000", hint: "Define a faixa do Simples no início. Sem ele, o resultado fica sinalizado como limitado." });
+    }
+  } else {
+    h += rec + rbt12InlineHTML(tipo) + formaReceita + advDetails("periodo", "Período e ano-base", '<span id="liveResumoPeriodo"></span>', '<div class="field-row r3">' + campoMes + campoDur + campoAno + "</div>");
+  }
+  h += "</div></div>";
+
+  /* ---- 3. Folha e Fator R (só quando o enquadramento depende dele) ---- */
+  if (ak === "III_V") {
+    h += '<div class="group" id="bloco-fatorr"><div class="group-title"><span class="gt-n">3</span>Folha e Fator R</div>' +
+      '<p class="group-desc">Folha ÷ receita (12 meses) a partir de 28% leva o serviço ao Anexo III, mais barato que o V. Não precisa ter folha hoje.</p><div class="form-stack">' +
+      '<div class="field"><span class="lbl">Como considerar a folha</span>' +
+      segHTML("fatorR.modo", [{ value: "atual", label: "Folha atual" }, { value: "prolabore", label: "Simular pró-labore" }, { value: "necessaria", label: "Folha necessária" }, { value: "nenhuma", label: "Sem folha" }]) + "</div>";
+    const fm = state.fatorR.modo;
+    if (fm === "atual") {
+      if (novaEmp) {
+        h += fieldHTML({ label: "Folha mensal prevista", path: "fatorR.folhaMensalPrevista", kind: "money", nullable: true, opt: true, placeholder: "Ex.: 6.000", hint: "Salários + pró-labore + FGTS. Em branco = sem folha." });
+      } else {
+        h += '<div class="field-row r2">' +
+          fieldHTML({ label: "Folha dos últimos 12 meses", path: "empresa.folha12m", kind: "money", placeholder: "Ex.: 120.000", hint: "Salários, pró-labore, 13º, FGTS e CPP recolhidos (inclusive no DAS)." }) +
+          fieldHTML({ label: "Pró-labore mensal dos sócios", path: "empresa.proLabore", kind: "money", opt: true, placeholder: "Ex.: 3.000", showIf: "proLabore", hint: "Já está na folha; só serve para estimar INSS e IRRF." }) + "</div>";
+      }
+    } else if (fm === "prolabore") {
+      h += '<div class="field-row r2">' +
+        fieldHTML({ label: "Pró-labore mensal bruto", path: "fatorR.proLaboreMensal", kind: "money", placeholder: "Ex.: 5.000", hint: "Total pago aos sócios, antes de INSS e IRRF." }) +
+        fieldHTML({ label: "Salários mensais de empregados", path: "fatorR.salariosMensal", kind: "money", opt: true, placeholder: "Ex.: 2.000", hint: "O FGTS (8%) é somado automaticamente." }) + "</div>";
+    } else if (fm === "necessaria") {
+      h += '<p class="small muted">Nada a informar: o sistema calcula a folha necessária para atingir 28%.</p>';
+    }
+    h += '<div id="liveFatorR"></div></div></div>';
+  }
+
+  /* ---- Ajustes avançados (técnico, recolhido) ---- */
+  const optsAnexo = [{ value: "I", label: "Anexo I — Comércio" }, { value: "II", label: "Anexo II — Indústria" }, { value: "III", label: "Anexo III — Serviços" }, { value: "IV", label: "Anexo IV — Serviços" }, { value: "V", label: "Anexo V — Serviços" }];
+  const optsAtiv = Object.keys(PRESUNCAO).map((k) => ({ value: k, label: PRESUNCAO[k].label }));
+  const optsTrat = Object.keys(IBS_CBS_TRATAMENTOS).map((k) => ({ value: k, label: IBS_CBS_TRATAMENTOS[k].label }));
+  const optsAnoExc = [{ value: "", label: "Seguir o ano de cada mês (padrão)" }].concat(OPCOES_ANO);
+  let adv = "";
+  adv += advDetails("ident", "Identificação", "aparece no relatório",
+    '<div class="field-row r2">' +
+      fieldHTML({ label: "Nome da empresa ou da simulação", path: "analise.nome", kind: "text", opt: true, placeholder: "Ex.: Contrato Alfa — 1º trimestre", wrapId: "campo-nome" }) +
+      fieldHTML({ label: "CNPJ", path: "empresa.cnpj", kind: "text", opt: true, placeholder: "00.000.000/0000-00" }) + "</div>");
+  adv += advDetails("ref", "Regime de referência", "base da economia estimada",
+    fieldHTML({ label: "Regime em que a empresa está (ou pretende ficar)", path: "analise.regimeAtual", kind: "select", options: [{ value: "__null", label: "Não informado — comparar com a opção mais cara" }, { value: "simples", label: "Simples Nacional" }, { value: "hibrido", label: "Simples Híbrido" }, { value: "presumido", label: "Lucro Presumido" }], hint: "A economia estimada é calculada contra este regime." }));
+  adv += advDetails("simples", "Enquadramento no Simples Nacional", "Anexo por CNAE e Fator R",
+    '<div class="form-stack"><div class="field"><span class="lbl">Anexo utilizado</span>' + segHTML("simples.anexoModo", [{ value: "auto", label: "Automático (CNAE / Fator R)" }, { value: "manual", label: "Fixar manualmente" }]) + "</div>" +
+    (state.simples.anexoModo === "manual" ? fieldHTML({ label: "Anexo fixo", path: "simples.anexoManual", kind: "select", rerender: true, options: optsAnexo }) : "") +
+    '<p class="small muted">Automático: comércio e indústria usam os Anexos I e II; serviços usam o III ou o V conforme o Fator R.</p></div>', "bloco-simples");
+  if (tipo === "existente" || (avulsa && state.periodo.empresaAvulsa === "existente")) {
+    adv += advDetails("rbt12", "RBT12 e histórico", "receita dos 12 meses anteriores", '<div class="form-stack">' +
+      (tipo === "existente"
+        ? '<div class="field"><span class="lbl">RBT12 inicial</span>' + segHTML("empresa.rbt12Modo", [{ value: "auto", label: "Estimar (receita média × 12)" }, { value: "manual", label: "Informar" }]) + "</div>" +
+          (state.empresa.rbt12Modo === "manual" ? fieldHTML({ label: "RBT12 — receita bruta dos últimos 12 meses", path: "empresa.rbt12Manual", kind: "money", placeholder: "Ex.: 480.000" }) : "")
+        : "") +
+      checkHTML("periodo.rbt12Movel", "Atualizar o RBT12 mês a mês (janela móvel de 12 meses)", "Desligado, o RBT12 informado fica constante no período. Em avulsas e empresas novas a janela móvel é sempre usada.", true) +
+      "</div>", "bloco-rbt12");
+  }
+  adv += advDetails("lp", "Lucro Presumido", "atividade, PIS/COFINS, ISS e majoração",
+    '<div class="form-stack"><div class="field"><span class="lbl">Atividade (percentual de presunção)</span>' + segHTML("presumido.atividadeModo", [{ value: "auto", label: "Automática pelo CNAE" }, { value: "manual", label: "Escolher manualmente" }]) + "</div>" +
+    (state.presumido.atividadeModo === "manual" ? fieldHTML({ label: "Atividade", path: "presumido.atividade", kind: "select", rerender: true, options: optsAtiv }) : "") +
+    '<div class="field-row r3">' +
+      fieldHTML({ label: "PIS (cumulativo)", path: "presumido.pisAliq", kind: "pct", hint: "Padrão 0,65% (até 2026)." }) +
+      fieldHTML({ label: "COFINS (cumulativo)", path: "presumido.cofinsAliq", kind: "pct", hint: "Padrão 3,00% (até 2026)." }) +
+      fieldHTML({ label: "ISS do município", path: "presumido.issAliq", kind: "pct", hint: "De 2% a 5%, conforme o município." }) +
+    "</div>" +
+    checkHTML("presumido.majoracao", "Aplicar a majoração de 10% da presunção acima de R$ 1,25 mi por trimestre", "Regra recente (IN RFB 2.305/2025 e 2.306/2026) — tratada como hipótese.", false) +
+    fieldHTML({ label: "Ano do cronograma IBS/CBS (exceção)", path: "presumido.anoProjecao", kind: "select", num: true, nullable: true, options: optsAnoExc, hint: "Só para comparar com outro ano sem mudar a análise." }) +
+    "</div>", "bloco-lp");
+  adv += advDetails("ibs", "IBS/CBS e Simples Híbrido", "tratamento, créditos e alíquota manual",
+    '<div class="form-stack"><div class="field"><span class="lbl">Tratamento de IBS/CBS</span>' + segHTML("ibscbs.modo", [{ value: "auto", label: "Automático pelo CNAE" }, { value: "manual", label: "Escolher manualmente" }]) + "</div>" +
+    (state.ibscbs.modo === "manual" ? fieldHTML({ label: "Tratamento", path: "ibscbs.tratamento", kind: "select", rerender: true, options: optsTrat }) : "") +
+    fieldHTML({ label: "Alíquota efetiva total de IBS+CBS", path: "ibscbs.aliquotaEfetivaManualPct", kind: "pct", nullable: true, opt: true, placeholder: "Ex.: 26,5", hint: "Se você já a conhece, substitui a redução do tratamento." }) +
+    '<div class="field-row r2" id="bloco-creditos">' +
+      fieldHTML({ label: "Crédito de IBS (Híbrido)", path: "hibrido.creditoIbsPct", kind: "pct", hint: "Parâmetro de simulação. Padrão 0%: nenhum crédito assumido." }) +
+      fieldHTML({ label: "Crédito de CBS (Híbrido)", path: "hibrido.creditoCbsPct", kind: "pct", hint: "Parâmetro de simulação. Padrão 0%." }) +
+    "</div>" +
+    fieldHTML({ label: "Ano do cronograma IBS/CBS do Híbrido (exceção)", path: "hibrido.anoProjecao", kind: "select", num: true, nullable: true, options: optsAnoExc }) +
+    fieldHTML({ label: "Observação sobre o tratamento", path: "ibscbs.observacao", kind: "text", opt: true, hint: "Aparece na memória de cálculo." }) +
+    "</div>");
+  adv += advDetails("custos", "Custos e ponto de equilíbrio", "para ver o resultado líquido",
+    '<div class="form-stack"><p class="small muted">Com os custos, o resultado mostra o líquido após tributos e o ponto de equilíbrio com os seus números.</p><div class="field-row r2">' +
+      fieldHTML({ label: "Custos fixos mensais", path: "equilibrio.custosFixos", kind: "money", placeholder: "Ex.: 6.000" }) +
+      fieldHTML({ label: "Custos variáveis (% da receita)", path: "equilibrio.custosVariaveisPct", kind: "pct", placeholder: "Ex.: 10" }) +
+      fieldHTML({ label: "Valor de contrato mensal (contratante)", path: "equilibrio.contratoBruto", kind: "money", placeholder: "Ex.: 10.000", hint: "Equilíbrio do lado de quem contrata o serviço." }) +
+      fieldHTML({ label: "Crédito do contratante hoje", path: "equilibrio.creditoContratanteAtualPct", kind: "pct" }) +
+      fieldHTML({ label: "Crédito do contratante no Híbrido", path: "hibrido.creditoContratanteHibridoPct", kind: "pct" }) +
+    "</div></div>", "bloco-custos");
+  adv += advDetails("cnaebase", "Base de CNAEs", "origem dos dados de classificação",
+    '<div class="cnae-status">' + cnaeStatusBadgeHTML() + '<button type="button" class="btn btn-ghost btn-sm" id="btnImportCnae">' + icon("upload") + 'Importar base (JSON/CSV)</button><input type="file" id="fCnaeImport" accept=".json,.csv" hidden></div>', "bloco-cnaebase");
+  h += '<div class="group"><div class="collapse-list"><details class="collapse" data-adv="avancado"' + (state.ui.avancado.avancado ? " open" : "") + '><summary>Ajustes avançados <span class="sum-hint">os padrões já refletem o CNAE e a legislação</span>' + icon("chevron", "chev") + '</summary><div class="collapse-body"><div class="collapse-list">' + adv + "</div></div></details></div></div>";
+  form.innerHTML = h + '<div class="step-foot"><button class="btn btn-secondary" data-goto="inicio">' + icon("arrowl") + 'Voltar</button><button type="button" class="btn btn-primary only-narrow" data-go-res>Ver resultados' + icon("arrowr") + "</button></div>";
+
+  LIVE = [
+    { sel: "#liveAside", fn: (r) => asideHTML(r) },
+    { sel: "#liveClass", fn: (r) => classificacaoHTML(r) },
+    { sel: "#liveFatorR", fn: (r) => fatorRLinhaHTML(r) },
+    { sel: "#liveReceitaHint", fn: (r) => receitaHintHTML(r) },
+    { sel: "#liveRbt12Txt", fn: (r) => rbt12TxtHTML(r) },
+    { sel: "#liveResumoPeriodo", fn: (r) => escHtml(r.meta.periodo) + " · " + r.meta.nMeses + (r.meta.nMeses === 1 ? " mês" : " meses") },
+  ];
+  const r0 = computeAll();
+  LIVE.forEach((reg) => { const n = $(reg.sel, root); if (n) n.innerHTML = reg.fn(r0); });
+  wireLive($("#liveClass", root) || root);
+
+  // aberturas persistentes das seções retráteis
+  $$("details[data-adv]", root).forEach((d) => d.addEventListener("toggle", () => { state.ui.avancado[d.dataset.adv] = d.open; }));
+  setupCnaeAutocomplete();
+  root.addEventListener("click", (ev) => {  // delegado: o botão fica dentro de uma região "viva" que é recriada
+    const b = ev.target.closest && ev.target.closest("[data-rbt12]");
+    if (!b) return;
+    if (b.dataset.rbt12 === "manual") { state.empresa.rbt12Modo = "manual"; state.empresa.rbt12Manual = Math.round(media(receitasDoPeriodo()) * 12 * 100) / 100; }
+    else state.empresa.rbt12Modo = "auto";
+    saveDraft(); renderContent();
+    if (b.dataset.rbt12 === "manual") setTimeout(() => { const i = $("#campo-rbt12 input"); if (i) { i.focus(); i.select(); } }, 60);
+  });
+  const rep = $("#btnRepetir", root);
+  if (rep) rep.onclick = () => { const v = state.periodo.receitasMes[0] || 0; for (let i = 0; i < N; i++) state.periodo.receitasMes[i] = v; saveDraft(); renderContent(); };
+  const sv = $("#btnSalvarSim", root); if (sv) sv.onclick = () => salvarSimulacaoAtual();
+  wireLive($("#liveAside", root) || root);
+  wireIrResultados(root);
+  $$("[data-foco]", form).forEach((b) => b.addEventListener("click", () => focarCampo(b.dataset.foco)));
+  atualizarVisibilidades(root);
+}
+
+/* Ir aos resultados: sem receita, explica junto ao campo em vez de abrir uma tela vazia. */
+function wireIrResultados(root) {
+  $$("[data-go-res]", root).forEach((b) => { b.onclick = () => {
+    const r = computeAll();
+    if (!(r.meta.receitaTotal > 0)) {
+      state.ui.mostrarErros = true;
+      $$("[data-bind]", $("#campo-receita") || root).forEach(validarCampo);
+      const c = $("#campo-receita"); if (c) { c.scrollIntoView({ block: "center", behavior: "smooth" }); const i = $("input", c); if (i) setTimeout(() => i.focus({ preventScroll: true }), 250); }
+      return;
+    }
+    setActive("resultados");
+  }; });
+}
+
+/* V3.2.1 — RBT12 estimado: aviso discreto sob a receita (empresa existente) com acesso direto ao valor real,
+   sem abrir os ajustes avançados. Informar o real só troca `empresa.rbt12Modo` para "manual" (mesmo campo dos ajustes). */
+function rbt12InlineHTML(tipo) {
+  if (tipo !== "existente") return "";
+  if (state.empresa.rbt12Modo === "manual") {
+    return '<div class="rbt12-inline" id="campo-rbt12">' + fieldHTML({ label: "RBT12 — receita dos 12 meses anteriores", path: "empresa.rbt12Manual", kind: "money", placeholder: "Ex.: 480.000",
+      hint: 'Define a faixa do Simples e o Fator R. <button type="button" class="link-btn" data-rbt12="auto">Voltar a estimar</button>' }) + "</div>";
+  }
+  return '<div class="rbt12-inline" id="campo-rbt12"><span id="liveRbt12Txt"></span></div>';
+}
+function rbt12TxtHTML(r) {
+  const M = r.meta;
+  if (M.tipo !== "existente" || M.hist.origem !== "auto") return "";
+  if (!(M.hist.rbt12 > 0)) return "";
+  const conf = !!(state.confirmados && state.confirmados["rbt12-auto"]);
+  return 'RBT12 <b>estimado</b> em ' + fmtBRL(M.hist.rbt12) + " (receita média × 12)" + (conf ? " · confirmado" : "") + '. <button type="button" class="link-btn" data-rbt12="manual">Informar o real</button>';
+}
+function receitaHintHTML(r) {
+  const M = r.meta;
+  if (!(M.receitaTotal > 0)) return "";
+  if (M.receitaModo === "total") return "= " + fmtBRL(M.receitaMedia) + " por mês durante " + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + " (" + M.periodo + ").";
+  if (M.receitaModo === "constante") return "Total do período: " + fmtBRL(M.receitaTotal) + " em " + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + " (" + M.periodo + ").";
+  return "Total do período: " + fmtBRL(M.receitaTotal) + " · média " + fmtBRL(M.receitaMedia) + " por mês (" + M.periodo + ").";
+}
+
+/* ---- Classificação a partir do CNAE (compacta) ---- */
+function confiancaBadgeHTML(confianca) {
+  if (!confianca) return badge("Aguardando confirmação", "attn", "alert");
+  if (confianca === "alta") return badge("Automático · confiança alta", "ok", "check");
+  if (confianca === "media") return badge("Automático · confirmar", "neutral", "info");
+  return badge("Automático · baixa confiança", "neutral", "info");
+}
+function classificacaoKvHTML(r) {
+  const cls = r.classificacao;
+  if (!cls) return noteBox("info", "info", "Selecione o CNAE para preencher automaticamente o Anexo do Simples, a presunção do Lucro Presumido e o tratamento de IBS/CBS. Sem CNAE, a análise usa serviços em geral.");
   const presK = cls.presuncao, ibsK = cls.ibscbs;
-  const atividadeKey = r.atividadeKey;
-  const tratKey = tratamentoIbsCbsKeyAtual();
   const presBadge = state.presumido.atividadeModo === "manual" ? badge("Manual", "blue") : confiancaBadgeHTML(presK && !presK.pendente ? presK.confianca : null);
   const ibsBadge = state.ibscbs.modo === "manual" ? badge("Manual", "blue") : confiancaBadgeHTML(ibsK && !ibsK.pendente ? ibsK.confianca : null);
-  const fontesTxt = [
-    presK && !presK.pendente ? "Presunção — fonte: " + presK.fonte + ". " + presK.motivo : null,
-    ibsK && !ibsK.pendente ? "IBS/CBS — fonte: " + ibsK.fonte + ". " + ibsK.motivo : null,
-  ].filter(Boolean).join(" · ");
-  const pendHtml = cls.pendencias.map((p) => {
-    const respAtual = state.classificacaoComplementos[p.id];
-    return '<div class="field" style="margin-top:10px"><label>' + escHtml(p.pergunta) + '</label>' +
-      '<select data-complemento="' + p.id + '"><option value="">Selecione para confirmar…</option>' +
-      p.opcoes.map((o) => '<option value="' + escAttr(o.value) + '"' + (respAtual === o.value ? " selected" : "") + '>' + escHtml(o.label) + '</option>').join("") +
-      '</select><span class="hint">' + escHtml(p.explicacao) + '</span></div>';
-  }).join("");
-  return header +
-    '<div class="table-wrap"><table><tbody>' +
-      '<tr><td>CNAE</td><td class="num">' + escHtml(cls.cnae.codigo) + ' — ' + escHtml(cls.cnae.descricao) + '</td></tr>' +
-      '<tr><td>Atividade (Lucro Presumido)</td><td class="num">' + escHtml(PRESUNCAO[atividadeKey].label) + ' ' + presBadge + '</td></tr>' +
-      '<tr><td>Presunção IRPJ / CSLL</td><td class="num">' + fmtPct(PRESUNCAO[atividadeKey].irpj) + ' / ' + fmtPct(PRESUNCAO[atividadeKey].csll) + '</td></tr>' +
-      '<tr><td>Tratamento IBS/CBS</td><td class="num">' + escHtml(IBS_CBS_TRATAMENTOS[tratKey].label) + ' ' + ibsBadge + '</td></tr>' +
-      '<tr><td>Alíquota IBS / CBS (ano ' + state.hibrido.anoProjecao + ', referência)</td><td class="num">' + (() => { const c = IBS_CBS_CRONOGRAMA.find((x) => x.ano === state.hibrido.anoProjecao); const ap = aplicarTratamentoIbsCbs(c, IBS_CBS_TRATAMENTOS[tratKey], state.ibscbs.aliquotaEfetivaManualPct); return fmtPct(ap.ibsEfetivoPct, 2) + " / " + fmtPct(ap.cbsEfetivoPct, 2); })() + '</td></tr>' +
-    '</tbody></table></div>' +
-    (fontesTxt ? '<p class="tiny muted" style="margin-top:10px">' + escHtml(fontesTxt) + '</p>' : "") +
-    (cls.pendencias.length ? alertBox("yellow", "alert", "<b>Confirmação necessária</b> — a informação do CNAE, isoladamente, não permite determinar este item com segurança. Até a confirmação abaixo, o sistema mantém o valor já em uso (nenhum benefício é presumido).") + pendHtml : "") +
-    '<p class="tiny muted" style="margin-top:10px">Cadeia usada automaticamente em Simples Nacional/Fator R, Lucro Presumido, Simples Híbrido, Comparativo, Memória de Cálculo e Relatório em PDF — substitua manualmente a qualquer momento nas respectivas abas.</p>';
+  const anexoTxt = r.anexoKey === "III_V" ? "Anexo III ou V, conforme o Fator R" : ANEXOS[r.anexoKey].nome + " (" + (cls.natureza === "comercio" ? "comércio" : "indústria") + ")";
+  const tratKey = tratamentoIbsCbsKeyAtual();
+  return '<div class="kv">' +
+    '<div class="r"><span>CNAE</span><span>' + escHtml(cls.cnae.codigo) + " — " + escHtml(cls.cnae.descricao) + "</span></div>" +
+    '<div class="r"><span>Simples Nacional</span><span>' + escHtml(anexoTxt) + "</span></div>" +
+    '<div class="r"><span>Lucro Presumido</span><span>' + escHtml(PRESUNCAO[r.atividadeKey].label) + " · IRPJ " + fmtPct(PRESUNCAO[r.atividadeKey].irpj) + " / CSLL " + fmtPct(PRESUNCAO[r.atividadeKey].csll) + " " + presBadge + "</span></div>" +
+    '<div class="r"><span>IBS/CBS</span><span>' + escHtml(IBS_CBS_TRATAMENTOS[tratKey].label) + " " + ibsBadge + "</span></div></div>" +
+    (cls.pendencias.length ? '<p class="small muted" style="margin-top:8px">Há ' + cls.pendencias.length + " confirmação(ões) sobre a atividade na área de pendências ao lado.</p>" : "");
 }
-function confirm2(msg) { try { return window.confirm(msg); } catch (err) { return true; } }
-function fmtInput(v) { return (v || 0).toString().replace(".", ","); }
-function escAttr(s) { return (s || "").replace(/"/g, "&quot;"); }
 
-function cnaeHintHTML(cnae) {
-  if (!cnae) return "Não selecionado. O CNAE é uma classificação oficial (CONCLA/IBGE) e não define automaticamente o Anexo do Simples Nacional — o enquadramento tributário é feito na aba Simples Nacional.";
-  const h = cnaeHierarquia(cnae);
-  const parts = [];
-  if (cnae.secao) parts.push("Seção " + cnae.secao + (h && h.secao ? " — " + h.secao.descricao : ""));
-  if (cnae.divisao) parts.push("Divisão " + cnae.divisao);
-  if (cnae.grupo) parts.push("Grupo " + cnae.grupo);
-  if (cnae.classe) parts.push("Classe " + cnae.classe);
-  return (parts.length ? parts.join(" · ") + ". " : "") + "Classificação oficial — não define automaticamente o Anexo do Simples Nacional.";
+/* V3.2.1 — Vantagem do Fator R em partes separadas. Só apresentação: os números vêm de calcFatorRComparativo.
+   Retenções de INSS/IRRF são do SÓCIO (descontadas do pró-labore) — não são tratadas como custo da empresa;
+   a conclusão ("compensa") só aparece quando não falta informação para avaliá-la. */
+const ACOES_FALTA_FATORR = {
+  "encargos-folha": [{ t: "confirmar", rot: "Está correto" }],
+  "folha-referencia": [{ t: "foco", alvo: "bloco-fatorr", rot: "Informar a folha" }],
+  "rbt12-auto": [{ t: "foco", alvo: "campo-rbt12", rot: "Informar o RBT12 real" }, { t: "confirmar", rot: "Estimativa correta" }],
+  "fatorr-inicio": [{ t: "confirmar", rot: "Está correto" }],
+  "prolabore-atual": [{ t: "foco", alvo: "f_empresa_proLabore", rot: "Informar o pró-labore" }, { t: "confirmar", rot: "Não há pró-labore hoje" }],
+  "rbt12Historico": [{ t: "foco", alvo: "campo-rbt12-historico", rot: "Informar o RBT12" }],
+};
+function veredictoFatorRTexto(F) {
+  const faltas = F.avaliacao.faltas.map((x) => x.curto).join("; ");
+  return ({
+    "compensa": "Compensa, com as premissas confirmadas.",
+    "nao-compensa": "Não compensa, com as premissas confirmadas.",
+    "indicativo-favoravel": "Indicativo favorável — ainda não conclusivo (depende de: " + faltas + ").",
+    "indicativo-desfavoravel": "Indicativo desfavorável — ainda não conclusivo (depende de: " + faltas + ").",
+    "sem-economia": "Sem economia de DAS a avaliar.",
+    "sem-ganho": "Não compensa: o Fator R não reduz o DAS neste cenário.",
+  })[F.veredito];
 }
+function vantagemFatorRHTML(r) {
+  const F = r.fatorRComp, A = F.avaliacao, R = F.retencoesSocio;
+  const linha = (rot, valor, nota, cls) => '<div class="r vr' + (cls ? " " + cls : "") + '"><span>' + rot + (nota ? "<small>" + nota + "</small>" : "") + "</span><span>" + valor + "</span></div>";
+  const concl = {
+    "compensa": badge("Compensa, com as premissas confirmadas", "ok", "check"),
+    "nao-compensa": badge("Não compensa, com as premissas confirmadas", "neutral"),
+    "indicativo-favoravel": badge("Indicativo favorável — ainda não conclusivo", "neutral"),
+    "indicativo-desfavoravel": badge("Indicativo desfavorável — ainda não conclusivo", "neutral"),
+    "sem-economia": badge("Sem economia de DAS a avaliar", "neutral"),
+    "sem-ganho": badge("Não compensa: o Fator R não reduz o DAS neste cenário", "neutral"),
+  }[F.veredito];
+  let h = '<div class="group-title" style="margin-top:18px">Vantagem do Fator R, em partes</div><div class="kv vant">' +
+    linha("1. Economia no DAS", fmtBRL(F.economiaDas), escHtml(F.economiaRotulo) + (F.referencia === "folha-informada" ? " (vs folha atual informada)" : " (vs cenário sem folha — não é economia garantida)")) +
+    linha("2. Pró-labore adicional (bruto)", fmtBRL(F.proLaboreAdicionalMensal) + "/mês", "Remuneração do sócio: sai da empresa e entra no sócio. Não é perda tributária.") +
+    linha("3. Retenções do sócio (INSS + IRRF)", "− " + fmtBRL(R.periodo), "INSS " + fmtBRL(R.inssMensal) + "/mês (11% até o teto de " + fmtBRL(PARAMS_FOLHA.inss.teto) + ") · IRRF " + fmtBRL(R.irrfMensal) + "/mês. Descontadas do pró-labore: não são custo da empresa (o INSS gera direitos previdenciários; o IRRF antecipa o IRPF anual).") +
+    linha("4. Encargos patronais sobre o adicional", fmtBRL(0), "Anexos III e V: a CPP patronal já está no DAS (LC 123/2006, art. 13, VI) e pró-labore não gera FGTS.") +
+    linha("Saldo estimado (1 − 3)", fmtBRL(F.saldoEstimado), "Visão conjunta empresa + sócio: sem o pró-labore adicional o sócio receberia esse valor como lucro, sem INSS/IRRF.", "tot") + "</div>" +
+    '<div class="vant-concl">' + concl + "</div>";
+  if (!A.suficiente && F.veredito !== "sem-economia" && F.veredito !== "sem-ganho") {
+    h += '<p class="small muted" style="margin-top:10px">Para concluir se compensa:</p><ul class="faltas">' + A.faltas.map((f) => {
+      const acoes = (ACOES_FALTA_FATORR[f.id] || []).map((a) => a.t === "foco"
+        ? '<button type="button" class="link-btn" data-foco="' + a.alvo + '">' + a.rot + "</button>"
+        : '<button type="button" class="link-btn" data-confirmar="' + f.id + '">' + a.rot + "</button>").join(" · ");
+      return "<li>" + escHtml(f.texto.charAt(0).toUpperCase() + f.texto.slice(1)) + (acoes ? " — " + acoes : "") + "</li>";
+    }).join("") + "</ul>";
+  }
+  return h + '<p class="small muted" style="margin-top:10px">Não inclui deduções pessoais do sócio, outras rendas, INSS já recolhido por outra fonte, custos de contabilidade da folha nem o efeito sobre a distribuição de lucros (Lei 15.270/2025). Estimativa — confirme com o contador.</p>';
+}
+
+/* ---- Insights do Fator R ---- */
+function fatorRInsightsHTML(r) {
+  const F = r.fatorRComp, M = r.meta, S = r.simples;
+  if (!F.aplicavel) return "";
+  const frIni = S.fatorRInicial, frFim = S.fatorR;
+  const pct = (v) => fmtPct((v || 0) * 100, 1);
+  const marca = 28;
+  const barra = Math.min(Math.max((frFim || 0) * 100, 0), 100) / 100 * 100;
+  const dentro = frFim >= FATOR_R_LIMIAR - 1e-9;
+  const titulo = M.politicaFolha === "necessaria" ? "Fator R projetado com a folha necessária" : M.politicaFolha === "prolabore" ? "Fator R projetado com o pró-labore simulado" : M.politicaFolha === "nenhuma" ? "Fator R sem folha" : (M.nova ? "Fator R projetado" : "Fator R atual");
+  let h = '<div class="panel flat">' +
+    '<div class="row between"><div class="stat"><span class="l">' + titulo + '</span><span class="v">' + pct(frFim) + '</span><span class="s">' + (frIni !== frFim ? "Começa em " + pct(frIni) + " no 1º mês · " : "") + (dentro ? "≥ 28% → Anexo III" : "< 28% → Anexo V") + (S.anexoMisto ? " (o anexo muda ao longo do período)" : "") + "</span></div>" +
+    '<div style="flex:1;min-width:180px;max-width:320px"><div class="meter" aria-label="Fator R"><i style="width:' + barra + '%"></i><b style="left:' + marca + '%"></b></div><div class="row between tiny muted" style="margin-top:6px"><span>0%</span><span>28% (limite)</span><span>100%</span></div></div></div>';
+  h += '<div class="grid g3" style="margin-top:16px">' +
+    '<div class="stat sm"><span class="l">Folha necessária (28%)</span><span class="v">' + fmtBRL(F.folhaNecMensal) + '/mês</span><span class="s">' + fmtBRL(F.folhaNecPeriodo) + " no período</span></div>" +
+    '<div class="stat sm"><span class="l">Folha atual</span><span class="v">' + fmtBRL(F.folhaAtualMensal) + '/mês</span><span class="s">' + (F.difMensal > 0.005 ? "Faltam " + fmtBRL(F.difMensal) + " por mês" : "Já atinge o necessário") + "</span></div>" +
+    '<div class="stat sm"><span class="l">Pró-labore bruto estimado</span><span class="v">' + fmtBRL(F.proLaboreTotalMensal) + '/mês</span><span class="s">' + (F.difMensal > 0.005 ? "Atual " + fmtBRL(F.proLaboreAtualMensal) + " + " + fmtBRL(F.proLaboreAdicionalMensal) : "Sem pró-labore adicional") + "</span></div></div>";
+  if (F.difMensal > 0.005 || M.politicaFolha === "necessaria") {
+    h += '<div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>Cenário (' + M.periodo + ')</th><th class="num">DAS no período</th><th class="num">Anexo</th></tr></thead><tbody>' +
+      '<tr><td>Sem folha</td><td class="num">' + fmtBRL(F.sem.ag.total) + '</td><td class="num">' + F.sem.ag.anexosUsados.join(" / ") + "</td></tr>" +
+      '<tr><td>Com Fator R de 28%</td><td class="num">' + fmtBRL(F.com.ag.total) + '</td><td class="num">' + F.com.ag.anexosUsados.join(" / ") + "</td></tr>" +
+      '<tr class="total"><td>' + F.economiaRotulo + (F.referencia === "folha-informada" ? " (vs folha atual informada)" : " (vs cenário sem folha)") + '</td><td class="num">' + fmtBRL(F.economia) + '</td><td class="num"></td></tr></tbody></table></div>' +
+      vantagemFatorRHTML(r) +
+      (M.nova || !F.enquadraEm.imediato || F.avaliacao.faltas.some((x) => x.id === "janela") ? "" : '<p class="small muted" style="margin-top:10px">A folha necessária já enquadra no Anexo III desde o 1º mês do período.</p>');
+  }
+  return h + "</div>";
+}
+
+/* Classificação automática — uma linha (V3.2). Os detalhes e confirmações ficam em Pendências e Ajustes avançados. */
+function classificacaoHTML(r) {
+  const cls = r.classificacao;
+  if (!cls) return '<p class="hint">Sem CNAE, a análise usa serviços em geral. Escolha o CNAE para classificar automaticamente.</p>';
+  const P = PRESUNCAO[r.atividadeKey];
+  const anexoTxt = r.anexoKey === "III_V" ? "Anexo III ou V (Fator R)" : ANEXOS[r.anexoKey].nome + " (" + (cls.natureza === "comercio" ? "comércio" : "indústria") + ")";
+  const presTxt = fmtPct(P.irpj, 0) === fmtPct(P.csll, 0) ? "presunção " + fmtPct(P.irpj, 0) : "presunção IRPJ " + fmtPct(P.irpj, 0) + " / CSLL " + fmtPct(P.csll, 0);
+  const tratKey = tratamentoIbsCbsKeyAtual();
+  return '<div class="subtle-line"><b style="color:var(--heading);font-weight:600">Classificação automática</b> · Simples: ' + escHtml(anexoTxt) + " · Presumido: " + escHtml(P.label) + " (" + presTxt + ") · IBS/CBS: " + escHtml(IBS_CBS_TRATAMENTOS[tratKey].label) +
+    ' <button type="button" class="link-btn" data-foco="bloco-lp">Ajustar</button></div>';
+}
+
+/* Fator R no preenchimento — só o essencial: onde está, qual a meta e quanto falta.
+   A tabela de cenários, INSS/IRRF e a vantagem líquida ficam em Resultados › Fator R. */
+function fatorRLinhaHTML(r) {
+  const F = r.fatorRComp, S = r.simples;
+  if (!F.aplicavel) return "";
+  const frFim = S.fatorR || 0, dentro = frFim >= FATOR_R_LIMIAR - 1e-9;
+  const barra = Math.min(Math.max(frFim * 100, 0), 100);
+  const titulo = r.meta.politicaFolha === "necessaria" ? "Fator R com a folha necessária" : r.meta.politicaFolha === "prolabore" ? "Fator R com o pró-labore simulado" : r.meta.politicaFolha === "nenhuma" ? "Fator R sem folha" : (r.meta.nova ? "Fator R projetado" : "Fator R atual");
+  const falta = F.difMensal > 0.005 && r.meta.politicaFolha !== "necessaria"
+    ? "Para chegar a 28%: folha de cerca de " + fmtBRL(F.folhaNecMensal) + " por mês (faltam " + fmtBRL(F.difMensal) + ")."
+    : (dentro ? "Meta de 28% atingida." : "");
+  return '<div class="fr-line"><div class="row"><div class="stat"><span class="l">' + titulo + '</span><span class="v">' + fmtPct(frFim * 100, 1) + '</span><span class="s">' + (dentro ? "28% ou mais → Anexo III" : "Abaixo de 28% → Anexo V") + (S.anexoMisto ? " (muda ao longo do período)" : "") + "</span></div>" +
+    '<div style="flex:1;min-width:160px;max-width:300px"><div class="meter" aria-label="Fator R"><i style="width:' + barra + '%"></i><b style="left:28%"></b></div><div class="row between tiny muted" style="margin-top:6px"><span>0%</span><span>28%</span><span>100%</span></div></div></div>' +
+    (falta ? '<p class="small muted">' + falta + ' Detalhes em Resultados › Fator R.</p>' : "") + "</div>";
+}
+
+/* ---- Coluna lateral: resumo curto + pendências (único local) ---- */
+function asideHTML(r) {
+  const M = r.meta, S = r.simples;
+  const ok = M.receitaTotal > 0;
+  const anexoTxt = S.anexosUsados.map((a) => "Anexo " + a).join(" / ") + (S.fatorR != null ? " · Fator R " + fmtPct(S.fatorR * 100, 1) : "");
+  return '<div class="panel"><div class="panel-title">' + icon("filetext") + 'Resumo</div><div class="kv">' +
+    '<div class="r"><span>Período</span><span>' + escHtml(M.periodo) + " · " + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + "</span></div>" +
+    '<div class="r"><span>Receita no período</span><span>' + (ok ? fmtBRL(M.receitaTotal) : "—") + "</span></div>" +
+    '<div class="r"><span>Enquadramento</span><span>' + escHtml(anexoTxt) + "</span></div></div></div>" +
+    pendenciasHTML(r, { compact: true, mini: true }) +
+    '<button type="button" class="btn btn-primary only-wide" data-go-res style="width:100%">Ver resultados' + icon("arrowr") + "</button>";
+}
+
+/* ---- Autocomplete de CNAE ---- */
 function cnaeStatusBadgeHTML() {
-  if (CNAE_STATUS.estado === "ok") return badge("Base carregada — " + CNAE_STATUS.registros + " CNAEs (atualizado em " + fmtDateBR(CNAE_STATUS.atualizadoEm) + ")", "green", "check");
-  if (CNAE_STATUS.estado === "erro") return badge("Base indisponível — " + CNAE_STATUS.mensagem, "yellow", "alert");
-  return badge("Carregando base de CNAEs...", "blue", "info");
+  if (CNAE_STATUS.estado === "ok") return badge("Base com " + CNAE_STATUS.registros + " CNAEs · " + fmtDateBR(CNAE_STATUS.atualizadoEm), "ok", "check");
+  if (CNAE_STATUS.estado === "erro") return badge("Base indisponível", "attn", "alert");
+  return badge("Carregando base de CNAEs…", "prog", "info");
 }
-
 function setupCnaeAutocomplete() {
   const input = $("#fCnae"), list = $("#acList");
-  if (input) {
-    function renderList(items, query) {
-      if (CNAE_STATUS.estado === "erro") {
-        list.innerHTML = '<div class="ac-item ac-empty">Base de CNAEs indisponível no momento. Use "Importar base oficial" para carregar um arquivo JSON/CSV.</div>';
-        list.hidden = false;
-        return;
+  if (input && list) {
+    const renderList = (items, query) => {
+      if (CNAE_STATUS.estado === "erro") list.innerHTML = '<div class="ac-item ac-empty">Base de CNAEs indisponível. Use “Importar base” para carregar um arquivo JSON/CSV.</div>';
+      else if (CNAE_STATUS.estado !== "ok" || !CNAE_DATA) list.innerHTML = '<div class="ac-item ac-empty">Carregando base de CNAEs…</div>';
+      else if (!items.length) list.innerHTML = '<div class="ac-item ac-empty">Nenhum CNAE encontrado para “' + escHtml(query) + "”. Tente outra palavra-chave.</div>";
+      else {
+        list.innerHTML = items.map((x) => '<div class="ac-item" data-c="' + escAttr(x.codigo) + '"><span class="code">' + escHtml(x.codigo) + "</span>" + (x.secao ? '<span class="tag">Seção ' + escHtml(x.secao) + "</span>" : "") + '<div class="desc">' + escHtml(x.descricao) + "</div></div>").join("");
+        $$(".ac-item[data-c]", list).forEach((it) => it.onclick = () => {
+          const found = CNAE_DATA.subclasses.find((c) => c.codigo === it.dataset.c);
+          if (found) { state.empresa.cnae = found; state.classificacaoComplementos = {}; }
+          list.hidden = true;
+          saveDraft();
+          renderContent();
+        });
       }
-      if (CNAE_STATUS.estado !== "ok" || !CNAE_DATA) {
-        list.innerHTML = '<div class="ac-item ac-empty">Carregando base de CNAEs...</div>';
-        list.hidden = false;
-        return;
-      }
-      if (!items.length) {
-        list.innerHTML = '<div class="ac-item ac-empty">Nenhum CNAE encontrado para "' + escHtml(query) + '". Confira o código/descrição ou tente outra palavra-chave.</div>';
-        list.hidden = false;
-        return;
-      }
-      list.innerHTML = items.map((x) =>
-        '<div class="ac-item" data-c="' + escAttr(x.codigo) + '"><span class="code">' + escHtml(x.codigo) + '</span>' + (x.secao ? '<span class="tag">Seção ' + escHtml(x.secao) + '</span>' : "") + '<div class="desc">' + escHtml(x.descricao) + '</div></div>'
-      ).join("");
       list.hidden = false;
-      $$(".ac-item[data-c]", list).forEach((it) => it.onclick = () => {
-        const found = CNAE_DATA.subclasses.find((c) => c.codigo === it.dataset.c);
-        if (found) state.empresa.cnae = found;
-        list.hidden = true;
-        renderContent();
-      });
-    }
+    };
     input.addEventListener("input", () => {
       const q = input.value.trim();
       if (!q) { list.hidden = true; return; }
       renderList(cnaeSearch(q, 12), q);
     });
-    input.addEventListener("focus", () => { if (input.value.trim()) input.dispatchEvent(new Event("input")); });
-    document.addEventListener("click", (ev) => { if (!ev.target.closest(".autocomplete")) list.hidden = true; }, { once: false });
+    input.addEventListener("focus", () => { if (input.value.trim() && !state.empresa.cnae) input.dispatchEvent(new Event("input")); });
+    input.addEventListener("change", () => { if (!input.value.trim() && state.empresa.cnae) { state.empresa.cnae = null; state.classificacaoComplementos = {}; saveDraft(); renderContent(); } });
+    if (!window.__acDocBound) { window.__acDocBound = true; document.addEventListener("click", (ev) => { const l = $("#acList"); if (l && !ev.target.closest(".autocomplete")) l.hidden = true; }); }
   }
   const importBtn = $("#btnImportCnae"), importInput = $("#fCnaeImport");
   if (importBtn && importInput) {
@@ -1590,1193 +3325,1582 @@ function setupCnaeAutocomplete() {
   }
 }
 
-function renderResultBanner(holder) {
-  const r = state.result || computeAll();
-  holder.innerHTML =
-    '<div class="result-banner fade-in">' +
-      '<div class="rb-head">' + icon("check") + '<h3>Análise concluída</h3></div>' +
-      '<div class="result-grid">' +
-        resultItem("Faturamento", fmtBRL(state.empresa.faturamentoMensal)) +
-        resultItem("RBT12", fmtBRL(r.rbt12)) +
-        resultItem("Anexo", ANEXOS[r.simples.anexoUsado].nome.replace("Anexo ", "")) +
-        resultItem("Fator R", r.simples.fatorR == null ? "Não aplicável" : fmtPct(r.simples.fatorR * 100)) +
-        resultItem("Custo tributário estimado", fmtBRL(r.simples.dasMensal) + "/mês") +
-        resultItem("Carga efetiva", fmtPct(r.simples.cargaEfetivaPct)) +
-      '</div>' +
-      '<div><button class="btn btn-secondary" id="btnVerMemoria" style="background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.3);color:#fff">' + icon("filetext") + 'Ver memória de cálculo</button></div>' +
-    '</div>';
-  setTimeout(() => { const b = $("#btnVerMemoria"); if (b) b.onclick = () => setActive("memoria"); }, 0);
-}
-function resultItem(l, v) { return '<div class="result-item"><span class="l">' + l + '</span><span class="v">' + v + '</span></div>'; }
+/* ============================================================================
+   BLOCO 64_ui_pendencias
+   ============================================================================ */
 
 /* ---------------------------------------------------------------------------
-   RENDER: SIMPLES NACIONAL
+   PENDÊNCIAS INTELIGENTES — uma única área, usada nas etapas 2 e 3.
+   Distingue: atenção · pendente · estimativa · opcional · confirmado.
+   Nada aqui bloqueia a análise; informação essencial ausente aparece com a
+   limitação do resultado, nunca com valor inventado.
    --------------------------------------------------------------------------- */
-function renderSimples(root) {
-  const r = computeAll();
-  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Simples Nacional</h2><p class="sub">Enquadramento, faixas e partilha detalhada do DAS</p></div>' + badge("Fonte oficial", "blue", "info") }));
+const PEND_ORDEM = [
+  { nivel: "atencao", titulo: "Atenção", tone: "attn" },
+  { nivel: "pendente", titulo: "Informações pendentes", tone: "prog" },
+  { nivel: "estimativa", titulo: "Estimativas em uso", tone: "neutral" },
+  { nivel: "opcional", titulo: "Configurações opcionais", tone: "outline" },
+  { nivel: "confirmado", titulo: "Dados confirmados", tone: "ok" },
+];
 
-  const opts = [
-    { k: "III_V", label: "Serviços — conforme Fator R (III/V)" },
-    { k: "I", label: "Anexo I — Comércio" },
-    { k: "II", label: "Anexo II — Indústria" },
-    { k: "III", label: "Anexo III — Serviços (fixo)" },
-    { k: "IV", label: "Anexo IV — Serviços (fixo)" },
-    { k: "V", label: "Anexo V — Serviços (fixo)" },
-  ];
-  const modo = anexoKeyAtual();
-  const clsSimples = classificarPorCnae();
-  const autoLabel = modo === "I" ? "Automático (CNAE — comércio)" : modo === "II" ? "Automático (CNAE — indústria)" : "Automático (Fator R)";
-
-  const card1 = el("div", { class: "card" });
-  card1.innerHTML =
-    '<div class="card-title">' + icon("calculator") + 'Enquadramento<span class="grow"></span>' + badge(state.simples.anexoModo === "auto" ? autoLabel : "Manual", state.simples.anexoModo === "auto" ? "green" : "blue") + '</div>' +
-    '<div class="field"><label>Anexo utilizado na simulação</label><div class="radio-pills" id="anexoPills">' +
-      '<button type="button" class="radio-pill' + (state.simples.anexoModo === "auto" ? " active" : "") + '" data-anexo="auto">Automático (CNAE / Fator R)</button>' +
-      opts.filter((o) => o.k !== "III_V").map((o) => '<button type="button" class="radio-pill' + (state.simples.anexoModo === "manual" && modo === o.k ? " active" : "") + '" data-anexo="' + o.k + '">' + o.label + '</button>').join("") +
-    '</div><span class="hint">' + (clsSimples && (clsSimples.natureza === "comercio" || clsSimples.natureza === "industria")
-      ? "O CNAE selecionado identifica natureza de " + (clsSimples.natureza === "comercio" ? "comércio (Anexo I)" : "indústria (Anexo II)") + " — aplicado automaticamente. Sem CNAE ou para atividades de serviço, o modo automático aplica a regra do Fator R (Anexo III ou V)."
-      : "O modo automático aplica a regra do Fator R (Anexo III ou V conforme a folha de pagamento); quando o CNAE identificar comércio ou indústria, o Anexo I ou II é usado automaticamente.") + ' Selecionar um anexo manualmente sempre fixa o Anexo.</span></div>';
-  root.appendChild(card1);
-
-  root.appendChild(el("div", { html: alertsHTML(r.issues) }));
-
-  const resumo = el("div", { class: "grid grid-4" });
-  resumo.innerHTML =
-    kpiCard("filetext", "Anexo aplicado", ANEXOS[r.simples.anexoUsado].nome, ANEXOS[r.simples.anexoUsado].desc, false) +
-    kpiCard("trending", "Faixa de RBT12", r.simples.faixaLabel, fmtBRL(FAIXAS_LIMITES[r.simples.faixaIndex - 1].min) + " a " + fmtBRL(FAIXAS_LIMITES[r.simples.faixaIndex - 1].max), false) +
-    kpiCard("percent", "Alíquota efetiva", fmtPct(r.simples.cargaEfetivaPct), "Nominal " + fmtPct(r.simples.aliqNominal * 100) + " · dedução " + fmtBRL(r.simples.parcelaDeduzir), false, true) +
-    kpiCard("wallet", "DAS estimado", fmtBRL(r.simples.dasMensal) + "/mês", "Anual: " + fmtBRL(r.simples.dasAnual), false);
-  root.appendChild(resumo);
-
-  const tableCard = el("div", { class: "card" });
-  tableCard.innerHTML = '<div class="card-title">' + icon("filetext") + 'Tabela completa — ' + ANEXOS[r.simples.anexoUsado].nome + ' (' + ANEXOS[r.simples.anexoUsado].desc + ')</div>' +
-    '<div class="table-wrap"><table><thead><tr><th>Faixa</th><th class="num">RBT12 até</th><th class="num">Alíquota nominal</th><th class="num">Parcela a deduzir</th></tr></thead><tbody>' +
-    ANEXOS[r.simples.anexoUsado].faixas.map((f, i) => '<tr class="' + (i + 1 === r.simples.faixaIndex ? "hl" : "") + '"><td>' + (i + 1) + 'ª faixa</td><td class="num">' + fmtBRL(FAIXAS_LIMITES[i].max) + '</td><td class="num">' + fmtPct(f.aliq * 100) + '</td><td class="num">' + fmtBRL(f.ded) + '</td></tr>').join("") +
-    '</tbody></table></div>';
-  root.appendChild(tableCard);
-
-  const partilhaCard = el("div", { class: "card" });
-  const partilhaKeys = Object.keys(r.simples.partilha);
-  partilhaCard.innerHTML = '<div class="card-title">' + icon("chart") + 'Partilha do DAS na faixa atual</div>' +
-    '<div class="table-wrap"><table><thead><tr><th>Tributo</th><th class="num">% da partilha</th><th class="num">Valor mensal estimado</th></tr></thead><tbody>' +
-    partilhaKeys.map((k) => '<tr><td>' + k + '</td><td class="num">' + fmtPct(r.simples.partilha[k]) + '</td><td class="num">' + fmtBRL(r.simples.partilhaValores[k]) + '</td></tr>').join("") +
-    '<tr class="total"><td>Total (DAS)</td><td class="num">100,00%</td><td class="num">' + fmtBRL(r.simples.dasMensal) + '</td></tr>' +
-    '</tbody></table></div><p class="tiny muted" style="margin-top:10px">Partilha de referência conforme LC 123/2006 — determina a distribuição interna do DAS entre os tributos abrangidos; não altera o valor total pago.</p>';
-  root.appendChild(partilhaCard);
-
-  setTimeout(() => {
-    $$("[data-anexo]", card1).forEach((b) => b.onclick = () => {
-      if (b.dataset.anexo === "auto") { state.simples.anexoModo = "auto"; }
-      else { state.simples.anexoManual = b.dataset.anexo; state.simples.anexoModo = "manual"; }
-      renderContent();
-    });
-  }, 0);
+function pendItemHTML(p) {
+  let h = '<div class="pend-item ' + p.nivel + '"><span class="pend-dot"></span><div style="min-width:0;flex:1">' +
+    '<div class="pt">' + escHtml(p.titulo) + (p.essencial ? " " + badge("essencial", "attn") : "") + "</div>";
+  if (p.pergunta && !p.complemento) h += '<div class="px"><b>' + escHtml(p.pergunta) + "</b></div>";
+  if (p.texto) h += '<div class="px">' + escHtml(p.texto) + "</div>";
+  if (p.complemento) {
+    h += '<div class="pq"><b class="small">' + escHtml(p.pergunta) + "</b><select data-compl=\"" + escAttr(p.complemento.id) + "\"><option value=\"\">Selecione para confirmar…</option>" +
+      p.complemento.opcoes.map((o) => '<option value="' + escAttr(o.value) + '">' + escHtml(o.label) + "</option>").join("") + "</select></div>";
+  }
+  const acts = [];
+  if (p.foco && p.nivel !== "confirmado") acts.push('<button type="button" class="btn btn-secondary btn-sm" data-foco="' + p.foco + '">' + (p.nivel === "pendente" ? "Informar" : "Ajustar") + "</button>");
+  if (p.confirmavel && !p.confirmado) acts.push('<button type="button" class="btn btn-ghost btn-sm" data-confirmar="' + p.id + '">Está correto</button>');
+  if (acts.length) h += '<div class="acts">' + acts.join("") + "</div>";
+  return h + "</div></div>";
 }
 
-/* ---------------------------------------------------------------------------
-   RENDER: FATOR R
-   --------------------------------------------------------------------------- */
-function renderFatorR(root) {
-  const e = state.empresa;
-  const rbt12 = rbt12Atual();
-  const fatorR = calcFatorR(e.folha12m, rbt12);
-  const simIII = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey: "III" });
-  const simV = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey: "V" });
-  const enquadrado = fatorR >= 0.28 ? "III" : "V";
-
-  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Fator R</h2><p class="sub">Compara o enquadramento em Anexo III e Anexo V conforme a folha de pagamento</p></div>' }));
-
-  const inputCard = el("div", { class: "card" });
-  inputCard.innerHTML = '<div class="card-title">' + icon("percent") + 'Parâmetros</div>' +
-    '<div class="grid grid-3">' +
-    '<div class="field"><label for="frFat">Faturamento mensal</label><input type="text" inputmode="decimal" id="frFat" value="' + fmtInput(e.faturamentoMensal) + '"></div>' +
-    '<div class="field"><label for="frRbt">RBT12</label><input type="text" inputmode="decimal" id="frRbt" value="' + fmtInput(rbt12) + '"></div>' +
-    '<div class="field"><label for="frFolha">Folha de salários (12m, com pró-labore)</label><input type="text" inputmode="decimal" id="frFolha" value="' + fmtInput(e.folha12m) + '"></div>' +
-    '</div>';
-  root.appendChild(inputCard);
-
-  root.appendChild(el("div", { html:
-    alertBox("blue", "info", "<b>Fator R = " + fmtPct(fatorR * 100) + "</b> · Folha (12m) ÷ RBT12 = " + fmtBRL(e.folha12m) + " ÷ " + fmtBRL(rbt12) + ". " + (fatorR >= 0.28 ? "Igual ou acima de 28% → enquadramento no Anexo III." : "Abaixo de 28% → enquadramento no Anexo V.")) }));
-
-  const cmp = el("div", { class: "grid grid-2" });
-  cmp.innerHTML =
-    fatorRRegimeCard("Anexo III", simIII, enquadrado === "III") +
-    fatorRRegimeCard("Anexo V", simV, enquadrado === "V");
-  root.appendChild(cmp);
-
-  const diffCard = el("div", { class: "card" });
-  const diffMensal = simV.dasMensal - simIII.dasMensal;
-  diffCard.innerHTML = '<div class="card-title">' + icon("scale") + 'Diferença de custo tributário</div>' +
-    '<div class="table-wrap"><table><thead><tr><th>Comparação</th><th class="num">Anexo III</th><th class="num">Anexo V</th><th class="num">Diferença</th></tr></thead><tbody>' +
-    '<tr><td>Alíquota efetiva</td><td class="num">' + fmtPct(simIII.cargaEfetivaPct) + '</td><td class="num">' + fmtPct(simV.cargaEfetivaPct) + '</td><td class="num">' + fmtPct(simV.cargaEfetivaPct - simIII.cargaEfetivaPct) + '</td></tr>' +
-    '<tr class="total"><td>DAS mensal</td><td class="num">' + fmtBRL(simIII.dasMensal) + '</td><td class="num">' + fmtBRL(simV.dasMensal) + '</td><td class="num">' + fmtBRL(diffMensal) + '</td></tr>' +
-    '</tbody></table></div>' +
-    '<p class="tiny muted" style="margin-top:10px">O enquadramento correto depende do Fator R apurado mês a mês — este comparativo é referencial para planejamento.</p>';
-  root.appendChild(diffCard);
-
-  setTimeout(() => {
-    $("#frFat").onchange = (ev) => { state.empresa.faturamentoMensal = parseNum(ev.target.value); if (state.empresa.rbt12Modo === "auto") {} renderContent(); };
-    $("#frRbt").onchange = (ev) => { state.empresa.rbt12Modo = "manual"; state.empresa.rbt12Manual = parseNum(ev.target.value); renderContent(); };
-    $("#frFolha").onchange = (ev) => { state.empresa.folha12m = parseNum(ev.target.value); renderContent(); };
-  }, 0);
-}
-function fatorRRegimeCard(nome, sim, ativo) {
-  return '<div class="regime-card' + (ativo ? " selected" : "") + '">' +
-    '<div class="rh"><h3>' + nome + '</h3>' + (ativo ? badge("Enquadramento atual", "green", "check") : badge("Alternativo", "blue")) + '</div>' +
-    '<div><div class="kpi-label">Custo tributário estimado / mês</div><div class="val">' + fmtBRL(sim.dasMensal) + '</div></div>' +
-    '<div class="row"><span>Carga efetiva</span><b>' + fmtPct(sim.cargaEfetivaPct) + '</b></div>' +
-    '<div class="row"><span>Total anual</span><b>' + fmtBRL(sim.dasAnual) + '</b></div>' +
-    '<div class="row"><span>Faixa</span><b>' + sim.faixaLabel + '</b></div></div>';
+function pendenciasHTML(r, opts) {
+  opts = opts || {};
+  const todas = r.pendencias;
+  // estimativas confirmadas pelo usuário passam para "confirmado"
+  const norm = todas.map((p) => (p.nivel === "estimativa" && p.confirmado) ? Object.assign({}, p, { nivel: "confirmado" }) : p);
+  const cont = (n) => norm.filter((p) => p.nivel === n).length;
+  const essenciais = norm.filter((p) => p.nivel === "pendente" && p.essencial).length;
+  const nPend = cont("pendente"), nAt = cont("atencao"), nEst = cont("estimativa");
+  let status, tone;
+  if (!(r.meta.receitaTotal > 0)) { status = "Informe a receita para calcular"; tone = "attn"; }
+  else if (essenciais > 0) { status = "Resultado com limitações"; tone = "attn"; }
+  else if (nPend > 0) { status = "Análise calculada · há dados a confirmar"; tone = "prog"; }
+  else if (nAt > 0) { status = "Análise calculada · atenção a pontos de risco"; tone = "prog"; }
+  else if (r.conclusao && r.conclusao.estado === "preliminar") { status = "Preliminar · há premissas a confirmar"; tone = "prog"; }
+  else { status = "Definitivo com os dados informados"; tone = "ok"; }
+  const mini = !!opts.mini;
+  let h = '<section class="pend' + (mini ? " mini" : "") + '" aria-label="Pendências da análise"><div class="pend-head"><h3>Pendências</h3><span class="grow"></span>' + badge(status, tone) + "</div>";
+  const visiveis = mini ? { atencao: 1, pendente: 1 } : { atencao: 1, pendente: 1, estimativa: 1 };
+  PEND_ORDEM.forEach((g) => {
+    const itens = norm.filter((p) => p.nivel === g.nivel);
+    if (!itens.length) return;
+    if (visiveis[g.nivel]) {
+      h += '<div class="pend-group"><h4>' + g.titulo + " " + badge(String(itens.length), g.tone) + "</h4>" + itens.map(pendItemHTML).join("") + "</div>";
+    } else if (mini) {
+      h += "<details><summary>" + g.titulo + " " + badge(String(itens.length), g.tone) + icon("chevron", "chev") + '</summary><div class="pend-in">' + itens.map(pendItemHTML).join("") + "</div></details>";
+    } else {
+      h += '<div class="pend-group"><details><summary style="cursor:pointer;list-style:none"><h4 style="display:inline-flex">' + g.titulo + " " + badge(String(itens.length), g.tone) + "</h4></summary>" + itens.map(pendItemHTML).join("") + "</details></div>";
+    }
+  });
+  return h + (mini ? "" : '<div class="pend-foot"><p class="tiny muted">Estimativas e hipóteses ficam sinalizadas; nenhum valor é inventado para completar o cálculo.</p></div>') + "</section>";
 }
 
-/* ---------------------------------------------------------------------------
-   COMPONENTE COMPARTILHADO: "Tratamento tributário IBS/CBS"
-   Usado tanto na aba Simples Híbrido quanto na aba Lucro Presumido — os dois
-   editam o MESMO state.ibscbs, para que a premissa (redução/benefício
-   aplicável à operação) nunca divirja entre as duas telas (item 4/6 da
-   especificação). Visualmente compacto: uma seleção + uma tabela-resumo.
-   --------------------------------------------------------------------------- */
-function tratamentoIbsCbsCardHTML(ctx) {
-  // ctx: { ano, ibsRefPct, cbsRefPct, ibsPct, cbsPct, reducaoAplicadaPct,
-  //        ibsValor, cbsValor, manual, tratamento }
-  const cfg = state.ibscbs;
-  const trat = ctx.tratamento;
-  const tratKeyEfetivo = tratamentoIbsCbsKeyAtual();
-  const cls = classificarPorCnae();
-  const ibsK = cls && cls.ibscbs;
-  const pendenteIbs = cfg.modo === "auto" && cls && cls.pendencias.some((p) => p.aspecto === "ibscbs");
-  const modoBadge = cfg.modo === "manual"
-    ? badge("Manual", "blue")
-    : (!cls ? badge("Automático — sem CNAE, usa padrão", "green", "check")
-       : pendenteIbs ? badge("Confirmação necessária", "yellow", "alert")
-       : confiancaBadgeHTML(ibsK.confianca));
-  const opts = '<option value="__auto__"' + (cfg.modo === "auto" ? " selected" : "") + '>Automático (classificação por CNAE)' + (cls ? " — atual: " + IBS_CBS_TRATAMENTOS[tratKeyEfetivo].label : "") + '</option>' +
-    Object.keys(IBS_CBS_TRATAMENTOS).map((k) =>
-      '<option value="' + k + '"' + (cfg.modo === "manual" && cfg.tratamento === k ? " selected" : "") + '>' + IBS_CBS_TRATAMENTOS[k].label + '</option>').join("");
-  const origemHtml = cfg.modo === "auto" && cls && !pendenteIbs
-    ? alertBox("blue", "info", "<b>Classificação automática:</b> CNAE " + escHtml(cls.cnae.codigo) + " (" + escHtml(cls.cnae.descricao) + ") → " + escHtml(ibsK.fonte) + ". " + escHtml(ibsK.motivo))
-    : "";
-  const pendenciaIbsHtml = pendenteIbs
-    ? cls.pendencias.filter((p) => p.aspecto === "ibscbs").map((p) => {
-        const respAtual = state.classificacaoComplementos[p.id];
-        return alertBox("yellow", "alert", "<b>Confirmação necessária:</b> " + escHtml(p.explicacao) + " Até a confirmação, o sistema mantém o tratamento anteriormente em uso (nenhum benefício presumido).") +
-          '<div class="field" style="margin-top:8px"><label>' + escHtml(p.pergunta) + '</label><select data-complemento="' + p.id + '"><option value="">Selecione para confirmar…</option>' +
-          p.opcoes.map((o) => '<option value="' + escAttr(o.value) + '"' + (respAtual === o.value ? " selected" : "") + '>' + escHtml(o.label) + '</option>').join("") + '</select></div>';
-      }).join("")
-    : "";
-  const tipoLabel = trat.tipo === "reducao" ? "Redução percentual" : trat.tipo === "isencao" ? "Isenção (alíquota zero)" : trat.tipo === "especifico" ? "Regime específico" : trat.tipo === "confirmar" ? "A confirmar" : "Padrão, sem redução";
-  const confirmarAlert = (trat.tipo === "confirmar" || trat.tipo === "especifico") && !ctx.manual
-    ? alertBox("yellow", "alert", "Este tratamento não permite determinar automaticamente uma redução percentual. " + trat.observacao + " Até a confirmação, o sistema mantém a alíquota cheia (sem redução) — informe a alíquota efetiva acima assim que o enquadramento for confirmado.")
-    : "";
-  return (
-    '<div class="card-title">' + icon("percent") + 'Tratamento tributário IBS/CBS<span class="grow"></span>' + modoBadge + '</div>' +
-    '<p class="tiny muted" style="margin:-4px 0 12px">IBS e CBS não incidem sempre à alíquota cheia — dependem de reduções, isenções e regimes específicos previstos na LC 214/2025, conforme a natureza da operação/atividade/produto. Em modo automático, o tratamento é derivado do CNAE informado na aba Dados da Empresa; selecione manualmente para substituir.</p>' +
-    origemHtml + pendenciaIbsHtml +
-    '<div class="grid grid-2">' +
-      '<div class="field"><label for="ibscbsTratamento">Tratamento aplicável</label><select id="ibscbsTratamento">' + opts + '</select></div>' +
-      '<div class="field"><label for="ibscbsAliqManual">Alíquota efetiva informada manualmente (% IBS+CBS)</label><input type="text" inputmode="decimal" id="ibscbsAliqManual" value="' + (cfg.aliquotaEfetivaManualPct != null ? fmtInput(cfg.aliquotaEfetivaManualPct) : "") + '" placeholder="em branco = usar a redução do tratamento"><span class="hint">Se preenchida, tem prioridade sobre a redução do tratamento selecionado (mantém a mesma proporção entre IBS e CBS).</span></div>' +
-    '</div>' +
-    '<div class="field" style="margin-top:4px"><label for="ibscbsObs">Observação / premissa</label><input type="text" id="ibscbsObs" value="' + escAttr(cfg.observacao) + '" placeholder="Ex.: enquadramento confirmado pelo cliente em .../.../...."></div>' +
-    confirmarAlert +
-    '<div style="height:10px"></div>' +
-    '<div class="table-wrap"><table><tbody>' +
-      '<tr><td>Alíquota de referência/padrão (ano ' + ctx.ano + ', IBS+CBS)</td><td class="num">' + fmtPct(ctx.ibsRefPct + ctx.cbsRefPct, 2) + '</td></tr>' +
-      '<tr><td>Redução/benefício aplicado</td><td class="num">' + (ctx.reducaoAplicadaPct > 0 ? "− " + fmtPct(ctx.reducaoAplicadaPct, 0) : "—") + '</td></tr>' +
-      '<tr class="total"><td>Alíquota efetivamente aplicável (IBS+CBS)</td><td class="num">' + fmtPct(ctx.ibsPct + ctx.cbsPct, 2) + (ctx.manual ? " " + badge("Manual", "yellow") : "") + '</td></tr>' +
-      '<tr><td>Base de cálculo considerada</td><td class="num">' + fmtBRL(ctx.base) + '</td></tr>' +
-      '<tr><td>IBS calculado (' + fmtPct(ctx.ibsPct, 2) + ' × base)</td><td class="num">' + fmtBRL(ctx.ibsValor) + '</td></tr>' +
-      '<tr><td>CBS calculado (' + fmtPct(ctx.cbsPct, 2) + ' × base)</td><td class="num">' + fmtBRL(ctx.cbsValor) + '</td></tr>' +
-    '</tbody></table></div>' +
-    '<p class="tiny muted" style="margin-top:10px">Tipo de tratamento: ' + tipoLabel + ' · Fonte/regra: ' + trat.fonte + '</p>'
-  );
-}
-function wireTratamentoIbsCbsCard() {
-  const sel = $("#ibscbsTratamento");
-  if (sel) sel.onchange = (ev) => {
-    if (ev.target.value === "__auto__") { state.ibscbs.modo = "auto"; }
-    else { state.ibscbs.modo = "manual"; state.ibscbs.tratamento = ev.target.value; }
-    renderContent();
-  };
-  const aliq = $("#ibscbsAliqManual");
-  if (aliq) aliq.onchange = (ev) => {
-    const v = ev.target.value.trim();
-    state.ibscbs.aliquotaEfetivaManualPct = v === "" ? null : parseNum(v);
-    renderContent();
-  };
-  const obs = $("#ibscbsObs");
-  if (obs) obs.onchange = (ev) => { state.ibscbs.observacao = ev.target.value; renderContent(); };
-  $$("[data-complemento]").forEach((s) => s.onchange = (ev) => {
-    const id = s.dataset.complemento;
+function wirePendencias(root) {
+  $$("[data-compl]", root).forEach((sel) => sel.addEventListener("change", (ev) => {
+    const id = sel.dataset.compl;
     if (ev.target.value) state.classificacaoComplementos[id] = ev.target.value; else delete state.classificacaoComplementos[id];
-    renderContent();
-  });
+    saveDraft();
+    if (state.active === "preenchimento") refreshLive(); else renderContent();
+  }));
+  $$("[data-confirmar]", root).forEach((b) => b.addEventListener("click", () => {
+    state.confirmados[b.dataset.confirmar] = true;
+    saveDraft();
+    if (state.active === "preenchimento") refreshLive(); else renderContent();
+  }));
+  $$("[data-foco]", root).forEach((b) => b.addEventListener("click", () => focarCampo(b.dataset.foco)));
 }
 
+/* ============================================================================
+   BLOCO 66_ui_resultados
+   ============================================================================ */
+
 /* ---------------------------------------------------------------------------
-   RENDER: SIMPLES HÍBRIDO / IBS-CBS
+   ETAPA 3 — RESULTADOS
+   Tela principal enxuta (custo por regime, carga efetiva, economia, líquido,
+   período, ressalvas) + detalhamento técnico em seções retráteis.
+   Cartões, tabela, gráficos e PDF leem SEMPRE de `state.result` (r.regimes).
    --------------------------------------------------------------------------- */
-function renderHibrido(root) {
-  const r = computeAll();
-  const h = r.hibrido;
-  const e = state.empresa;
-  const ano = state.hibrido.anoProjecao;
-  const cronoAno = IBS_CBS_CRONOGRAMA.find((c) => c.ano === ano) || IBS_CBS_CRONOGRAMA[IBS_CBS_CRONOGRAMA.length - 1];
-
-  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Simples Híbrido — IBS/CBS</h2><p class="sub">Composição separada de DAS, IBS e CBS — mecanismo de apuração à parte (EC 132/2023, LC 214/2025)</p></div>' + badge("Fonte oficial", "blue", "info") }));
-
-  root.appendChild(el("div", { html:
-    alertBox(ano === 2026 ? "blue" : "yellow", "info",
-      "<b>" + ano + ":</b> " + cronoAno.nota + (ano === 2026 ? "" : " Valores de anos futuros são projeções baseadas na legislação vigente e podem ser ajustados por regulamentação complementar.")) }));
-
-  // ---- Tratamento tributário de IBS/CBS (alíquotas, reduções e benefícios) ----
-  const tratCard = el("div", { class: "card" });
-  tratCard.innerHTML = tratamentoIbsCbsCardHTML({
-    ano: h.ano, base: e.faturamentoMensal,
-    ibsRefPct: h.ibsRefPct, cbsRefPct: h.cbsRefPct, ibsPct: h.ibsPct, cbsPct: h.cbsPct,
-    reducaoAplicadaPct: h.reducaoAplicadaPct, ibsValor: h.ibsDebito, cbsValor: h.cbsDebito,
-    manual: h.tratamentoIbsCbsManual, tratamento: h.tratamentoIbsCbs,
-  });
-  root.appendChild(tratCard);
-
-  // ---- Composição do Híbrido (item 2/3/4 da especificação) ----
-  const compCard = el("div", { class: "card" });
-  compCard.innerHTML =
-    '<div class="card-title">' + icon("layers") + 'Composição do Simples Híbrido<span class="grow"></span>' + badge("Ano " + ano, "blue") + '</div>' +
-    '<div class="grid grid-3">' +
-      '<div class="field"><label for="hibAno">Ano de referência (alíquota IBS/CBS)</label><select id="hibAno">' +
-        IBS_CBS_CRONOGRAMA.map((c) => '<option value="' + c.ano + '"' + (ano === c.ano ? " selected" : "") + '>' + c.ano + ' — CBS ' + fmtPct(c.cbs, 1) + ' + IBS ' + fmtPct(c.ibs, 1) + '</option>').join("") +
-      '</select></div>' +
-      '<div class="field"><label for="hibCredIbs">Crédito de IBS apurado (% do débito)</label><input type="text" inputmode="decimal" id="hibCredIbs" value="' + fmtInput(state.hibrido.creditoIbsPct) + '"><span class="hint">Parâmetro de simulação — depende dos insumos/compras com direito a crédito.</span></div>' +
-      '<div class="field"><label for="hibCredCbs">Crédito de CBS apurado (% do débito)</label><input type="text" inputmode="decimal" id="hibCredCbs" value="' + fmtInput(state.hibrido.creditoCbsPct) + '"><span class="hint">Crédito de IBS não é compensado contra débito de CBS (apurados separadamente).</span></div>' +
-    '</div>' +
-    '<div style="height:14px"></div>' +
-    '<div class="table-wrap"><table><tbody>' +
-      '<tr><td>DAS sem IBS/CBS</td><td class="num">' + fmtBRL(h.dasSemIbsCbs) + '</td></tr>' +
-      '<tr><td>(+) IBS (débito) — alíquota efetiva ' + fmtPct(h.ibsPct, 2) + (h.reducaoAplicadaPct > 0 ? " (ref. " + fmtPct(h.ibsRefPct, 2) + " − " + fmtPct(h.reducaoAplicadaPct, 0) + ")" : "") + '</td><td class="num">' + fmtBRL(h.ibsDebito) + '</td></tr>' +
-      '<tr><td>(+) CBS (débito) — alíquota efetiva ' + fmtPct(h.cbsPct, 2) + (h.reducaoAplicadaPct > 0 ? " (ref. " + fmtPct(h.cbsRefPct, 2) + " − " + fmtPct(h.reducaoAplicadaPct, 0) + ")" : "") + '</td><td class="num">' + fmtBRL(h.cbsDebito) + '</td></tr>' +
-      '<tr><td>(−) Crédito IBS</td><td class="num">− ' + fmtBRL(h.creditoIbs) + '</td></tr>' +
-      '<tr><td>(−) Crédito CBS</td><td class="num">− ' + fmtBRL(h.creditoCbs) + '</td></tr>' +
-      '<tr class="total"><td>= TOTAL LÍQUIDO (mensal)</td><td class="num">' + fmtBRL(h.totalMensal) + '</td></tr>' +
-    '</tbody></table></div>' +
-    '<p class="tiny muted" style="margin-top:10px">Carga efetiva do Híbrido: ' + fmtPct(h.cargaEfetivaPct) + ' · Total anual: ' + fmtBRL(h.totalAnual) + ' · Para comparação, o DAS integral do Simples Normal é ' + fmtBRL(r.simples.dasMensal) + '/mês.</p>' +
-    '<div class="accordion" id="hibComposicaoAcc" style="margin-top:14px">' +
-      '<div class="acc-head"><span class="step-badge">i</span><strong>Ver composição — memória de cálculo do Híbrido</strong>' + icon("chevron", "chev") + '</div>' +
-      '<div class="acc-body"><div class="acc-body-inner">' +
-        '<div class="formula">DAS sem IBS/CBS = DAS total − parcela de ' + (h.tributoConsumo || "ICMS/ISS") + ' (' + fmtBRL(h.parcelaIbsNoDas) + ') − parcela de PIS/COFINS (' + fmtBRL(h.parcelaCbsNoDas) + ') = ' + fmtBRL(r.simples.dasMensal) + ' − ' + fmtBRL(h.parcelaConsumoDas) + ' = ' + fmtBRL(h.dasSemIbsCbs) + '</div>' +
-        '<div class="formula">IBS teórico = Faturamento × alíquota de referência (' + fmtPct(h.ibsRefPct, 2) + ') = ' + fmtBRL(e.faturamentoMensal * h.ibsRefPct / 100) + '  (−) redução ' + fmtPct(h.reducaoAplicadaPct, 0) + '  ⇒  IBS débito = ' + fmtBRL(h.ibsDebito) + '  |  CBS teórico = Faturamento × ' + fmtPct(h.cbsRefPct, 2) + '  (−) redução ' + fmtPct(h.reducaoAplicadaPct, 0) + '  ⇒  CBS débito = ' + fmtBRL(h.cbsDebito) + '</div>' +
-        '<div class="formula">IBS líquido = ' + fmtBRL(h.ibsDebito) + ' − ' + fmtBRL(h.creditoIbs) + ' = ' + fmtBRL(h.ibsLiquido) + '  |  CBS líquido = ' + fmtBRL(h.cbsDebito) + ' − ' + fmtBRL(h.creditoCbs) + ' = ' + fmtBRL(h.cbsLiquido) + '</div>' +
-        '<div class="formula">Total Híbrido = DAS sem IBS/CBS + IBS líquido + CBS líquido = ' + fmtBRL(h.dasSemIbsCbs) + ' + ' + fmtBRL(h.ibsLiquido) + ' + ' + fmtBRL(h.cbsLiquido) + ' = ' + fmtBRL(h.totalMensal) + '</div>' +
-        '<p class="small muted">O tratamento tributário de IBS/CBS (redução/benefício aplicável — ver card acima) já está refletido nas alíquotas efetivas usadas nesta memória. Os percentuais de crédito de IBS e de CBS são parâmetros de simulação informados acima — não são alíquotas legais e não é assumido crédito integral por padrão. A memória completa também está disponível na aba Memória de Cálculo.</p>' +
-      '</div></div>' +
-    '</div>';
-  root.appendChild(compCard);
-
-  const cronoCard = el("div", { class: "card" });
-  cronoCard.innerHTML = '<div class="card-title">' + icon("chart") + 'Cronograma de transição (2026–2033)</div>' +
-    '<div class="table-wrap"><table><thead><tr><th>Ano</th><th class="num">CBS</th><th class="num">IBS</th><th>O que muda</th></tr></thead><tbody>' +
-    IBS_CBS_CRONOGRAMA.map((c) => '<tr class="' + (c.ano === ano ? "hl" : "") + '"><td>' + c.ano + (c.ano === ano ? "  " + badge("Selecionado", "green") : "") + '</td><td class="num">' + fmtPct(c.cbs, 2) + '</td><td class="num">' + fmtPct(c.ibs, 2) + '</td><td class="small">' + c.nota + '</td></tr>').join("") +
-    '</tbody></table></div>';
-  root.appendChild(cronoCard);
-
-  const mecCard = el("div", { class: "card" });
-  mecCard.innerHTML = '<div class="card-title">' + icon("layers") + 'Mecanismo de apuração à parte (a partir de 2027)</div>' +
-    '<p class="small" style="line-height:1.7">A partir de 2027, quando o CBS entrar em vigor de forma plena, a legislação prevê que o optante do Simples Nacional possa <b>optar por apurar e recolher o IBS/CBS de determinadas operações por fora do DAS</b>, à alíquota cheia e em regime não cumulativo. Essa opção permite que o tomador de serviços/mercadorias não optante aproveite crédito sobre essas operações, em vez do crédito limitado hoje embutido na partilha do Simples. A contrapartida é que a empresa passa a recolher, sobre essas operações, um valor adicional correspondente à alíquota cheia de IBS/CBS.</p>' +
-    '<div style="height:8px"></div>' + alertBox("yellow", "alert", "Mecanismo ainda em regulamentação — trate os valores desta aba como estimativa de planejamento, não como obrigação vigente em " + ano + ".");
-  root.appendChild(mecCard);
-
-  // ---- CONTRATANTE (item 7 da especificação) ----
-  const impCard = el("div", { class: "card" });
-  impCard.innerHTML = '<div class="card-title">' + icon("briefcase") + 'Impacto para o contratante — simulador de crédito</div>' +
-    '<div class="grid grid-2">' +
-    '<div class="field"><label for="hibValor">Valor da contratação (anual)</label><input type="text" inputmode="decimal" id="hibValor" value="' + fmtInput(state.hibrido.valorContratoAnual) + '"></div>' +
-    '<div class="field"><label for="hibCredContratante">Crédito efetivamente aproveitável pelo contratante (%)</label><input type="text" inputmode="decimal" id="hibCredContratante" value="' + fmtInput(state.hibrido.creditoContratanteHibridoPct) + '"><span class="hint">O mecanismo é desenhado para crédito integral, mas o aproveitamento efetivo depende das condições legais aplicáveis a cada operação — ajuste conforme o caso.</span></div>' +
-    '</div>';
-  root.appendChild(impCard);
-
-  const credContratante = calcCreditoContratante({
-    valorContrato: state.hibrido.valorContratoAnual,
-    creditoPct: state.hibrido.creditoContratanteHibridoPct,
-    ibsPct: h.ibsPct, cbsPct: h.cbsPct,
-  });
-  const resCard = el("div", { class: "card" });
-  resCard.innerHTML = '<div class="card-title">' + icon("scale") + 'Resultado da simulação para o contratante — ' + ano + '</div>' +
-    '<div class="table-wrap"><table><tbody>' +
-    '<tr><td>Valor da contratação</td><td class="num">' + fmtBRL(state.hibrido.valorContratoAnual) + '</td></tr>' +
-    '<tr><td>Crédito IBS potencial (' + fmtPct(h.ibsPct, 2) + ' × ' + fmtPct(state.hibrido.creditoContratanteHibridoPct, 1) + ')</td><td class="num">' + fmtBRL(credContratante.creditoIbs) + '</td></tr>' +
-    '<tr><td>Crédito CBS potencial (' + fmtPct(h.cbsPct, 2) + ' × ' + fmtPct(state.hibrido.creditoContratanteHibridoPct, 1) + ')</td><td class="num">' + fmtBRL(credContratante.creditoCbs) + '</td></tr>' +
-    '<tr><td>Crédito total</td><td class="num">' + fmtBRL(credContratante.creditoTotal) + '</td></tr>' +
-    '<tr class="total"><td>Custo líquido estimado</td><td class="num">' + fmtBRL(credContratante.custoLiquido) + '</td></tr>' +
-    '</tbody></table></div>' +
-    '<div style="height:10px"></div>' +
-    alertBox("yellow", "alert", "Não é assumido crédito integral automaticamente — o percentual acima é um parâmetro de simulação ajustável. O aproveitamento efetivo do crédito de IBS/CBS depende das condições legais aplicáveis à operação e ao regime do contratante.") +
-    '<p class="tiny muted" style="margin-top:10px">Simulação de planejamento tributário para operações no ano de referência selecionado. Não representa cálculo de obrigação corrente.</p>';
-  root.appendChild(resCard);
-
-  setTimeout(() => {
-    wireTratamentoIbsCbsCard();
-    $("#hibAno").onchange = (ev) => { state.hibrido.anoProjecao = parseInt(ev.target.value, 10); renderContent(); };
-    $("#hibCredIbs").onchange = (ev) => { state.hibrido.creditoIbsPct = parseNum(ev.target.value); renderContent(); };
-    $("#hibCredCbs").onchange = (ev) => { state.hibrido.creditoCbsPct = parseNum(ev.target.value); renderContent(); };
-    $("#hibValor").onchange = (ev) => { state.hibrido.valorContratoAnual = parseNum(ev.target.value); renderContent(); };
-    $("#hibCredContratante").onchange = (ev) => { state.hibrido.creditoContratanteHibridoPct = parseNum(ev.target.value); renderContent(); };
-    const acc = $("#hibComposicaoAcc");
-    if (acc) acc.querySelector(".acc-head").onclick = () => {
-      const open = acc.classList.contains("open");
-      acc.classList.toggle("open");
-      const body = acc.querySelector(".acc-body");
-      body.style.maxHeight = open ? "0px" : body.scrollHeight + "px";
-    };
-  }, 0);
+function statHTML(l, v, s, cls) {
+  return '<div class="stat' + (cls ? " " + cls : "") + '"><span class="l">' + l + '</span><span class="v">' + v + "</span>" + (s ? '<span class="s">' + s + "</span>" : "") + "</div>";
+}
+function tabelaHTML(head, rows, opts) {
+  opts = opts || {};
+  return '<div class="table-wrap' + (opts.scroll ? " scroll-y" : "") + '"><table' + (opts.cls ? ' class="' + opts.cls + '"' : "") + (opts.id ? ' id="' + opts.id + '"' : "") + "><thead><tr>" +
+    head.map((h, i) => "<th" + (opts.num && opts.num.indexOf(i) >= 0 ? ' class="num"' : "") + ">" + h + "</th>").join("") + "</tr></thead><tbody>" +
+    rows.join("") + "</tbody></table></div>";
+}
+function trHTML(cells, opts) {
+  opts = opts || {};
+  return "<tr" + (opts.cls ? ' class="' + opts.cls + '"' : "") + (opts.attrs ? " " + opts.attrs : "") + ">" + cells.map((c, i) => "<td" + (opts.num && opts.num.indexOf(i) >= 0 ? ' class="num"' : "") + ">" + c + "</td>").join("") + "</tr>";
 }
 
-/* ---------------------------------------------------------------------------
-   RENDER: LUCRO PRESUMIDO
-   --------------------------------------------------------------------------- */
-function renderPresumido(root) {
-  const r = computeAll();
-  const t = r.presumido.trimestre;
-  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Lucro Presumido</h2><p class="sub">IRPJ e CSLL (trimestrais) · ' + (t.substituidoPorCbs ? "CBS, IBS e ISS" : "PIS, COFINS e ISS") + ' (mensais)</p></div>' + badge("Fonte oficial", "blue", "info") }));
+function mostrarTemporal(r) {
+  if (r.meta.nMeses < 2) return false;
+  const vary = (a) => a.length && (Math.max.apply(null, a) - Math.min.apply(null, a)) > 0.5;
+  return r.meta.receitaModo === "variavel" || vary(r.temporal.simples) || vary(r.temporal.hibrido) || vary(r.temporal.presumido);
+}
 
-  const clsPres = classificarPorCnae();
-  const presK = clsPres && clsPres.presuncao;
-  const pendentePres = state.presumido.atividadeModo === "auto" && clsPres && presK && presK.pendente;
-  const atividadeModoBadge = state.presumido.atividadeModo === "manual"
-    ? badge("Manual", "blue")
-    : (!clsPres ? badge("Automático — sem CNAE, valor mantido", "green", "check")
-       : pendentePres ? badge("Confirmação necessária", "yellow", "alert")
-       : confiancaBadgeHTML(presK.confianca));
-
-  const inputCard = el("div", { class: "card" });
-  inputCard.innerHTML = '<div class="card-title">' + icon("receipt") + 'Parâmetros da atividade<span class="grow"></span>' + atividadeModoBadge + '</div>' +
-    '<div class="grid grid-2">' +
-    '<div class="field"><label for="lpAtiv">Atividade (presunção)</label><select id="lpAtiv">' +
-      '<option value="__auto__"' + (state.presumido.atividadeModo === "auto" ? " selected" : "") + '>Automático (classificação por CNAE)' + (clsPres ? " — atual: " + PRESUNCAO[r.atividadeKey].label : "") + '</option>' +
-      Object.keys(PRESUNCAO).map((k) => '<option value="' + k + '"' + (state.presumido.atividadeModo === "manual" && state.presumido.atividade === k ? " selected" : "") + '>' + PRESUNCAO[k].label + ' (IRPJ ' + PRESUNCAO[k].irpj + '% · CSLL ' + PRESUNCAO[k].csll + '%)</option>').join("") +
-    '</select>' +
-    (state.presumido.atividadeModo === "auto" && clsPres && !pendentePres ? '<span class="hint">CNAE ' + escHtml(clsPres.cnae.codigo) + " — " + escHtml(presK.fonte) + ". " + escHtml(presK.motivo) + '</span>' : "") +
-    '</div>' +
-    '<div class="field"><label for="lpReceita">Receita trimestral</label><input type="text" inputmode="decimal" id="lpReceita" value="' + fmtInput(state.empresa.faturamentoMensal * 3) + '"><span class="hint">Padrão: faturamento mensal × 3. Ajuste se a receita for sazonal.</span></div>' +
-    '</div>' +
-    '<div style="height:12px"></div>' +
-    '<div class="field"><label for="lpAno">Ano de projeção (Reforma Tributária — IBS/CBS)</label><select id="lpAno">' +
-      IBS_CBS_CRONOGRAMA.map((c) => '<option value="' + c.ano + '"' + (state.presumido.anoProjecao === c.ano ? " selected" : "") + '>' + c.ano + (c.ano >= 2027 ? " — CBS " + fmtPct(c.cbs, 1) + " + IBS " + fmtPct(c.ibs, 1) : " — ano-teste (PIS/COFINS mantidos)") + '</option>').join("") +
-    '</select><span class="hint">A partir de 2027, PIS e COFINS são extintos e substituídos pela CBS; o ISS é reduzido gradualmente e substituído pelo IBS — mesmo cronograma usado na aba Simples Híbrido ' + badge("Oficial (LC 214/2025)", "blue") + '</span></div>' +
-    '<div style="height:12px"></div>' +
-    '<div class="grid grid-3">' +
-    (t.substituidoPorCbs
-      ? '<div class="field"><label>CBS efetivo (%) — ano ' + t.ano + '</label><input type="text" value="' + fmtInput(t.cbsPctUsado) + '" disabled><span class="hint">Substitui PIS/COFINS a partir de 2027 · referência ' + fmtPct(t.cbsRefPct, 2) + (t.reducaoAplicadaPct > 0 ? " − redução " + fmtPct(t.reducaoAplicadaPct, 0) : "") + ' — ver "Tratamento tributário IBS/CBS" abaixo</span></div>' +
-        '<div class="field"><label>IBS efetivo (%) — ano ' + t.ano + '</label><input type="text" value="' + fmtInput(t.ibsPctUsado) + '" disabled><span class="hint">Referência ' + fmtPct(t.ibsRefPct, 2) + (t.reducaoAplicadaPct > 0 ? " − redução " + fmtPct(t.reducaoAplicadaPct, 0) : "") + '</span></div>'
-      : '<div class="field"><label for="lpPis">PIS (%)</label><input type="text" inputmode="decimal" id="lpPis" value="' + fmtInput(state.presumido.pisAliq) + '"></div>' +
-        '<div class="field"><label for="lpCofins">COFINS (%)</label><input type="text" inputmode="decimal" id="lpCofins" value="' + fmtInput(state.presumido.cofinsAliq) + '"></div>'
-    ) +
-    '<div class="field"><label for="lpIss">ISS municipal (%)</label><input type="text" inputmode="decimal" id="lpIss" value="' + fmtInput(state.presumido.issAliq) + '">' + badge("Parâmetro do usuário", "yellow", "alert") +
-      (t.fatorRemanescenteIss < 1 ? '<span class="hint">Alíquota efetiva em ' + t.ano + ': ' + fmtPct(t.issAliqEfetivaPct) + ' (' + fmtPct(t.fatorRemanescenteIss * 100, 0) + ' da alíquota informada — cronograma de redução do ISS)</span>' : '<span class="hint">Aplicada integralmente até 2028; reduzida gradualmente a partir de 2029.</span>') +
-    '</div>' +
-    '</div>' +
-    '<div style="height:10px"></div>' +
-    '<label class="checkbox-row"><input type="checkbox" id="lpMaj"' + (state.presumido.majoracao ? " checked" : "") + '> Aplicar majoração de 10% da presunção acima de R$ 1.250.000/trimestre (IN RFB 2.305/2025 e 2.306/2026) ' + badge("Verificar", "yellow") + '</label>';
-  root.appendChild(inputCard);
-
-  if (pendentePres) {
-    const pendPresCard = el("div", { class: "card" });
-    pendPresCard.innerHTML = clsPres.pendencias.filter((p) => p.aspecto === "presuncao").map((p) => {
-      const respAtual = state.classificacaoComplementos[p.id];
-      return alertBox("yellow", "alert", "<b>Confirmação necessária:</b> " + escHtml(p.explicacao) + " Até a confirmação, a atividade mantida é \"" + PRESUNCAO[state.presumido.atividade].label + "\" (valor anteriormente em uso — nenhuma presunção reduzida é presumida).") +
-        '<div class="field" style="margin-top:8px"><label>' + escHtml(p.pergunta) + '</label><select data-complemento="' + p.id + '"><option value="">Selecione para confirmar…</option>' +
-        p.opcoes.map((o) => '<option value="' + escAttr(o.value) + '"' + (respAtual === o.value ? " selected" : "") + '>' + escHtml(o.label) + '</option>').join("") + '</select></div>';
-    }).join("");
-    root.appendChild(pendPresCard);
+/* Situação de cada regime (V3.1; V3.2.4: elegível / com restrição / inaplicável): texto curto + tom do selo. */
+function situacaoRegimeInfo(x) {
+  if (x.estado === "inaplicavel") return { txt: x.retroativo ? "Inaplicável · exclusão retroativa" : "Inaplicável no período", tom: "attn" };
+  if (x.estado === "restricao") {
+    if (x.incompleto) return { txt: "Com restrição · total incompleto", tom: "attn" };
+    if (x.situacao === "vedado-parcial") return { txt: "Com restrição · válido até " + x.validoAte, tom: "attn" };
+    return { txt: "Com restrição · excesso após o período", tom: "attn" };
   }
+  if (x.referenciaGeral) return { txt: "Regra geral · referência", tom: "attn" };
+  return null;
+}
+/* V3.2.4 — explicação do comparativo quando a recomendação NÃO é conclusiva (hero, alertas, pendências e relatórios usam o mesmo texto). */
+function recomendacaoInfo(r) {
+  const R = r.recomendacao;
+  if (!R || R.estado === "conclusivo") return null;
+  const ex = r.simples.excesso, sb = r.simples.sublimiteAv;
+  const pres = r.regimes.find((x) => x.id === "presumido");
+  if (R.estado === "indisponivel") return { curto: "Nenhum regime é aplicável neste cenário.", detalhe: "Nenhum regime é aplicável neste cenário.", motivoCurto: "nenhum regime aplicável" };
+  const partes = [], curtos = [], motivosCurtos = [];
+  if (R.motivos.indexOf("exclusao-retroativa") >= 0) {
+    curtos.push("Simples e Híbrido inaplicáveis: exclusão retroativa à abertura");
+    motivosCurtos.push("exclusão retroativa do Simples: regras gerais desde a abertura, com efeitos não calculados");
+    partes.push("Excesso de " + fmtPct(ex.pctExcesso) + " sobre o limite proporcional do ano de início (" + fmtBRL(ex.limiteRef) + "; receita de " + fmtBRL(ex.receitaRef) + "): a exclusão do Simples tem efeitos retroativos ao início da atividade (LC 123, art. 3º, §§ 10 e 12). O Simples Nacional e o Simples Híbrido não se aplicam; a empresa deve ser tributada pelas regras gerais desde a abertura.");
+    partes.push("O app calcula apenas o Lucro Presumido (" + fmtBRL(pres.total) + ") como referência das regras gerais; não calcula Lucro Real, juros de mora, multa nem o recolhimento retroativo dos meses já passados. Por isso nenhum regime é apontado como o mais vantajoso.");
+  }
+  if (R.motivos.indexOf("regime-misto") >= 0) {
+    const sn = r.regimes.find((x) => x.id === "simples");
+    curtos.push("O Simples só vale até " + sn.validoAte + "; depois valem as regras gerais");
+    motivosCurtos.push("regime misto no período (Simples até " + sn.validoAte + ", regras gerais depois)");
+    partes.push("O Simples Nacional só se aplica até " + sn.validoAte + "; a partir daí valem as regras gerais. O custo misto do período não é calculado, então a comparação por regime inteiro não permite recomendar um regime.");
+  }
+  if (R.motivos.indexOf("total-incompleto") >= 0) {
+    const nomes = R.incompletos.map((id) => r.regimes.find((x) => x.id === id).label);
+    const comp = r.regimes.filter((x) => x.elegivel && !x.incompleto).reduce((p, q) => (!p || q.total < p.total ? q : p), null);
+    curtos.push("Total incompleto: ICMS, ISS e IBS ficam fora do DAS");
+    motivosCurtos.push("ICMS, ISS e IBS fora do DAS não calculados (sublimite)");
+    partes.push((sb.texto || "ICMS, ISS e IBS saem do DAS.") + " Esses tributos são recolhidos pelas normas gerais, fora do Simples (Res. CGSN 140, art. 12), e o app não os calcula (alíquotas municipais e estaduais, créditos, juros). O total de " + nomes.join(" e ") + " é, portanto, um valor mínimo" +
+      (comp ? ", e fica abaixo do melhor regime com cálculo completo (" + comp.label + ", " + fmtBRL(comp.total) + ")" : "") + ". Não é possível afirmar qual regime é o mais vantajoso.");
+  }
+  return { curto: curtos.join(" · "), detalhe: partes.join(" "), motivoCurto: motivosCurtos.join("; ") };
+}
+/* V3.2.4 — o valor de um regime inaplicável não é custo aplicável; o de um regime com total incompleto é só um mínimo. */
+function valorRegimeNota(x) {
+  if (x.estado === "inaplicavel") return "Cálculo de referência · não é custo aplicável";
+  if (x.incompleto) return "Valor mínimo · não inclui ICMS, ISS e IBS fora do DAS";
+  return null;
+}
+function confiancaBadge(r, id) {
+  const c = r.confianca && r.confianca[id];
+  if (!c) return "";
+  return badge(CONFIANCA_ROTULO[c.nivel], c.nivel === "calculo" ? "ok" : "neutral");
+}
+/* V3.2.1 — selo único Definitivo/Preliminar + acesso direto ao que falta confirmar (sem novo card). */
+function statusResultadoHTML(r) {
+  const C = r.conclusao;
+  if (!C) return "";
+  const def = C.estado === "definitivo";
+  const dica = def
+    ? "Dados essenciais completos e premissas confirmadas. Continua sendo uma estimativa de planejamento, não apuração fiscal."
+    : "Falta informar ou confirmar algo que pode mudar o resultado. Os itens aparecem logo abaixo.";
+  return '<span class="st ' + (def ? "def" : "pre") + '" title="' + escAttr(dica) + '">' + (def ? icon("check") : '<i class="dot"></i>') + (def ? "Definitivo" : "Preliminar") + "</span>";
+}
+function itensConfirmarHTML(r) {
+  const C = r.conclusao;
+  if (!C || C.estado === "definitivo") return "";
+  const it = C.aConfirmar || [];
+  if (!it.length) return '<div class="st-line">Veja os pontos de atenção abaixo.</div>';
+  const link = (x) => x.foco
+    ? '<button type="button" class="link-btn" data-foco="' + escAttr(x.foco) + '">' + escHtml(x.curto) + "</button>"
+    : '<button type="button" class="link-btn" data-abrir-det="pendencias">' + escHtml(x.curto) + "</button>";
+  const resto = it.length - 3;
+  return '<div class="st-line">Para tornar definitivo: ' + it.slice(0, 3).map(link).join(" · ") +
+    (resto > 0 ? ' · <button type="button" class="link-btn" data-abrir-det="pendencias">+ ' + resto + "</button>" : "") + "</div>";
+}
+/* V3.2.4 — separação por elegibilidade: "Elegível: … · Com restrição: … · Inaplicável: …" */
+function categoriasRegimesTexto(r) {
+  const R = r.recomendacao, j = (a) => (a.length ? a.join(", ") : "nenhum");
+  return "Elegível: " + j(R.elegiveis) + " · Com restrição: " + j(R.comRestricao) + " · Inaplicável: " + j(R.inaplicaveis);
+}
+function heroHTML(r) {
+  const M = r.meta;
+  if (!(M.receitaTotal > 0)) {
+    return '<div class="hero"><div><div class="eyebrow">Resultado</div><div class="big">Aguardando a receita</div><div class="sub">Informe a receita do período na etapa de preenchimento para calcular e comparar os regimes.</div></div><div></div></div>';
+  }
+  const m = r.melhor;
+  const econ = r.economia;
+  let left;
+  const RI = recomendacaoInfo(r);
+  if (RI && r.recomendacao.estado === "inconclusivo") {
+    left = '<div class="hero-top"><div class="eyebrow">Comparativo inconclusivo</div>' + statusResultadoHTML(r) + '</div><div class="big" id="heroTotal">Inconclusivo</div>' +
+      '<div class="sub">' + escHtml(RI.curto) + "</div>" + '<div class="st-line">' + escHtml(categoriasRegimesTexto(r)) + "</div>" + itensConfirmarHTML(r);
+  } else if (!m) {
+    left = '<div class="eyebrow">Menor custo estimado</div><div class="big">Nenhum regime elegível</div><div class="sub">A exclusão do Simples Nacional já produz efeitos neste cenário e o Lucro Presumido não pôde ser comparado.</div>';
+  } else {
+    left = '<div class="hero-top"><div class="eyebrow">Menor custo estimado</div>' + statusResultadoHTML(r) + '</div><div class="big" id="heroTotal" data-v="' + m.total + '">' + fmtBRL(m.total) + '</div>' +
+      '<div class="sub">' + escHtml(m.label) + " · carga efetiva " + fmtPct(m.cargaPct) + "</div>" + itensConfirmarHTML(r);
+  }
+  const liq = m && r.liquido.disponivel ? fmtBRL(m.resultadoLiquido) : null;
+  const kv = '<div class="kv">' +
+    '<div class="r"><span>' + (econ ? (econ.tipo === "economia" ? "Economia estimada vs " + escHtml(econ.base) : "Diferença potencial entre cenários") : "Diferença potencial") + "</span><span>" + (econ ? fmtBRL(econ.valor) : "—") + "</span></div>" +
+    '<div class="r"><span>Receita no período</span><span>' + fmtBRL(M.receitaTotal) + "</span></div>" +
+    (liq ? '<div class="r"><span>Resultado líquido após tributos</span><span>' + liq + "</span></div>" : "") + "</div>";
+  return '<div class="hero"><div>' + left + "</div>" + kv + "</div>";
+}
 
-  if (t.notaMajoracao) root.appendChild(el("div", { html: alertBox("yellow", "alert", "Majoração aplicada sobre " + fmtBRL(t.notaMajoracao.parteMajorada) + " da receita (parcela acima de R$ 1.250.000,00) — presunção IRPJ ajustada para " + fmtPct(t.notaMajoracao.irpjMajPct) + " nessa faixa.") }));
-  if (t.substituidoPorCbs) root.appendChild(el("div", { html: alertBox("blue", "info", "A partir de 2027, PIS e COFINS são extintos e substituídos pela CBS (Lei Complementar 214/2025). Os percentuais de CBS e IBS usados vêm do mesmo cronograma de transição da aba Simples Híbrido — ano selecionado: " + t.ano + ".") }));
+function regimeCardsHTML(r) {
+  const min = r.melhor ? r.melhor.total : 0;
+  return '<div class="regime-grid">' + r.regimes.map((x) => {
+    const best = r.melhor && x.id === r.melhor.id;
+    const dif = x.total - min;
+    const sit = situacaoRegimeInfo(x);
+    const c = r.confianca && r.confianca[x.id];
+    return '<div class="regime' + (best ? " best" : "") + (!x.elegivel || x.estado === "inaplicavel" ? " off" : "") + '" data-regime="' + x.id + '">' +
+      '<div class="rh"><h3>' + x.label + "</h3>" + (best ? badge("Menor custo", "ok", "check") : (sit ? badge(sit.txt, sit.tom, "alert") : "")) + "</div>" +
+      '<div><div class="val" data-v="' + x.total + '">' + fmtBRL(x.total) + "</div>" + (valorRegimeNota(x) ? '<div class="conf">' + valorRegimeNota(x) + "</div>" : (c ? '<div class="conf">' + CONFIANCA_ROTULO[c.nivel] + (c.projecao ? " · projeção 2027+" : "") + "</div>" : "")) + "</div>" +
+      '<div class="row2"><span>Carga efetiva</span><b>' + fmtPct(x.cargaPct) + "</b></div>" +
+      '<div class="row2"><span>Diferença para o menor</span><b>' + (best || !r.melhor ? "—" : "+ " + fmtBRL(dif)) + "</b></div></div>";
+  }).join("") + "</div>";
+}
 
-  // ---- Tratamento tributário de IBS/CBS (alíquotas, reduções e benefícios) ----
-  const tratCardPres = el("div", { class: "card" });
-  tratCardPres.innerHTML = tratamentoIbsCbsCardHTML({
-    ano: t.ano, base: state.empresa.faturamentoMensal * 3,
-    ibsRefPct: t.ibsRefPct, cbsRefPct: t.cbsRefPct, ibsPct: t.ibsPctUsado, cbsPct: t.cbsPctUsado,
-    reducaoAplicadaPct: t.reducaoAplicadaPct, ibsValor: t.ibs, cbsValor: t.cbs,
-    manual: t.tratamentoIbsCbsManual, tratamento: t.tratamentoIbsCbs,
+function tabelaComparativaHTML(r) {
+  const min = r.melhor ? r.melhor.total : 0;
+  const rows = r.regimes.map((x) => {
+    const sit = situacaoRegimeInfo(x), best = r.melhor && x.id === r.melhor.id, c = r.confianca && r.confianca[x.id];
+    return trHTML([
+      x.label, fmtBRL(x.total), fmtBRL(x.mediaMensal), fmtPct(x.cargaPct), best || !r.melhor ? "—" : "+ " + fmtBRL(x.total - min),
+      r.liquido.disponivel ? fmtBRL(x.resultadoLiquido) : "—",
+      (sit ? sit.txt : best ? "Menor custo" : "Elegível") + (c ? ' <span class="small mute2">· ' + CONFIANCA_ROTULO[c.nivel] + "</span>" : ""),
+    ], { cls: (best ? "best" : "") + (!x.elegivel ? " off" : ""), attrs: 'data-regime="' + x.id + '" data-total="' + x.total + '"', num: [1, 2, 3, 4, 5] });
   });
-  root.appendChild(tratCardPres);
-  if (!t.substituidoPorCbs) root.appendChild(el("div", { html: alertBox("blue", "info", "Em " + t.ano + " (ano-teste ou anterior a 2027), o IBS/CBS ainda não substitui PIS/COFINS — a alíquota efetiva calculada acima passa a valer a partir de 2027, mas o tratamento já pode ser definido com antecedência.") }));
-
-  const kpis = el("div", { class: "grid grid-4" });
-  kpis.innerHTML =
-    kpiCard("receipt", "IRPJ (trimestral)", fmtBRL(t.irpjTotal), "Normal " + fmtBRL(t.irpjNormal) + " + adicional " + fmtBRL(t.irpjAdicional), false) +
-    kpiCard("landmark", "CSLL (trimestral)", fmtBRL(t.csllTotal), fmtPct(t.csllPctUsado) + " sobre base presumida", false) +
-    kpiCard("wallet", (t.substituidoPorCbs ? "CBS + IBS + ISS" : "PIS + COFINS + ISS") + " (mensal)", fmtBRL(t.consumoTotal / 3), "Equivalente por mês", false) +
-    kpiCard("calculator", "Carga efetiva", fmtPct(t.cargaEfetivaPct), "Total anual: " + fmtBRL(r.presumido.totalAnual), false, true);
-  root.appendChild(kpis);
-
-  const tableCard = el("div", { class: "card" });
-  tableCard.innerHTML = '<div class="card-title">' + icon("filetext") + 'Memória — ' + t.atividade + ' (ano ' + t.ano + ')</div>' +
-    '<p class="tiny muted" style="margin:-6px 0 10px">Tributos trimestrais (IRPJ/CSLL) e mensais (' + (t.substituidoPorCbs ? "CBS/IBS" : "PIS/COFINS") + '/ISS) são apurados separadamente, como na prática contábil.</p>' +
-    '<div class="table-wrap"><table><thead><tr><th colspan="2">Tributos trimestrais</th></tr></thead><tbody>' +
-    '<tr><td>Base de presunção IRPJ (' + fmtPct(t.irpjPctUsado) + ' × receita)</td><td class="num">' + fmtBRL(t.baseIRPJ) + '</td></tr>' +
-    '<tr><td>IRPJ normal (15%)</td><td class="num">' + fmtBRL(t.irpjNormal) + '</td></tr>' +
-    '<tr><td>IRPJ adicional (10% sobre excedente a R$ 60.000)</td><td class="num">' + fmtBRL(t.irpjAdicional) + '</td></tr>' +
-    '<tr><td>Base de presunção CSLL (' + fmtPct(t.csllPctUsado) + ' × receita)</td><td class="num">' + fmtBRL(t.baseCSLL) + '</td></tr>' +
-    '<tr><td>CSLL (9%)</td><td class="num">' + fmtBRL(t.csllTotal) + '</td></tr>' +
-    '<tr class="total"><td>Total de tributos trimestrais</td><td class="num">' + fmtBRL(t.irpjTotal + t.csllTotal) + '</td></tr>' +
-    '</tbody></table></div>' +
-    '<div style="height:14px"></div>' +
-    '<div class="table-wrap"><table><thead><tr><th colspan="2">Tributos mensais (valores do trimestre)</th></tr></thead><tbody>' +
-    (t.substituidoPorCbs
-      ? '<tr><td>CBS (alíquota efetiva ' + fmtPct(t.cbsPctUsado, 2) + (t.reducaoAplicadaPct > 0 ? ", ref. " + fmtPct(t.cbsRefPct, 2) : "") + ') <span class="tiny muted">— substitui PIS/COFINS</span></td><td class="num">' + fmtBRL(t.cbs) + '</td></tr>' +
-        '<tr><td>IBS (alíquota efetiva ' + fmtPct(t.ibsPctUsado, 2) + (t.reducaoAplicadaPct > 0 ? ", ref. " + fmtPct(t.ibsRefPct, 2) : "") + ')</td><td class="num">' + fmtBRL(t.ibs) + '</td></tr>'
-      : '<tr><td>PIS (' + fmtPct(state.presumido.pisAliq) + ')</td><td class="num">' + fmtBRL(t.pis) + '</td></tr>' +
-        '<tr><td>COFINS (' + fmtPct(state.presumido.cofinsAliq) + ')</td><td class="num">' + fmtBRL(t.cofins) + '</td></tr>') +
-    '<tr><td>ISS (' + fmtPct(t.issAliqEfetivaPct) + (t.fatorRemanescenteIss < 1 ? ' — ' + fmtPct(t.fatorRemanescenteIss * 100, 0) + ' da alíquota informada' : '') + ')</td><td class="num">' + fmtBRL(t.iss) + '</td></tr>' +
-    '<tr class="total"><td>Total de tributos mensais (no trimestre)</td><td class="num">' + fmtBRL(t.consumoTotal) + '</td></tr>' +
-    '</tbody></table></div>' +
-    '<div style="height:14px"></div>' +
-    '<div class="table-wrap"><table><tbody>' +
-    '<tr class="total"><td>Total do trimestre (trimestrais + mensais)</td><td class="num">' + fmtBRL(t.totalTrimestre) + '</td></tr>' +
-    '<tr class="total"><td>Total mensal equivalente</td><td class="num">' + fmtBRL(t.totalTrimestre / 3) + '</td></tr>' +
-    '<tr class="total"><td>Total anual</td><td class="num">' + fmtBRL(r.presumido.totalAnual) + '</td></tr>' +
-    '</tbody></table></div>';
-  root.appendChild(tableCard);
-
-  setTimeout(() => {
-    wireTratamentoIbsCbsCard();
-    $("#lpAtiv").onchange = (ev) => {
-      if (ev.target.value === "__auto__") { state.presumido.atividadeModo = "auto"; }
-      else { state.presumido.atividadeModo = "manual"; state.presumido.atividade = ev.target.value; }
-      renderContent();
-    };
-    $("#lpReceita").onchange = (ev) => {
-      const v = parseNum(ev.target.value);
-      state.empresa.faturamentoMensal = v / 3;
-      if (state.empresa.rbt12Modo === "auto") {}
-      renderContent();
-    };
-    $("#lpAno").onchange = (ev) => { state.presumido.anoProjecao = parseInt(ev.target.value, 10); renderContent(); };
-    if ($("#lpPis")) $("#lpPis").onchange = (ev) => { state.presumido.pisAliq = parseNum(ev.target.value); renderContent(); };
-    if ($("#lpCofins")) $("#lpCofins").onchange = (ev) => { state.presumido.cofinsAliq = parseNum(ev.target.value); renderContent(); };
-    $("#lpIss").onchange = (ev) => { state.presumido.issAliq = parseNum(ev.target.value); renderContent(); };
-    $("#lpMaj").onchange = (ev) => { state.presumido.majoracao = ev.target.checked; renderContent(); };
-  }, 0);
+  return tabelaHTML(["Regime", "Custo no período", "Média por mês", "Carga efetiva", "Diferença p/ o menor", "Líquido", "Situação"], rows, { id: "tabComparativo", num: [1, 2, 3, 4, 5] });
 }
 
-/* ---------------------------------------------------------------------------
-   RENDER: COMPARATIVO
-   --------------------------------------------------------------------------- */
-function cmpCell(value, note, isPct) {
-  if (value == null) return note ? '<span class="tiny muted">' + note + '</span>' : '<span class="muted">—</span>';
-  const s = isPct ? fmtPct(value) : fmtBRL(value);
-  return s + (note ? ' <span class="tiny muted">(' + note + ')</span>' : "");
+/* Fator R em uma linha (o detalhe fica no retrátil "Fator R"). */
+function fatorRAlertaTexto(r) {
+  const F = r.fatorRComp;
+  if (!F.aplicavel || !(F.economia > 0.005) || !(F.difMensal > 0.005)) return "";
+  const pot = F.referencia === "folha-informada" ? "economia potencial" : "diferença em relação a nenhuma folha";
+  let t = "<b>Fator R:</b> chegar a 28% de folha reduz o DAS em <b>" + fmtBRL(F.economia) + "</b> no período (" + pot + ")";
+  if (F.veredito === "compensa") t += "; descontadas as retenções estimadas do sócio, o saldo é de " + fmtBRL(F.saldoEstimado) + ".";
+  else if (F.veredito === "nao-compensa") t += ", mas as retenções estimadas do sócio (" + fmtBRL(F.retencoesSocio.periodo) + ") superam essa economia.";
+  else t += ". Ainda não dá para afirmar se compensa; depende de: " + F.avaliacao.faltas.map((x) => x.curto).slice(0, 2).join(" e ") + (F.avaliacao.faltas.length > 2 ? " e mais " + (F.avaliacao.faltas.length - 2) : "") + ".";
+  return t;
 }
-function cmpRow(label, cells, strong) {
-  return '<tr' + (strong ? ' class="total"' : '') + '><td>' + label + '</td>' +
-    cells.map((c) => '<td class="num">' + cmpCell(c.v, c.note, c.pct) + '</td>').join("") + '</tr>';
+
+/* Alertas essenciais (sempre visíveis): o que pode invalidar ou limitar o resultado.
+   As premissas de rotina (créditos 0%, RBT12 estimado…) ficam em "Pendências e premissas". */
+function primeiraFrase(t) { const i = String(t).search(/\.\s/); return i > 25 ? String(t).slice(0, i + 1) : String(t); }
+function ressalvasEssenciais(r) {
+  const M = r.meta, ess = [], vistos = new Set();
+  const add = (html, key) => { if (!vistos.has(key)) { vistos.add(key); ess.push(html); } };
+  if (M.pontual) add(escHtml("Simulação avulsa: valores só do período de " + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + ", sem projeção anual."), "pontual");
+  r.pendencias.filter((p) => p.limitacao).forEach((p) => add(escHtml(p.limitacao), p.limitacao));
+  r.pendencias.filter((p) => p.nivel === "atencao" && !p.confirmado).forEach((p) => add("<b>" + escHtml(p.titulo) + ".</b> " + escHtml(primeiraFrase(p.texto || "")), p.id));
+  return ess; // o estado Definitivo/Preliminar e o que falta confirmar ficam no destaque (heroHTML)
 }
-function renderComparativo(root) {
+function premissasRotina(r) {
+  const M = r.meta;
+  const essTxt = new Set();
+  if (M.pontual) essTxt.add("Simulação avulsa: os valores referem-se somente ao período de " + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + ", sem projeção anual.");
+  r.pendencias.filter((p) => p.limitacao).forEach((p) => essTxt.add(p.limitacao));
+  r.pendencias.filter((p) => p.nivel === "atencao").forEach((p) => essTxt.add(p.titulo + ": " + p.texto));
+  if (r.conclusao && !r.conclusao.definitiva) essTxt.add("Resultado preliminar: " + r.conclusao.motivos.join("; ") + ".");
+  return r.ressalvas.filter((t) => !essTxt.has(t));
+}
+function alertasHTML(r) {
+  const itens = ressalvasEssenciais(r).map((t) => '<div class="al"><span>' + t + "</span></div>");
+  const fr = fatorRAlertaTexto(r);
+  if (fr) itens.push('<div class="al"><span>' + fr + ' <a href="#" data-abrir-det="fatorr">Ver detalhes</a></span></div>');
+  if (!itens.length) return "";
+  const grave = r.pendencias.some((p) => p.nivel === "atencao" && !p.confirmado);
+  return '<div class="alerts' + (grave ? " attn" : "") + '" role="note"><div class="al-title">Pontos de atenção</div>' + itens.join("") +
+    '<div class="al"><span><a href="#" data-abrir-det="pendencias">Ver todas as pendências e premissas</a></span></div></div>';
+}
+
+function renderResultados(root) {
   const r = computeAll();
-  const h = r.hibrido;
-  const pv = r.simples.partilhaValores;
-  const t = r.presumido.trimestre;
-  const NO_DAS = "no DAS";
-  const view = state.comparativo.view;
-
+  const M = r.meta;
+  updateFontesCnaeRow();
   root.appendChild(el("div", { class: "section-head", html:
-    '<div><h2>Comparativo</h2><p class="sub">Simples Normal × Simples Híbrido × Lucro Presumido</p></div>' +
-    '<div class="radio-pills" id="cmpViewPills">' +
-      '<button type="button" class="radio-pill' + (view === "resumo" ? " active" : "") + '" data-cmpview="resumo">Resumo Executivo</button>' +
-      '<button type="button" class="radio-pill' + (view === "detalhado" ? " active" : "") + '" data-cmpview="detalhado">Detalhado</button>' +
-    '</div>' }));
+    '<div><h2>Resultados</h2><p class="sub">Comparação dos regimes para <b>' + escHtml(M.periodo) + "</b> (" + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + ")" + (M.pontual ? " — simulação pontual, sem projeção anual" : "") + ".</p></div>" +
+    '<div class="section-actions">' +
+      '<button type="button" class="btn btn-secondary btn-sm" id="btnVoltarPreench">' + icon("arrowl") + "Editar dados</button>" +
+      '<button type="button" class="btn btn-ghost btn-sm" id="btnSalvarSim">' + icon("save") + "Salvar</button>" +
+      '<button type="button" class="btn btn-ghost btn-sm" id="btnDuplicarSim">' + icon("copy") + "Duplicar</button></div>" }));
 
-  if (view === "resumo") {
-    const cards = el("div", { class: "grid grid-3" });
-    cards.innerHTML =
-      resumoExecCard("Simples Normal", r.simples.dasMensal, r.simples.cargaEfetivaPct, false) +
-      resumoExecCard("Simples Híbrido", h.totalMensal, h.cargaEfetivaPct, true) +
-      resumoExecCard("Lucro Presumido", t.totalTrimestre / 3, r.presumido.cargaEfetivaPct, false);
-    root.appendChild(cards);
-
-    const chartCard = el("div", { class: "card" });
-    chartCard.innerHTML = '<div class="card-title">' + icon("chart") + 'Custo mensal — três cenários</div><div class="chart-box"><canvas id="chartComparativo"></canvas></div>';
-    root.appendChild(chartCard);
-
-    root.appendChild(el("div", { html: alertBox("blue", "info", "Visão simplificada para apresentação ao cliente — mostra apenas custo mensal e carga efetiva. O detalhamento tributário completo está disponível na opção \"Detalhado\".") }));
-  } else {
-    const tableCard = el("div", { class: "card" });
-    tableCard.innerHTML = '<div class="card-title">' + icon("chart") + 'Comparação detalhada (valores mensais, salvo indicado)</div>' +
-      '<div class="table-wrap"><table><thead><tr><th>Item</th><th class="num">Simples Normal</th><th class="num">Simples Híbrido</th><th class="num">Presumido</th></tr></thead><tbody>' +
-      cmpRow("DAS", [{ v: r.simples.dasMensal }, { v: h.dasSemIbsCbs, note: "sem IBS/CBS" }, { v: null }]) +
-      cmpRow("IRPJ", [{ v: pv.IRPJ || 0, note: NO_DAS }, { v: pv.IRPJ || 0, note: NO_DAS }, { v: t.irpjTotal / 3 }]) +
-      cmpRow("CSLL", [{ v: pv.CSLL || 0, note: NO_DAS }, { v: pv.CSLL || 0, note: NO_DAS }, { v: t.csllTotal / 3 }]) +
-      cmpRow("ISS", [{ v: pv.ISS != null ? pv.ISS : null, note: pv.ISS != null ? NO_DAS : null }, { v: null }, { v: t.iss / 3 }]) +
-      cmpRow("PIS + COFINS", [{ v: null }, { v: null }, { v: t.substituidoPorCbs ? null : (t.pis + t.cofins) / 3, note: t.substituidoPorCbs ? "extinto — substituído pela CBS a partir de 2027" : null }]) +
-      cmpRow("IBS", [{ v: (pv.ICMS || 0) + (pv.ISS || 0), note: NO_DAS }, { v: h.ibsDebito }, { v: t.substituidoPorCbs ? t.ibs / 3 : null, note: t.substituidoPorCbs ? null : "não aplicável antes de 2027" }]) +
-      cmpRow("CBS", [{ v: (pv.COFINS || 0) + (pv.PIS || 0), note: NO_DAS }, { v: h.cbsDebito }, { v: t.substituidoPorCbs ? t.cbs / 3 : null, note: t.substituidoPorCbs ? null : "não aplicável antes de 2027" }]) +
-      cmpRow("Crédito IBS", [{ v: null }, { v: -h.creditoIbs }, { v: null }]) +
-      cmpRow("Crédito CBS", [{ v: null }, { v: -h.creditoCbs }, { v: null }]) +
-      cmpRow("Total mensal", [{ v: r.simples.dasMensal }, { v: h.totalMensal }, { v: t.totalTrimestre / 3 }], true) +
-      cmpRow("Total anual", [{ v: r.simples.dasAnual }, { v: h.totalAnual }, { v: r.presumido.totalAnual }], true) +
-      cmpRow("Carga efetiva", [{ v: r.simples.cargaEfetivaPct, pct: true }, { v: h.cargaEfetivaPct, pct: true }, { v: r.presumido.cargaEfetivaPct, pct: true }], true) +
-      '</tbody></table></div>' +
-      '<p class="tiny muted" style="margin-top:10px">"(' + NO_DAS + ')" indica que o valor já está embutido no DAS do Simples — não é um pagamento adicional. No Híbrido, IRPJ/CSLL permanecem no DAS; IBS e CBS são apurados à parte, com créditos conforme parâmetros informados na aba Simples Híbrido (ano de referência: ' + h.ano + '). O Lucro Presumido não possui DAS; a partir de 2027 (ano de projeção selecionado na aba Lucro Presumido: ' + t.ano + '), PIS e COFINS são substituídos pela CBS e o IBS passa a incidir, pelo mesmo cronograma de transição usado no Simples Híbrido — antes de 2027, mantém PIS/COFINS/ISS pelas regras vigentes. Os valores de IBS e CBS acima já refletem o tratamento tributário selecionado (\"' + r.tratamentoIbsCbs.label + '\"' + (h.reducaoAplicadaPct > 0 ? " — redução de " + fmtPct(h.reducaoAplicadaPct, 0) + " sobre a alíquota de referência" : "") + '); ajuste-o nas abas Simples Híbrido ou Lucro Presumido.</p>' +
-      (r.classificacao ? '<p class="tiny muted" style="margin-top:6px">Atividade (' + escHtml(PRESUNCAO[r.atividadeKey].label) + ') e tratamento IBS/CBS acima ' + (state.presumido.atividadeModo === "auto" || state.ibscbs.modo === "auto" ? "identificados automaticamente a partir do CNAE " + escHtml(r.classificacao.cnae.codigo) : "definidos manualmente") + ' — ver aba Dados da Empresa para a cadeia completa e o nível de confiança de cada item.</p>' : "");
-    root.appendChild(tableCard);
-
-    const chartsGrid = el("div", { class: "grid grid-2" });
-    chartsGrid.innerHTML =
-      '<div class="card"><div class="card-title">' + icon("chart") + 'Custo mensal — três cenários</div><div class="chart-box"><canvas id="chartComparativo"></canvas></div></div>' +
-      '<div class="card"><div class="card-title">' + icon("layers") + 'Composição do Híbrido</div><div class="chart-box"><canvas id="chartHibridoComposicao"></canvas></div></div>';
-    root.appendChild(chartsGrid);
-
-    root.appendChild(el("div", { html: alertBox("blue", "info", "Este resultado considera as premissas informadas nas abas Dados da Empresa, Fator R, Lucro Presumido e Simples Híbrido.") }));
+  root.appendChild(el("div", { html: heroHTML(r) }));
+  if (!(M.receitaTotal > 0)) {
+    root.appendChild(el("div", { html: pendenciasHTML(r, { compact: true, mini: true }) }));
+    root.appendChild(el("div", { html: stepFootHTML("preenchimento", null) }));
+    wireResultadosActions(root);
+    return;
   }
+  /* Essencial: comparativo, alertas, um gráfico */
+  root.appendChild(el("div", { html: regimeCardsHTML(r) }));
+  const al = alertasHTML(r);
+  if (al) root.appendChild(el("div", { html: al }));
+  root.appendChild(el("div", { class: "chart-panel", html: '<div class="panel-title">Custo tributário por regime</div><div class="chart-box"><canvas id="chartComparativo" data-chart="comparativo"></canvas></div>' }));
 
-  setTimeout(() => {
-    $$('[data-cmpview]').forEach((b) => b.onclick = () => { state.comparativo.view = b.dataset.cmpview; renderContent(); });
-  }, 0);
+  /* Complementar: recolhido por padrão */
+  const comp = [];
+  comp.push(detalheHTML("composicao", "Composição dos tributos", "quanto de cada tributo compõe o custo", '<div class="chart-box sm"><canvas id="chartComposicao" data-chart="composicao"></canvas></div>'));
+  if (mostrarTemporal(r)) comp.push(detalheHTML("temporal", "Evolução mês a mês", "custo tributário e receita", '<div class="chart-box tall"><canvas id="chartTemporal" data-chart="temporal"></canvas></div>'));
+  comp.push(detalheHTML("tabela", "Tabela comparativa", "custo, média, carga e líquido por regime", tabelaComparativaHTML(r)));
+  if (r.fatorRComp.aplicavel) comp.push(detalheHTML("fatorr", "Fator R", "folha necessária, retenções do sócio e saldo", detFatorR(r)));  // V3.2.1: só quando aplicável (Anexo III/V)
+  root.appendChild(el("div", { class: "collapse-list", html: '<div class="list-title">Mais detalhes</div>' + comp.join("") }));
+
+  /* Técnico: recolhido */
+  const det = [];
+  det.push(detalheHTML("simples", "Simples Nacional", "enquadramento, faixas, partilha e mês a mês", detSimples(r)));
+  det.push(detalheHTML("hibrido", "Simples Híbrido", "DAS sem IBS/CBS + IBS/CBS apurados à parte", detHibrido(r)));
+  det.push(detalheHTML("presumido", "Lucro Presumido", "apuração por trimestre", detPresumido(r)));
+  det.push(detalheHTML("ibscbs", "IBS/CBS", "tratamento, cronograma de transição e classificação", detIbsCbs(r)));
+  det.push(detalheHTML("equilibrio", "Ponto de equilíbrio", "receita necessária e custo do contratante", detEquilibrio(r)));
+  det.push(detalheHTML("cenarios", "Comparar cenários", "simulações salvas lado a lado", '<div id="cenariosHost"></div>'));
+  det.push(detalheHTML("pendencias", "Pendências e premissas", "estimativas em uso, itens opcionais e confirmados", detPendencias(r)));
+  det.push(detalheHTML("memoria", "Memória de cálculo", "passo a passo com fórmulas", detMemoria()));
+  det.push(detalheHTML("fontes", "Fontes e premissas legais", "base legal e status de cada parâmetro", detFontes()));
+  root.appendChild(el("div", { class: "collapse-list", html: '<div class="list-title">Detalhamento técnico</div>' + det.join("") }));
+  root.appendChild(el("div", { html: stepFootHTML("preenchimento", "relatorio", "Gerar relatório") }));
+
+  $$("details[data-det]", root).forEach((d) => d.addEventListener("toggle", () => {
+    state.ui.detalhes[d.dataset.det] = d.open;
+    if (d.open) { if (d.dataset.det === "cenarios") renderCenarios(); if (d.dataset.det === "composicao" || d.dataset.det === "temporal") renderCharts(); }
+  }));
+  $$("[data-abrir-det]", root).forEach((a) => a.addEventListener("click", (ev) => { ev.preventDefault(); abrirDetalhe(a.dataset.abrirDet); }));
+  $$("[data-editar]", root).forEach((b) => b.addEventListener("click", () => focarCampo(b.dataset.editar)));
+  wireResultadosActions(root);
+  wirePendencias(root);
+  if (state.ui.detalhes.cenarios) renderCenarios();
+}
+/* Pendências completas + premissas de rotina (nível técnico). */
+function detPendencias(r) {
+  const prem = premissasRotina(r);
+  return (prem.length ? '<div class="group-title" style="margin-bottom:8px">Premissas desta análise</div><ul style="margin:0 0 18px;padding-left:18px;display:flex;flex-direction:column;gap:6px">' + prem.map((t) => '<li class="small">' + escHtml(t) + "</li>").join("") + "</ul>" : "") +
+    pendenciasHTML(r, { compact: true });
+}
+function wireResultadosActions(root) {
+  const v = $("#btnVoltarPreench", root); if (v) v.onclick = () => setActive("preenchimento");
+  const s = $("#btnSalvarSim", root); if (s) s.onclick = () => salvarSimulacaoAtual();
+  const d = $("#btnDuplicarSim", root); if (d) d.onclick = () => duplicarSimulacaoAtual();
+}
+function detalheHTML(id, titulo, hint, body) {
+  return '<details class="collapse" id="det_' + id + '" data-det="' + id + '"' + (state.ui.detalhes[id] ? " open" : "") + "><summary>" + titulo + ' <span class="sum-hint">' + hint + "</span>" + icon("chevron", "chev") + '</summary><div class="collapse-body">' + body + "</div></details>";
 }
 
-/* ---------------------------------------------------------------------------
-   RENDER: PONTO DE EQUILÍBRIO
-   --------------------------------------------------------------------------- */
-function renderEquilibrio(root) {
-  const r = computeAll();
-  const pe = calcPontoEquilibrio({ custosFixosMensais: state.equilibrio.custosFixos, custosVariaveisPct: state.equilibrio.custosVariaveisPct, cargaTributariaPct: r.simples.cargaEfetivaPct });
-
-  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Ponto de Equilíbrio</h2><p class="sub">Receita mínima mensal e cálculo inverso de contrato</p></div>' }));
-
-  const peCard = el("div", { class: "card" });
-  peCard.innerHTML = '<div class="card-title">' + icon("scale") + 'Ponto de equilíbrio mensal</div>' +
-    '<div class="grid grid-3">' +
-    '<div class="field"><label for="peFixos">Custos fixos mensais</label><input type="text" inputmode="decimal" id="peFixos" value="' + fmtInput(state.equilibrio.custosFixos) + '"></div>' +
-    '<div class="field"><label for="peVar">Custos variáveis (% da receita)</label><input type="text" inputmode="decimal" id="peVar" value="' + fmtInput(state.equilibrio.custosVariaveisPct) + '"></div>' +
-    '<div class="field"><label>Carga tributária efetiva</label><input type="text" value="' + fmtPct(r.simples.cargaEfetivaPct) + '" disabled></div>' +
-    '</div>';
-  root.appendChild(peCard);
-
-  if (!pe.valido) {
-    root.appendChild(el("div", { html: alertBox("red", "alert", "Custos variáveis + carga tributária somam 100% ou mais da receita — não há ponto de equilíbrio possível com os parâmetros informados.") }));
-  } else {
-    const kpis = el("div", { class: "grid grid-3" });
-    kpis.innerHTML =
-      kpiCard("scale", "Receita de equilíbrio", fmtBRL(pe.receitaEquilibrio), "Por mês", false, true) +
-      kpiCard("percent", "Margem de contribuição", fmtPct(pe.margemContribuicaoPct), "Após custos variáveis e tributos", false) +
-      kpiCard("trending", "Distância do faturamento atual", fmtBRL(state.empresa.faturamentoMensal - pe.receitaEquilibrio), state.empresa.faturamentoMensal >= pe.receitaEquilibrio ? "Acima do equilíbrio" : "Abaixo do equilíbrio", false);
-    root.appendChild(kpis);
-  }
-
-  const invCard = el("div", { class: "card" });
-  invCard.innerHTML = '<div class="card-title">' + icon("swap") + 'Cálculo inverso de contrato (bruto × líquido)</div>' +
-    '<p class="small muted" style="margin-bottom:14px">Converte valores brutos e líquidos usando a carga tributária efetiva do Simples Normal (' + fmtPct(r.simples.cargaEfetivaPct) + ').</p>' +
-    '<div class="grid grid-2">' +
-    '<div class="field"><label for="invBruto">Valor bruto do contrato</label><input type="text" inputmode="decimal" id="invBruto" value="' + fmtInput(state.equilibrio.contratoBruto) + '"><span class="hint">Líquido resultante: <b class="num">' + fmtBRL(calcBrutoParaLiquido(state.equilibrio.contratoBruto, r.simples.cargaEfetivaPct)) + '</b></span></div>' +
-    '<div class="field"><label for="invLiquido">Valor líquido desejado</label><input type="text" inputmode="decimal" id="invLiquido" value="' + fmtInput(state.equilibrio.contratoLiquido) + '"><span class="hint">Bruto necessário: <b class="num">' + fmtBRL(calcLiquidoParaBruto(state.equilibrio.contratoLiquido, r.simples.cargaEfetivaPct) || 0) + '</b></span></div>' +
-    '</div>';
-  root.appendChild(invCard);
-
-  // ---- PRESTADORA × CONTRATANTE — Simples Normal x Híbrido (item 8) ----
-  // Dois cálculos distintos e não misturados: a PRESTADORA olha para o
-  // próprio resultado (faturamento − custos − tributos); o CONTRATANTE olha
-  // para o custo líquido de contratar essa empresa, dado o crédito de
-  // IBS/CBS que consegue aproveitar.
-  root.appendChild(el("div", { class: "section-head", html: '<div><h3 style="font-size:17px">Simples Normal × Simples Híbrido no Ponto de Equilíbrio</h3><p class="sub">Dois cálculos separados — não misturar os conceitos de prestadora e contratante</p></div>' }));
-
-  const pp = r.pePrestadora;
-  const prestCard = el("div", { class: "card" });
-  prestCard.innerHTML = '<div class="card-title">' + icon("building") + 'PRESTADORA — manter o mesmo resultado no Híbrido</div>' +
-    '<div class="table-wrap"><table><tbody>' +
-    '<tr><td>Valor atual do contrato (faturamento mensal)</td><td class="num">' + fmtBRL(pp.valorAtualContrato) + '</td></tr>' +
-    '<tr><td>Resultado atual (após custos fixos, variáveis e DAS do Simples Normal)</td><td class="num">' + fmtBRL(pp.resultadoAtual) + '</td></tr>' +
-    (pp.valido
-      ? '<tr class="total"><td>Valor necessário no Híbrido para manter o mesmo resultado</td><td class="num">' + fmtBRL(pp.receitaNecessariaHibrido) + '</td></tr>' +
-        '<tr><td>Diferença em relação ao faturamento atual</td><td class="num">' + fmtBRL(pp.receitaNecessariaHibrido - pp.valorAtualContrato) + '</td></tr>'
-      : '<tr><td colspan="2" class="muted">Custos variáveis + carga tributária do Híbrido somam 100% ou mais da receita — não há valor de equilíbrio possível com os parâmetros informados.</td></tr>') +
-    '</tbody></table></div>' +
-    '<p class="tiny muted" style="margin-top:10px">Usa os custos fixos/variáveis informados acima e a carga efetiva do Híbrido calculada na aba Simples Híbrido (ano ' + r.hibrido.ano + ', ' + fmtPct(r.hibrido.cargaEfetivaPct) + ').</p>';
-  root.appendChild(prestCard);
-
-  const pc = r.peContratante;
-  const contCard = el("div", { class: "card" });
-  contCard.innerHTML = '<div class="card-title">' + icon("briefcase") + 'CONTRATANTE — custo líquido hoje × equivalente no Híbrido</div>' +
-    '<div class="field" style="max-width:360px;margin-bottom:14px"><label for="peCredAtual">Crédito aproveitável hoje sobre o contrato (%)</label><input type="text" inputmode="decimal" id="peCredAtual" value="' + fmtInput(state.equilibrio.creditoContratanteAtualPct) + '"><span class="hint">Parâmetro de simulação — no Simples Normal, o crédito ao tomador é limitado/embutido na partilha do DAS; ajuste conforme a regra aplicável ao caso.</span></div>' +
-    '<div class="table-wrap"><table><tbody>' +
-    '<tr><td>Valor atual do contrato</td><td class="num">' + fmtBRL(pc.valorAtualContrato) + '</td></tr>' +
-    '<tr><td>Crédito atual (' + fmtPct(pc.creditoAtualPct, 1) + ')</td><td class="num">' + fmtBRL(pc.creditoAtual) + '</td></tr>' +
-    '<tr class="total"><td>Custo líquido atual</td><td class="num">' + fmtBRL(pc.custoLiquidoAtual) + '</td></tr>' +
-    '<tr><td>Valor de contrato equivalente no Híbrido (mesmo custo líquido)</td><td class="num">' + (pc.valorEquivalenteHibrido != null ? fmtBRL(pc.valorEquivalenteHibrido) : '<span class="muted">—</span>') + '</td></tr>' +
-    '</tbody></table></div>' +
-    '<div style="height:10px"></div>' +
-    alertBox("yellow", "alert", "Não é assumido crédito integral automaticamente. O crédito efetivo de IBS/CBS no Híbrido usa o percentual informado na aba Simples Híbrido (" + fmtPct(state.hibrido.creditoContratanteHibridoPct, 1) + ") e depende das condições legais aplicáveis a cada operação.");
-  root.appendChild(contCard);
-
-  setTimeout(() => {
-    $("#peFixos").onchange = (ev) => { state.equilibrio.custosFixos = parseNum(ev.target.value); renderContent(); };
-    $("#peVar").onchange = (ev) => { state.equilibrio.custosVariaveisPct = parseNum(ev.target.value); renderContent(); };
-    $("#invBruto").onchange = (ev) => { state.equilibrio.contratoBruto = parseNum(ev.target.value); renderContent(); };
-    $("#invLiquido").onchange = (ev) => { state.equilibrio.contratoLiquido = parseNum(ev.target.value); renderContent(); };
-    $("#peCredAtual").onchange = (ev) => { state.equilibrio.creditoContratanteAtualPct = parseNum(ev.target.value); renderContent(); };
-  }, 0);
+/* ---------------- Detalhe: Simples Nacional ---------------- */
+function detSimples(r) {
+  const S = r.simples, A = ANEXOS[S.anexoUsado], M = r.meta;
+  const last = S.meses[S.meses.length - 1];
+  let h = '<div class="grid g4">' +
+    statHTML("Anexo", S.anexosUsados.map((a) => ANEXOS[a].nome).join(" / "), A.desc, "sm") +
+    statHTML("Faixa (último mês)", last.faixaLabel, fmtBRL(FAIXAS_LIMITES[last.faixaIndex - 1].min) + " a " + fmtBRL(FAIXAS_LIMITES[last.faixaIndex - 1].max), "sm") +
+    statHTML("Alíquota efetiva (último mês)", fmtPct(last.cargaEfetivaPct), "Nominal " + fmtPct(last.aliqNominal * 100) + " · dedução " + fmtBRL(last.parcelaDeduzir), "sm") +
+    statHTML("DAS no período", fmtBRL(S.total), "Média " + fmtBRL(S.mediaMensal) + "/mês", "sm") + "</div>";
+  if (S.excesso.situacao !== "regular") h += '<div style="margin-top:14px">' + noteBox("attn", "alert", "<b>Limite de receita:</b> " + escHtml(S.excesso.efeitoTexto) + (S.excesso.mesesVedados > 0 ? (S.excesso.integral ? " Simples e Híbrido são inaplicáveis no período" + (S.excesso.retroativo ? " (exclusão retroativa: regras gerais desde a abertura)" : "") + "; os valores abaixo são só cálculo de referência e não entram na recomendação." : " Os meses a partir do efeito não têm direito ao Simples e não entram no ranking.") : " O Simples segue válido dentro do período; planeje a mudança de regime.")) + (S.sublimiteAv && S.sublimiteAv.mesesAfetados > 0 ? '<div style="height:8px"></div>' + noteBox("attn", "alert", "<b>Sublimite de ICMS, ISS e IBS:</b> " + escHtml(S.sublimiteAv.texto) + " Esses tributos são devidos fora do DAS e não estão somados: o total do Simples está incompleto.") : "") + "</div>";
+  // V3.2.1 — Folha 12m e Fator R só aparecem quando o enquadramento depende deles (Anexo III/V)
+  const comFR = r.anexoKey === "III_V";
+  const colsMes = comFR ? ["Mês", "Receita", "RBT12", "Folha 12m", "Fator R", "Anexo", "Alíq. efetiva", "DAS"] : ["Mês", "Receita", "RBT12", "Anexo", "Alíq. efetiva", "DAS"];
+  const numMes = comFR ? [1, 2, 3, 4, 6, 7] : [1, 2, 4, 5];
+  h += '<div class="group"><div class="group-title">Mês a mês</div>' + tabelaHTML(colsMes,
+    S.meses.map((m) => trHTML(comFR
+      ? [m.rotulo, fmtBRL(m.receita), fmtBRL(m.rbt12), fmtBRL(m.folha12), m.fatorR == null ? "—" : fmtPct(m.fatorR * 100, 1), m.anexoUsado, fmtPct(m.cargaEfetivaPct), fmtBRL(m.das)]
+      : [m.rotulo, fmtBRL(m.receita), fmtBRL(m.rbt12), m.anexoUsado, fmtPct(m.cargaEfetivaPct), fmtBRL(m.das)], { num: numMes })).concat([
+      trHTML(comFR ? ["Total", fmtBRL(M.receitaTotal), "", "", "", "", fmtPct(S.cargaEfetivaPct), fmtBRL(S.total)] : ["Total", fmtBRL(M.receitaTotal), "", "", fmtPct(S.cargaEfetivaPct), fmtBRL(S.total)], { cls: "total", num: comFR ? [1, 6, 7] : [1, 4, 5] })]),
+    { scroll: true, cls: "monthly", num: numMes }) + "</div>";
+  h += '<div class="grid g2" style="margin-top:20px"><div><div class="group-title">Tabela do ' + A.nome + " (" + A.desc + ")</div>" + tabelaHTML(["Faixa", "RBT12 até", "Alíq. nominal", "Parcela a deduzir"],
+    A.faixas.map((f, i) => trHTML([(i + 1) + "ª faixa", fmtBRL(FAIXAS_LIMITES[i].max), fmtPct(f.aliq * 100), fmtBRL(f.ded)], { cls: i + 1 === last.faixaIndex ? "hl" : "", num: [1, 2, 3] })), { num: [1, 2, 3] }) + "</div>" +
+    '<div><div class="group-title">Partilha do DAS no período</div>' + tabelaHTML(["Tributo", "% do DAS", "Valor no período"],
+      Object.keys(S.partilhaTotais).map((k) => trHTML([k, fmtPct(S.partilhaPct[k]), fmtBRL(S.partilhaTotais[k])], { num: [1, 2] })).concat([trHTML(["Total", "100,00%", fmtBRL(S.total)], { cls: "total", num: [1, 2] })]), { num: [1, 2] }) +
+    '<p class="tiny muted" style="margin-top:8px">Partilha conforme LC 123/2006; mostra como o DAS se divide entre os tributos, sem alterar o total pago.</p></div></div>';
+  h += '<div class="row" style="margin-top:16px"><button type="button" class="btn btn-secondary btn-sm" data-editar="' + (comFR ? "bloco-fatorr" : "bloco-simples") + '">Ajustar enquadramento</button></div>';
+  return h;
 }
 
+/* ---------------- Detalhe: Fator R ---------------- */
+function detFatorR(r) {
+  const F = r.fatorRComp;
+  if (!F.aplicavel) return '<p class="small muted">O Fator R não se aplica: o enquadramento é o ' + ANEXOS[r.anexoKey].nome + " (" + ANEXOS[r.anexoKey].desc + ").</p>";
+  const cen = (titulo, c, win) => '<div class="c' + (win ? " win" : "") + '"><b class="display">' + titulo + "</b>" +
+    statHTML("DAS no período", fmtBRL(c.ag.total), "Carga efetiva " + fmtPct(c.ag.cargaEfetivaPct), "sm") +
+    '<div class="kv"><div class="r"><span>Fator R</span><span>' + (c.ag.fatorR == null ? "—" : fmtPct(c.ag.fatorR * 100, 1)) + '</span></div><div class="r"><span>Anexo</span><span>' + c.ag.anexosUsados.join(" / ") + '</span></div><div class="r"><span>Folha elegível média</span><span>' + fmtBRL(media(c.folha.mensal)) + "/mês</span></div></div></div>";
+  const melhorCom = F.com.ag.total <= F.sem.ag.total;
+  return '<div class="scn">' + cen("Cenário atual", F.atual, false) + cen("Sem folha", F.sem, false) + cen("Com Fator R de 28%", F.com, melhorCom && F.economia > 0.005) + "</div>" +
+    '<div style="margin-top:18px">' + fatorRInsightsHTML(r) + "</div>" +
+    '<div class="note" style="margin-top:16px">' + icon("info") + "<div><b>Folha usada no Fator R:</b> pró-labore e salários brutos mais FGTS (8% sobre salários), sem somar a CPP patronal. A folha fiscal do Fator R inclui também a CPP efetivamente recolhida (inclusive a paga dentro do DAS — Manual do PGDAS-D, item 1.5); esse acréscimo não foi aplicado porque seria valor estimado tratado como pago, o que deixa a folha necessária no lado conservador. A folha informada deve seguir o conceito fiscal completo. Não se confunde com o custo total da empresa, o pró-labore líquido ou as retenções do sócio. Início de atividade: " + fatorRInicioTexto(r) + ". INSS (11% até " + fmtBRL(PARAMS_FOLHA.inss.teto) + ", IN RFB 2.110/2022) e IRRF (tabela e redução de " + PARAMS_FOLHA.ano + ") seguem a regra oficial, mas a aplicação ao caso do sócio é estimativa; teto e tabela de 2027 ainda não foram publicados.</div></div>" +
+    '<div class="row" style="margin-top:14px"><button type="button" class="btn btn-secondary btn-sm" data-editar="bloco-fatorr">Alterar folha / pró-labore</button></div>';
+}
+
+/* ---------------- Detalhe: Simples Híbrido ---------------- */
+function detHibrido(r) {
+  const H = r.hibrido, S = r.simples;
+  let h = '<div class="grid g4">' +
+    statHTML("Total Híbrido", fmtBRL(H.total), "Carga efetiva " + fmtPct(H.cargaEfetivaPct), "sm") +
+    statHTML("DAS sem IBS/CBS", fmtBRL(H.dasSemIbsCbs), "IRPJ, CSLL, CPP e ISS/ICMS permanecem", "sm") +
+    statHTML("IBS líquido", fmtBRL(H.ibsLiquido), "Débito " + fmtBRL(H.ibsDebito) + " − crédito " + fmtBRL(H.creditoIbs), "sm") +
+    statHTML("CBS líquido", fmtBRL(H.cbsLiquido), "Débito " + fmtBRL(H.cbsDebito) + " − crédito " + fmtBRL(H.creditoCbs), "sm") + "</div>";
+  h += '<div class="grid g2" style="margin-top:20px"><div><div class="group-title">Composição no período</div>' + tabelaHTML(["Componente", "Valor", "% do total"], [
+    ["DAS sem IBS/CBS", H.dasSemIbsCbs], ["IBS líquido", H.ibsLiquido], ["CBS líquido", H.cbsLiquido]].map((x) => trHTML([x[0], fmtBRL(x[1]), fmtPct(H.total > 0 ? x[1] / H.total * 100 : 0)], { num: [1, 2] })).concat([trHTML(["Total Híbrido", fmtBRL(H.total), "100,00%"], { cls: "total", num: [1, 2] })]), { num: [1, 2] }) + "</div>" +
+    '<div><div class="group-title">Híbrido × Simples Normal</div><div class="kv">' +
+    '<div class="r"><span>Simples Normal (DAS)</span><span>' + fmtBRL(S.total) + "</span></div>" +
+    '<div class="r"><span>Simples Híbrido</span><span>' + fmtBRL(H.total) + "</span></div>" +
+    '<div class="r"><span>Diferença</span><span>' + (H.total >= S.total ? "+ " : "− ") + fmtBRL(Math.abs(H.total - S.total)) + "</span></div>" +
+    '<div class="r"><span>Parcela de IBS retirada do DAS</span><span>' + fmtBRL(H.parcelaIbsNoDas) + "</span></div>" +
+    '<div class="r"><span>Parcela de CBS retirada do DAS</span><span>' + fmtBRL(H.parcelaCbsNoDas) + "</span></div>" +
+    '<div class="r"><span>Créditos assumidos (IBS / CBS)</span><span>' + fmtPct(H.creditoIbsPct, 1) + " / " + fmtPct(H.creditoCbsPct, 1) + "</span></div></div></div></div>";
+  if (r.meta.nMeses > 1) {
+    h += '<div class="group"><div class="group-title">Mês a mês</div>' + tabelaHTML(["Mês", "Ano IBS/CBS", "DAS sem IBS/CBS", "IBS líq.", "CBS líq.", "Total"],
+      H.meses.map((m) => trHTML([m.rotulo, m.ano, fmtBRL(m.dasSemIbsCbs), fmtBRL(m.ibsLiquido), fmtBRL(m.cbsLiquido), fmtBRL(m.totalMensal)], { num: [1, 2, 3, 4, 5] })), { scroll: true, cls: "monthly", num: [1, 2, 3, 4, 5] }) + "</div>";
+  }
+  h += '<p class="small muted" style="margin-top:12px">Prazo de opção: para valer em jan–jun/2027, a opção do Simples pelo regime regular de IBS/CBS vai de 01/09 a 30/10/2026 (Res. CGSN 194/2026); o cancelamento irretratável é de 03/11 a 20/12/2026 e há nova janela em março/2027 para jul–dez/2027. Sem opção, IBS e CBS ficam dentro do DAS.</p>';
+  h += '<div class="row" style="margin-top:16px"><button type="button" class="btn btn-secondary btn-sm" data-editar="bloco-creditos">Ajustar créditos de IBS/CBS</button></div>';
+  return h;
+}
+
+/* ---------------- Detalhe: Lucro Presumido ---------------- */
+function detPresumido(r) {
+  const L = r.presumido;
+  let h = '<div class="grid g4">' +
+    statHTML("Custo no período", fmtBRL(L.total), "Carga efetiva " + fmtPct(L.cargaEfetivaPct), "sm") +
+    statHTML("IRPJ (c/ adicional)", fmtBRL(L.irpjTotal), "Presunção " + fmtPct(L.irpjPctUsado), "sm") +
+    statHTML("CSLL", fmtBRL(L.csllTotal), "Presunção " + fmtPct(L.csllPctUsado), "sm") +
+    statHTML("Tributos sobre consumo", fmtBRL(L.consumoTotal), L.algumSubstituidoPorCbs ? "CBS/IBS + ISS" : "PIS/COFINS + ISS", "sm") + "</div>";
+  h += '<p class="small muted" style="margin-top:12px">Atividade: ' + escHtml(L.atividade) + ". IRPJ e CSLL são apurados por trimestre-calendário. O limite do adicional de IRPJ é R$ 20.000 × meses do período de apuração (R$ 60.000 no trimestre completo) e só é proporcional no trimestre de início de atividade — uma simulação mais curta não o reduz.</p>" +
+    (L.parcial ? '<div style="margin-top:10px">' + noteBox("attn", "alert", "Estimativa parcial: " + L.trimestresParciais.map((q) => q.rotulo + " cobre " + q.mesesCount + " de " + q.mesesApuracao + " meses").join("; ") + ". Faltam as receitas dos demais meses do trimestre; o adicional de IRPJ pode estar subestimado.") + "</div>" : "");
+  h += '<div class="group">' + tabelaHTML(["Trimestre", "Meses", "Receita", "Base IRPJ", "IRPJ", "Adicional", "CSLL", "Consumo", "Total"],
+    L.trimestres.map((q) => trHTML([q.rotulo + (q.parcial ? " · estimativa parcial" : ""), q.mesesCount + " de " + q.mesesApuracao, fmtBRL(q.receita), fmtBRL(q.t.baseIRPJ), fmtBRL(q.t.irpjNormal), fmtBRL(q.t.irpjAdicional), fmtBRL(q.t.csllTotal), fmtBRL(q.t.consumoTotal), fmtBRL(q.total)], { num: [1, 2, 3, 4, 5, 6, 7, 8] })).concat([
+      trHTML(["Total", r.meta.nMeses, fmtBRL(L.receitaTotal), fmtBRL(L.baseIRPJ), fmtBRL(L.irpjNormal), fmtBRL(L.irpjAdicional), fmtBRL(L.csllTotal), fmtBRL(L.consumoTotal), fmtBRL(L.total)], { cls: "total", num: [1, 2, 3, 4, 5, 6, 7, 8] })]),
+    { cls: "monthly", num: [1, 2, 3, 4, 5, 6, 7, 8] }) + "</div>";
+  if (L.notaMajoracao) h += '<div style="margin-top:12px">' + noteBox("info", "info", "Majoração de 10% da presunção sobre o excedente de R$ 1,25 milhão por trimestre aplicada (hipótese — IN RFB 2.305/2025 e 2.306/2026).") + "</div>";
+  h += '<div class="row" style="margin-top:16px"><button type="button" class="btn btn-secondary btn-sm" data-editar="bloco-lp">Ajustar ISS, PIS/COFINS e atividade</button></div>';
+  return h;
+}
+
+/* ---------------- Detalhe: IBS/CBS ---------------- */
+function detIbsCbs(r) {
+  const H = r.hibrido, tr = r.tratamentoIbsCbs;
+  const anos = new Set(H.meses.map((m) => m.ano));
+  let h = '<div class="grid g2"><div><div class="group-title">Tratamento aplicado</div><div class="kv">' +
+    '<div class="r"><span>Tratamento</span><span>' + escHtml(tr.label) + "</span></div>" +
+    '<div class="r"><span>Situação da regra</span><span>' + (tr.status === "oficial" ? "Fonte oficial" : "Hipótese — confirmar") + "</span></div>" +
+    '<div class="r"><span>Redução sobre a alíquota de referência</span><span>' + (tr.reducaoPct != null ? fmtPct(tr.reducaoPct, 0) : "n/d (regime específico)") + "</span></div>" +
+    '<div class="r"><span>Alíquota efetiva manual</span><span>' + (r.aliqManualPct != null ? fmtPct(r.aliqManualPct) : "não informada") + "</span></div></div>" +
+    '<p class="small muted" style="margin-top:8px">' + escHtml(tr.fonte) + ". " + escHtml(tr.observacao) + "</p></div>" +
+    '<div><div class="group-title">Classificação a partir do CNAE</div>' + classificacaoKvHTML(r) + "</div></div>";
+  h += '<div class="group"><div class="group-title">Cronograma de transição</div>' + tabelaHTML(["Ano", "CBS ref.", "IBS ref.", "CBS efetiva", "IBS efetiva", "ISS/ICMS remanescente", "Nota"],
+    IBS_CBS_CRONOGRAMA.map((c) => {
+      const ap = aplicarTratamentoIbsCbs(c, tr, r.aliqManualPct);
+      return trHTML([c.ano + (c.ano >= 2027 ? ' <span class="small muted">· projeção</span>' : ""), fmtPct(c.cbs), fmtPct(c.ibs), fmtPct(ap.cbsEfetivoPct), fmtPct(ap.ibsEfetivoPct), fmtPct(c.issIcmsFatorRemanescente * 100, 0), '<span class="small muted">' + escHtml(c.nota) + "</span>"], { cls: anos.has(c.ano) ? "hl" : "", num: [0, 1, 2, 3, 4, 5] });
+    }), { num: [0, 1, 2, 3, 4, 5] }) + '<p class="tiny muted" style="margin-top:8px">Anos destacados: os usados neste período. <b>Projeção:</b> as alíquotas de referência de CBS (2027 em diante) e de IBS (2029 em diante) ainda não foram fixadas por resolução do Senado Federal; os valores acima são projeções de planejamento e podem mudar. Estão definidos apenas as alíquotas-teste de 2026 (CBS 0,9% e IBS 0,1%) e o IBS de 0,1% de 2027.</p></div>';
+  h += '<div class="row" style="margin-top:12px"><button type="button" class="btn btn-secondary btn-sm" data-editar="bloco-creditos">Ajustar tratamento e créditos</button></div>';
+  return h;
+}
+
+/* ---------------- Detalhe: Ponto de equilíbrio ---------------- */
+function detEquilibrio(r) {
+  const E = state.equilibrio, pe = r.pe, pp = r.pePrestadora, pc = r.peContratante, M = r.meta;
+  let h = "";
+  if (!E.custosInformados) h += noteBox("info", "info", "Os valores abaixo usam custos de exemplo (fixos " + fmtBRL(E.custosFixos) + "/mês e " + fmtPct(E.custosVariaveisPct, 0) + " variáveis). Informe os seus em “Custos e ponto de equilíbrio”.") + '<div style="height:12px"></div>';
+  h += '<div class="grid g2"><div><div class="group-title">Prestador — receita mensal necessária</div><div class="kv">' +
+    '<div class="r"><span>Receita média mensal do período</span><span>' + fmtBRL(pp.valorAtualContrato) + "</span></div>" +
+    '<div class="r"><span>Ponto de equilíbrio no Simples Normal</span><span>' + (pe.valido ? fmtBRL(pe.receitaEquilibrio) : "inviável") + "</span></div>" +
+    '<div class="r"><span>Margem de contribuição</span><span>' + (pe.valido ? fmtPct(pe.margemContribuicaoPct) : "—") + "</span></div>" +
+    '<div class="r"><span>Resultado mensal atual (Simples Normal)</span><span>' + fmtBRL(pp.resultadoAtual) + "</span></div>" +
+    '<div class="r"><span>Receita necessária no Híbrido p/ o mesmo resultado</span><span>' + (pp.valido ? fmtBRL(pp.receitaNecessariaHibrido) : "inviável") + "</span></div></div></div>" +
+    '<div><div class="group-title">Contratante — custo líquido</div><div class="kv">' +
+    '<div class="r"><span>Valor de contrato hoje</span><span>' + fmtBRL(pc.valorAtualContrato) + "</span></div>" +
+    '<div class="r"><span>Crédito do contratante hoje (' + fmtPct(pc.creditoAtualPct, 1) + ")</span><span>" + fmtBRL(pc.creditoAtual) + "</span></div>" +
+    '<div class="r"><span>Custo líquido hoje</span><span>' + fmtBRL(pc.custoLiquidoAtual) + "</span></div>" +
+    '<div class="r"><span>Contrato equivalente no Híbrido (mesmo custo líquido)</span><span>' + (pc.valorEquivalenteHibrido == null ? "inviável" : fmtBRL(pc.valorEquivalenteHibrido)) + "</span></div></div></div></div>";
+  h += '<p class="tiny muted" style="margin-top:10px">Valores mensais, calculados com a carga efetiva do período (Simples Normal ' + fmtPct(r.simples.cargaEfetivaPct) + ", Híbrido " + fmtPct(r.hibrido.cargaEfetivaPct) + ").</p>" +
+    '<div class="row" style="margin-top:12px"><button type="button" class="btn btn-secondary btn-sm" data-editar="bloco-custos">Informar custos</button></div>';
+  return h;
+}
+
+/* ---------------- Detalhe: Memória e Fontes ---------------- */
+function detMemoria() {
+  if (!state.memoria.length) return '<p class="small muted">Sem cálculo disponível.</p>';
+  return state.memoria.map((m, i) => '<details class="mem"><summary><span class="sn">' + (i + 1) + "</span>" + escHtml(m.titulo) + icon("chevron", "chev") + '</summary><div class="mem-body"><div class="formula">' + escHtml(m.formula) + "</div><div>" + escHtml(m.detalhe) + "</div></div></details>").join("");
+}
+function detFontes() {
+  return FONTES.map((f) => '<div class="source-row"><div><div class="name">' + escHtml(f.nome) + '</div><div class="desc">' + escHtml(f.fonte) + '</div></div><div class="right">' + badge(f.status === "oficial" ? "Fonte oficial" : "Hipótese", f.status === "oficial" ? "ok" : "neutral") + '<span class="date">' + escHtml(f.data) + "</span></div></div>").join("") +
+    '<p class="tiny muted" style="margin-top:12px">Parâmetros marcados como hipótese exigem confirmação antes de uso em casos reais.</p>';
+}
+
+/* ============================================================================
+   BLOCO 67_ui_cenarios
+   ============================================================================ */
+
 /* ---------------------------------------------------------------------------
-   RENDER: MEMÓRIA DE CÁLCULO
+   BIBLIOTECA DE SIMULAÇÕES (sem banco de dados) e COMPARAÇÃO DE CENÁRIOS
+   Armazenamento local do navegador + exportação/importação em arquivo JSON.
+   Cada simulação guarda apenas as ENTRADAS; os resultados são sempre
+   recalculados pelo motor atual (nunca ficam desatualizados).
    --------------------------------------------------------------------------- */
-function renderMemoria(root) {
-  computeAll();
-  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Memória de Cálculo</h2><p class="sub">Passo a passo de todas as fórmulas aplicadas na simulação atual</p></div>' }));
-  const wrap = el("div");
-  state.memoria.forEach((step, i) => {
-    const acc = el("div", { class: "accordion" + (i === 0 ? " open" : "") });
-    acc.innerHTML =
-      '<div class="acc-head"><span class="step-badge">' + (i + 1) + '</span><strong>' + step.titulo + '</strong>' + icon("chevron", "chev") + '</div>' +
-      '<div class="acc-body"><div class="acc-body-inner"><div class="formula">' + step.formula + '</div><p class="small muted">' + step.detalhe + '</p></div></div>';
-    acc.querySelector(".acc-head").onclick = () => {
-      const open = acc.classList.contains("open");
-      acc.classList.toggle("open");
-      const body = acc.querySelector(".acc-body");
-      body.style.maxHeight = open ? "0px" : body.scrollHeight + "px";
+const SIMS_KEY = "analise-tributaria-sims";
+const EXPORT_APP = "analise-tributaria";
+
+function listarSimulacoes() {
+  try {
+    const v = JSON.parse(localStorage.getItem(SIMS_KEY) || "[]");
+    return Array.isArray(v) ? v : [];
+  } catch (e) { return window.__simsMem || []; }
+}
+function gravarSimulacoes(arr) {
+  window.__simsMem = arr;
+  try { localStorage.setItem(SIMS_KEY, JSON.stringify(arr)); } catch (e) {}
+  if ($("#nav")) renderNav();
+}
+function novoId() { return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function nomeSugerido() {
+  if (state.analise.nome) return state.analise.nome;
+  if (state.empresa.nome) return state.empresa.nome;
+  const t = state.analise.tipo ? TIPOS_ANALISE[state.analise.tipo].label : "Análise";
+  return t + " — " + rotuloPeriodo();
+}
+function salvarSimulacaoAtual(nomeForcado) {
+  if (!state.analise.tipo) { toast("Escolha o tipo de análise antes de salvar."); return null; }
+  const lista = listarSimulacoes();
+  const nome = (nomeForcado || nomeSugerido()).trim();
+  const agora = new Date().toISOString();
+  let sim = state.simId ? lista.find((s) => s.id === state.simId) : null;
+  if (sim) { sim.nome = nome; sim.atualizadoEm = agora; sim.inputs = snapshotInputs(); sim.inputs.analise.nome = nome; sim.v = STATE_VERSION; }
+  else {
+    sim = { id: novoId(), nome, criadoEm: agora, atualizadoEm: agora, v: STATE_VERSION, inputs: snapshotInputs() };
+    sim.inputs.analise.nome = nome;
+    lista.unshift(sim);
+    state.simId = sim.id;
+  }
+  state.analise.nome = nome;
+  state.analise.id = sim.id;
+  gravarSimulacoes(lista);
+  saveDraft();
+  toast("Simulação “" + nome + "” salva neste navegador.");
+  return sim;
+}
+function duplicarSimulacaoAtual() {
+  if (!state.analise.tipo) { toast("Escolha o tipo de análise antes de duplicar."); return; }
+  const base = nomeSugerido().replace(/ \(cópia( \d+)?\)$/, "");
+  const lista = listarSimulacoes();
+  let n = 1, nome = base + " (cópia)";
+  while (lista.some((s) => s.nome === nome)) { n++; nome = base + " (cópia " + n + ")"; }
+  state.simId = null; state.analise.id = null;
+  state.analise.nome = nome;
+  const sim = salvarSimulacaoAtual(nome);
+  if (sim) { renderCrumb(); if (state.active === "preenchimento") renderContent(); }
+}
+function duplicarSimulacao(id) {
+  const lista = listarSimulacoes();
+  const s = lista.find((x) => x.id === id);
+  if (!s) return;
+  let n = 1, nome = s.nome.replace(/ \(cópia( \d+)?\)$/, "") + " (cópia)";
+  while (lista.some((x) => x.nome === nome)) { n++; nome = s.nome.replace(/ \(cópia( \d+)?\)$/, "") + " (cópia " + n + ")"; }
+  const agora = new Date().toISOString();
+  const copia = { id: novoId(), nome, criadoEm: agora, atualizadoEm: agora, v: s.v, inputs: clonar(s.inputs) };
+  copia.inputs.analise.nome = nome; copia.inputs.analise.id = copia.id;
+  lista.unshift(copia);
+  gravarSimulacoes(lista);
+  return copia;
+}
+function abrirSimulacao(id, destino) {
+  const s = listarSimulacoes().find((x) => x.id === id);
+  if (!s) return;
+  aplicarInputs(s.inputs);
+  state.simId = s.id; state.analise.id = s.id;
+  if (!state.analise.nome) state.analise.nome = s.nome;
+  state.result = null; computeAll();
+  saveDraft();
+  fecharModal();
+  state.active = destino || "resultados";
+  renderNav(); renderContent();
+  toast("Simulação “" + s.nome + "” aberta.");
+}
+function excluirSimulacao(id) {
+  const lista = listarSimulacoes();
+  const s = lista.find((x) => x.id === id);
+  if (!s || !confirm2("Excluir a simulação “" + s.nome + "”? Esta ação não pode ser desfeita.")) return;
+  gravarSimulacoes(lista.filter((x) => x.id !== id));
+  if (state.simId === id) { state.simId = null; }
+  state.ui.cenariosSel = (state.ui.cenariosSel || []).filter((x) => x !== id);
+}
+function renomearSimulacao(id, nome) {
+  const lista = listarSimulacoes(); const s = lista.find((x) => x.id === id);
+  if (!s || !nome.trim()) return;
+  s.nome = nome.trim(); s.inputs.analise.nome = s.nome; s.atualizadoEm = new Date().toISOString();
+  gravarSimulacoes(lista);
+  if (state.simId === id) { state.analise.nome = s.nome; renderCrumb(); }
+}
+
+/* ---- Resumo calculado de uma simulação (para listas e comparação) ---- */
+function resumoDeInputs(inputs) {
+  return comEntradas(inputs, () => {
+    const r = computeAll();
+    return {
+      tipo: r.meta.tipoLabel, periodo: r.meta.periodo, nMeses: r.meta.nMeses, receitaTotal: r.meta.receitaTotal,
+      regimes: r.regimes.map((x) => ({ id: x.id, label: x.label, total: x.total, cargaPct: x.cargaPct, elegivel: x.elegivel })),
+      melhor: r.melhor ? { id: r.melhor.id, label: r.melhor.label, total: r.melhor.total } : null,
+      economia: r.economia ? r.economia.valor : null,
     };
-    wrap.appendChild(acc);
   });
-  root.appendChild(wrap);
-  setTimeout(() => $$(".accordion.open .acc-body").forEach((b) => (b.style.maxHeight = b.scrollHeight + "px")), 0);
 }
 
-/* ---------------------------------------------------------------------------
-   RENDER: FONTES
-   --------------------------------------------------------------------------- */
-function renderFontes(root) {
-  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Fontes</h2><p class="sub">Base legal e origem de cada parâmetro utilizado nos cálculos</p></div>' }));
-  const card = el("div", { class: "card" });
-  card.innerHTML = FONTES.map((f) => '<div class="source-row"><div><div class="name">' + f.nome + '</div><div class="desc">' + f.fonte + '</div></div><div class="right">' + badge(f.status === "oficial" ? "Fonte oficial" : "Parâmetro pendente", f.status === "oficial" ? "blue" : "yellow", f.status === "oficial" ? "check" : "alert") + '<span class="date">' + f.data + '</span></div></div>').join("");
-  root.appendChild(card);
-  root.appendChild(el("div", { html: alertBox("blue", "info", "As tabelas do Simples Nacional (Anexos I a V) têm redação vigente desde janeiro/2018 e permanecem aplicáveis em 2026. Parâmetros marcados como \"pendente\" dependem de confirmação específica do caso (ISS municipal) ou de regulamentação ainda em curso (reforma tributária, majoração de presunção).") }));
+/* ---- Arquivos: exportar / importar ---- */
+function slugify(s) { return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); }
+function carimboDataHora() {
+  const now = new Date(), p = (n) => String(n).padStart(2, "0");
+  return now.getFullYear() + "-" + p(now.getMonth() + 1) + "-" + p(now.getDate()) + "-" + p(now.getHours()) + p(now.getMinutes()) + p(now.getSeconds());
+}
+// Entrega de arquivo compartilhada (PDF e JSON): usa a capability "downloads"
+// quando existir (claude.ai) e, fora dela, o download padrão do navegador.
+async function entregarArquivo(blob, filename) {
+  let claudeDownloads = null;
+  try { claudeDownloads = (window.claude && typeof window.claude.use === "function") ? await window.claude.use("downloads") : null; } catch (e) { claudeDownloads = null; }
+  if (claudeDownloads) {
+    const res = await claudeDownloads.save({ filename, data: blob });
+    return { via: "claude", status: res && res.status };
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  return { via: "browser" };
+}
+async function exportarSimulacoes(ids) {
+  const lista = listarSimulacoes().filter((s) => !ids || ids.indexOf(s.id) >= 0);
+  if (!lista.length) { toast("Nenhuma simulação para exportar."); return; }
+  const pacote = { app: EXPORT_APP, versao: STATE_VERSION, exportadoEm: new Date().toISOString(), simulacoes: lista };
+  const blob = new Blob([JSON.stringify(pacote, null, 2)], { type: "application/json" });
+  const nome = "analise-tributaria-simulacoes-" + (lista.length === 1 ? slugify(lista[0].nome) + "-" : "") + carimboDataHora() + ".json";
+  try { await entregarArquivo(blob, nome); toast(lista.length + (lista.length === 1 ? " simulação exportada." : " simulações exportadas.")); }
+  catch (e) { toast("Não foi possível exportar: " + (e && e.message ? e.message : e)); }
+}
+function importarArquivoSimulacoes(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(String(reader.result));
+      let itens = [];
+      if (data && Array.isArray(data.simulacoes)) itens = data.simulacoes;
+      else if (data && data.inputs) itens = [data];
+      else if (data && (data.empresa || data.analise)) itens = [{ nome: (data.analise && data.analise.nome) || (data.empresa && data.empresa.nome) || "Simulação importada", inputs: data }]; // rascunho/versão anterior
+      else throw new Error("formato não reconhecido");
+      const lista = listarSimulacoes();
+      let n = 0;
+      itens.forEach((it) => {
+        if (!it || !it.inputs) return;
+        // valida aplicando sobre cópia: aplicarInputs preenche o que faltar com os padrões
+        const ok = comEntradas(it.inputs, () => { try { computeAll(); return true; } catch (e) { return false; } });
+        if (!ok) return;
+        const agora = new Date().toISOString();
+        const nome = (it.nome || (it.inputs.analise && it.inputs.analise.nome) || "Simulação importada").toString();
+        const existe = lista.find((s) => s.id === it.id);
+        const sim = { id: existe ? novoId() : (it.id || novoId()), nome: existe ? nome + " (importada)" : nome, criadoEm: it.criadoEm || agora, atualizadoEm: agora, v: it.v || 1, inputs: it.inputs };
+        if (!sim.inputs.analise) sim.inputs = Object.assign({}, sim.inputs, { analise: { id: sim.id, nome: sim.nome, tipo: "existente", regimeAtual: null } });
+        lista.unshift(sim); n++;
+      });
+      if (!n) throw new Error("nenhuma simulação válida no arquivo");
+      gravarSimulacoes(lista);
+      toast(n + (n === 1 ? " simulação importada." : " simulações importadas."));
+      if ($("#modalBib")) renderBiblioteca();
+      if (state.active === "inicio") renderContent();
+    } catch (err) {
+      toast("Arquivo inválido: " + (err && err.message ? err.message : err));
+    }
+  };
+  reader.readAsText(file, "utf-8");
 }
 
+/* ---- Modal da biblioteca ---- */
+function fecharModal() {
+  const m = $("#modalBib"); if (m) m.remove();
+  document.removeEventListener("keydown", modalKey);
+}
+function modalKey(ev) { if (ev.key === "Escape") fecharModal(); }
+function abrirBiblioteca() {
+  fecharModal();
+  const wrap = el("div", { class: "scrim-modal", id: "modalBib", role: "dialog", "aria-modal": "true", "aria-label": "Simulações salvas" });
+  wrap.addEventListener("click", (ev) => { if (ev.target === wrap) fecharModal(); });
+  document.body.appendChild(wrap);
+  document.addEventListener("keydown", modalKey);
+  renderBiblioteca();
+}
+function renderBiblioteca() {
+  const wrap = $("#modalBib"); if (!wrap) return;
+  const lista = listarSimulacoes();
+  const linhas = lista.map((s) => {
+    let res = null;
+    try { res = resumoDeInputs(s.inputs); } catch (e) { res = null; }
+    const data = s.atualizadoEm ? new Date(s.atualizadoEm).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
+    return '<div class="lib-item" data-id="' + s.id + '"><div style="flex:1;min-width:220px"><div class="nm">' + escHtml(s.nome) + (state.simId === s.id ? " " + badge("aberta", "prog") : "") + "</div>" +
+      '<div class="ds">' + (res ? escHtml(res.tipo) + " · " + escHtml(res.periodo) + " · receita " + fmtBRL(res.receitaTotal) + (res.melhor ? " · menor custo: " + escHtml(res.melhor.label) + " (" + fmtBRL(res.melhor.total) + ")" : "") : "Não foi possível calcular") + " · salva em " + data + "</div></div>" +
+      '<div class="row"><button type="button" class="btn btn-secondary btn-sm" data-a="abrir">Abrir</button>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-a="dup" title="Duplicar">' + icon("copy") + "</button>" +
+      '<button type="button" class="btn btn-ghost btn-sm" data-a="ren" title="Renomear">Renomear</button>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-a="exp" title="Exportar">' + icon("download") + "</button>" +
+      '<button type="button" class="btn btn-ghost btn-sm" data-a="del" title="Excluir">' + icon("trash") + "</button></div></div>";
+  }).join("");
+  wrap.innerHTML = '<div class="modal"><div class="modal-head"><h3>Simulações salvas</h3><button type="button" class="btn btn-ghost btn-sm" id="mbClose" aria-label="Fechar">' + icon("x") + "</button></div>" +
+    '<div class="modal-body"><div class="row between" style="margin-bottom:12px"><p class="small muted" style="max-width:52ch">As simulações ficam salvas neste navegador. Exporte para um arquivo para guardar, levar para outro computador ou compartilhar.</p>' +
+    '<div class="row"><button type="button" class="btn btn-primary btn-sm" id="mbSalvar">' + icon("save") + "Salvar análise atual</button>" +
+    '<button type="button" class="btn btn-secondary btn-sm" id="mbImport">' + icon("upload") + "Importar</button>" +
+    '<button type="button" class="btn btn-secondary btn-sm" id="mbExpAll"' + (lista.length ? "" : " disabled") + ">" + icon("download") + 'Exportar todas</button><input type="file" id="mbFile" accept=".json,application/json" hidden></div></div>' +
+    (lista.length ? linhas : '<p class="small muted" style="padding:18px 0">Nenhuma simulação salva ainda. Preencha uma análise e use “Salvar”.</p>') + "</div></div>";
+  $("#mbClose").onclick = fecharModal;
+  $("#mbSalvar").onclick = () => { salvarSimulacaoAtual(); renderBiblioteca(); };
+  $("#mbImport").onclick = () => $("#mbFile").click();
+  $("#mbFile").onchange = (ev) => { const f = ev.target.files && ev.target.files[0]; if (f) importarArquivoSimulacoes(f); };
+  $("#mbExpAll").onclick = () => exportarSimulacoes(null);
+  $$(".lib-item", wrap).forEach((row) => {
+    const id = row.dataset.id;
+    $$("[data-a]", row).forEach((b) => b.onclick = () => {
+      const a = b.dataset.a;
+      if (a === "abrir") abrirSimulacao(id);
+      else if (a === "dup") { duplicarSimulacao(id); renderBiblioteca(); toast("Simulação duplicada."); }
+      else if (a === "exp") exportarSimulacoes([id]);
+      else if (a === "del") { excluirSimulacao(id); renderBiblioteca(); }
+      else if (a === "ren") {
+        const nmEl = $(".nm", row);
+        const atual = listarSimulacoes().find((x) => x.id === id).nome;
+        nmEl.innerHTML = '<input type="text" value="' + escAttr(atual) + '" style="width:100%;padding:6px 8px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface-2);color:var(--text)">';
+        const inp = $("input", nmEl); inp.focus(); inp.select();
+        const fim = () => { renomearSimulacao(id, inp.value); renderBiblioteca(); };
+        inp.onkeydown = (ev) => { if (ev.key === "Enter") fim(); else if (ev.key === "Escape") renderBiblioteca(); };
+        inp.onblur = fim;
+      }
+    });
+  });
+}
+
+/* ---- Comparação de cenários ---- */
+function aplicarVariacao(snap, v) {
+  const s = clonar(snap);
+  const f = 1 + (v.receitaPct || 0) / 100;
+  if (v.receitaPct) {
+    s.empresa.faturamentoMensal = (s.empresa.faturamentoMensal || 0) * f;
+    s.periodo.receitaTotal = (s.periodo.receitaTotal || 0) * f;
+    s.periodo.receitasMes = (s.periodo.receitasMes || []).map((x) => (x || 0) * f);
+  }
+  if (v.meses) {
+    s.periodo.meses = v.meses;
+    if (s.periodo.receitaModo === "variavel") { const rm = s.periodo.receitasMes || []; const base = rm.length ? rm[rm.length - 1] : 0; while (rm.length < v.meses) rm.push(base); s.periodo.receitasMes = rm; }
+  }
+  if (v.fatorRModo) s.fatorR.modo = v.fatorRModo;
+  if (v.regimeAtual) s.analise.regimeAtual = v.regimeAtual === "__null" ? null : v.regimeAtual;
+  return s;
+}
+function renderCenarios() {
+  const host = $("#cenariosHost"); if (!host) return;
+  const lista = listarSimulacoes();
+  const sel = (state.ui.cenariosSel || []).filter((id) => lista.some((s) => s.id === id));
+  state.ui.cenariosSel = sel;
+  const atualSnap = snapshotInputs();
+  const cols = [{ id: "__atual", nome: "Análise atual", inputs: atualSnap }].concat(sel.map((id) => { const s = lista.find((x) => x.id === id); return { id, nome: s.nome, inputs: s.inputs }; }));
+  const res = cols.map((c) => { try { return resumoDeInputs(c.inputs); } catch (e) { return null; } });
+
+  let h = '<p class="small muted" style="max-width:70ch">Compare a análise atual com simulações salvas ou crie uma variação (receita, período, folha ou regime de referência) sem preencher tudo novamente.</p>';
+  h += '<div class="group"><div class="group-title">Simulações no comparativo</div>' + (lista.length
+    ? '<div class="row" style="gap:14px">' + lista.map((s) => '<label class="checkbox-row"><input type="checkbox" data-cen="' + s.id + '"' + (sel.indexOf(s.id) >= 0 ? " checked" : "") + "><span>" + escHtml(s.nome) + "</span></label>").join("") + "</div>"
+    : '<p class="small muted">Salve a análise atual (botão “Salvar”) para poder compará-la com variações.</p>') + "</div>";
+  h += '<div class="group"><div class="group-title">Criar variação da análise atual</div><div class="grid g4">' +
+    '<div class="field"><label for="vNome">Nome</label><input type="text" id="vNome" placeholder="Ex.: Receita +20%"></div>' +
+    '<div class="field"><label for="vRec">Variação da receita (%)</label><input type="text" inputmode="decimal" id="vRec" placeholder="Ex.: 20 ou -10"></div>' +
+    '<div class="field"><label for="vMeses">Duração (meses)</label><input type="text" inputmode="numeric" id="vMeses" placeholder="manter"></div>' +
+    '<div class="field"><label for="vFator">Folha / Fator R</label><select id="vFator"><option value="">Manter</option><option value="atual">Folha atual</option><option value="necessaria">Folha necessária (28%)</option><option value="nenhuma">Sem folha</option></select></div></div>' +
+    '<div class="row" style="margin-top:12px"><button type="button" class="btn btn-secondary btn-sm" id="btnCriarVar">' + icon("plus") + "Criar variação e comparar</button></div></div>";
+  if (cols.length > 1) {
+    const base = res[0];
+    const regIds = ["simples", "hibrido", "presumido"];
+    const nomes = { simples: "Simples Nacional", hibrido: "Simples Híbrido", presumido: "Lucro Presumido" };
+    const rows = [];
+    rows.push(trHTML(["Tipo · período"].concat(res.map((x) => x ? escHtml(x.tipo) + " · " + escHtml(x.periodo) : "—"))));
+    rows.push(trHTML(["Receita no período"].concat(res.map((x) => x ? fmtBRL(x.receitaTotal) : "—")), { num: res.map((_, i) => i + 1) }));
+    regIds.forEach((id) => rows.push(trHTML([nomes[id]].concat(res.map((x) => { if (!x) return "—"; const g = x.regimes.find((q) => q.id === id); const dif = base && base !== x ? g.total - base.regimes.find((q) => q.id === id).total : null; return fmtBRL(g.total) + (dif != null ? ' <span class="small muted">(' + (dif >= 0 ? "+" : "−") + fmtBRL(Math.abs(dif)) + ")</span>" : ""); })), { num: res.map((_, i) => i + 1) })));
+    rows.push(trHTML(["Menor custo"].concat(res.map((x) => x && x.melhor ? "<b>" + escHtml(x.melhor.label) + "</b> · " + fmtBRL(x.melhor.total) : "—")), { cls: "total", num: res.map((_, i) => i + 1) }));
+    h += '<div class="group"><div class="group-title">Comparativo</div>' + tabelaHTML(["Item"].concat(cols.map((c) => escHtml(c.nome))), rows, { id: "tabCenarios", num: cols.map((_, i) => i + 1) }) +
+      '<div class="chart-box sm" style="margin-top:16px"><canvas id="chartCenarios"></canvas></div></div>';
+  }
+  host.innerHTML = h;
+  $$("[data-cen]", host).forEach((cb) => cb.onchange = () => {
+    const id = cb.dataset.cen; const s = state.ui.cenariosSel || [];
+    state.ui.cenariosSel = cb.checked ? s.concat([id]) : s.filter((x) => x !== id);
+    renderCenarios();
+  });
+  const bc = $("#btnCriarVar", host);
+  if (bc) bc.onclick = () => {
+    const rec = parseNum($("#vRec", host).value), meses = Math.round(parseNum($("#vMeses", host).value));
+    const fm = $("#vFator", host).value;
+    if (!rec && !meses && !fm) { toast("Informe ao menos uma alteração para a variação."); return; }
+    if (!state.analise.tipo) { toast("Escolha o tipo de análise antes."); return; }
+    let nome = $("#vNome", host).value.trim();
+    if (!nome) nome = (nomeSugerido() + " · " + [rec ? "receita " + (rec > 0 ? "+" : "") + rec + "%" : "", meses ? meses + " meses" : "", fm ? "folha: " + fm : ""].filter(Boolean).join(", ")).slice(0, 80);
+    const agora = new Date().toISOString(), lista2 = listarSimulacoes();
+    const inputs = aplicarVariacao(atualSnap, { receitaPct: rec, meses: meses > 0 ? Math.min(meses, 36) : 0, fatorRModo: fm });
+    inputs.analise.nome = nome;
+    const sim = { id: novoId(), nome, criadoEm: agora, atualizadoEm: agora, v: STATE_VERSION, inputs };
+    inputs.analise.id = sim.id;
+    lista2.unshift(sim); gravarSimulacoes(lista2);
+    // a análise atual precisa estar salva para servir de base nas próximas comparações
+    state.ui.cenariosSel = (state.ui.cenariosSel || []).concat([sim.id]);
+    renderCenarios();
+    toast("Variação criada e adicionada ao comparativo.");
+  };
+  if (cols.length > 1) {
+    const cv = $("#chartCenarios", host);
+    if (cv) makeChart("cenarios", cv, specCenarios(cols.map((c) => c.nome), res));
+  }
+}
+
+/* ============================================================================
+   BLOCO 68_ui_relatorio
+   ============================================================================ */
+
 /* ---------------------------------------------------------------------------
-   RENDER: RELATÓRIO PDF
+   ETAPA 4 — RELATÓRIO
+   Três modelos independentes (Resumo Executivo · Apresentação Completa ·
+   Memória Técnica), alimentados pelo mesmo resultado exibido nas etapas anteriores.
    --------------------------------------------------------------------------- */
+const MODELOS_RELATORIO = {
+  resumo: {
+    label: "Resumo Executivo", slides: 2, unidade: "slides", formato: "16:9",
+    desc: "2 slides: o custo de cada cenário e as premissas da simulação. Linguagem direta, sem detalhar tributos — ideal para decisão e conversa com o cliente.",
+  },
+  completa: {
+    label: "Apresentação Completa", slides: "até 5", unidade: "slides", formato: "16:9",
+    desc: "Até 5 slides, só com o que se aplica à análise: visão geral, composição (e evolução, se a receita varia), Simples e Híbrido, Fator R (se aplicável) e Lucro Presumido.",
+  },
+  memoria: {
+    label: "Memória Técnica", slides: "PDF", unidade: "páginas", formato: "A4 retrato",
+    desc: "PDF separado com premissas, passo a passo dos cálculos, tabelas mês a mês e por trimestre, pendências e fundamentos legais com as fontes.",
+  },
+};
+
+const REL_DESC_CURTA = {
+  resumo: "O custo de cada cenário e as premissas, em linguagem direta.",
+  completa: "Visão geral, composição, Simples e Híbrido, Fator R e Lucro Presumido.",
+  memoria: "Cálculos passo a passo, tabelas e fundamentos legais.",
+};
+function relResumoHTML(r) {
+  const M = r.meta, modelo = MODELOS_RELATORIO[modeloRelatorio()];
+  return "<span><b>" + modelo.label + "</b></span><span>" + escHtml(M.periodo) + "</span>" +
+    "<span>" + (r.recomendacao && r.recomendacao.estado === "inconclusivo" ? "Comparativo inconclusivo" : (r.conclusao && !r.conclusao.definitiva ? "Menor custo (preliminar): " : "Menor custo: ") + (r.melhor ? escHtml(r.melhor.label) + " · " + fmtBRL(r.melhor.total) : "—")) + "</span>" +
+    '<span class="small" id="pdfNomePrevio" style="word-break:break-all">' + escHtml(nomeArquivoPdf()) + "</span>";
+}
 function renderRelatorio(root) {
   const r = computeAll();
-  root.appendChild(el("div", { class: "section-head", html: '<div><h2>Relatório PDF</h2><p class="sub">Apresentação em slides (16:9), pronta para enviar ou apresentar ao cliente</p></div>' }));
+  const M = r.meta;
+  const modelo = modeloRelatorio();
+  root.appendChild(el("div", { class: "section-head", html:
+    '<div><h2>Relatório</h2><p class="sub">Escolha o modelo e gere o PDF de <b>' + escHtml(M.periodo) + "</b>. Os números são os mesmos da tela de resultados.</p></div>" }));
 
-  const card = el("div", { class: "card" });
-  card.innerHTML =
-    '<div class="card-title">' + icon("building") + 'Identidade do relatório</div>' +
-    '<div class="grid grid-2">' +
-    '<div><div class="field"><label>Logo da empresa</label></div><div class="logo-slot">[ LOGO DA EMPRESA ]<br>substituir por imagem</div></div>' +
-    '<div class="field"><label for="pdfCliente">Cliente / destinatário</label><input type="text" id="pdfCliente" placeholder="Nome do cliente" value="' + escAttr(state.empresa.nome) + '"></div>' +
-    '</div>';
-  root.appendChild(card);
+  if (!(M.receitaTotal > 0)) {
+    root.appendChild(el("div", { html: noteBox("attn", "alert", "<b>Ainda não há receita informada.</b> Preencha a receita do período na etapa 2 para gerar o relatório.") }));
+    root.appendChild(el("div", { html: stepFootHTML("preenchimento", null) }));
+    wireGoto(root);
+    return;
+  }
 
-  const viewCard = el("div", { class: "card" });
-  viewCard.innerHTML = '<div class="card-title">' + icon("layers") + 'Formato da apresentação</div>' +
-    '<div class="radio-pills" id="pdfViewPills">' +
-      '<button type="button" class="radio-pill' + (pdfComparativoView === "resumo" ? " active" : "") + '" data-pdfview="resumo">Resumo Executivo</button>' +
-      '<button type="button" class="radio-pill' + (pdfComparativoView === "detalhado" ? " active" : "") + '" data-pdfview="detalhado">Detalhado</button>' +
-    '</div>' +
-    '<p class="small muted" style="margin-top:10px">Resumo Executivo (padrão) gera um PDF curto (2 páginas): custo mensal e carga efetiva dos três cenários + premissas da simulação — recomendado para enviar ao cliente. Detalhado gera a apresentação técnica completa (12 slides), com DAS, IRPJ, CSLL, ISS, IBS, CBS e memória de cálculo.</p>';
-  root.appendChild(viewCard);
+  const cards = Object.keys(MODELOS_RELATORIO).map((k) => {
+    const m = MODELOS_RELATORIO[k];
+    return '<button type="button" class="choice" data-modelo="' + k + '" aria-pressed="' + (modelo === k) + '" title="' + escAttr(m.desc) + '"><h3>' + m.label + '</h3><span class="d1">' + (m.unidade === "slides" ? (m.slides === 2 ? "2 slides" : "Até " + String(m.slides).replace("até ", "") + " slides") : "Documento técnico") + " · " + (m.unidade === "slides" ? m.formato : m.formato) + "</span><span class=\"d2\">" + REL_DESC_CURTA[k] + "</span></button>";
+  }).join("");
+  root.appendChild(el("div", { class: "choice-grid rel", html: cards }));
 
-  const previewCard = el("div", { class: "card" });
-  const defs = buildActivePptxSlideDefs(r);
-  previewCard.innerHTML = '<div class="card-title">' + icon("filetext") + 'Estrutura da apresentação (' + defs.length + ' ' + (defs.length === 1 ? "slide" : "slides") + ' · 16:9)</div>' +
-    '<ol class="small muted" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;column-count:2;column-gap:28px">' +
-    defs.map((d) => '<li>' + escHtml(d.title) + '</li>').join("") +
-    '</ol>' +
-    '<div style="height:14px"></div>' +
-    alertBox("blue", "info", "Formato widescreen 16:9 — cada página do PDF é um slide. Use a pré-visualização para revisar antes de exportar.") +
-    '<div style="height:16px"></div>' +
-    '<div id="pdfStatus"></div>' +
-    '<div class="flex gap-10" style="flex-wrap:wrap">' +
-    '<button class="btn btn-secondary" id="btnPreviewPdf">' + icon("layers") + 'Pré-visualizar apresentação</button>' +
-    '<button class="btn btn-success" id="btnGerarPdf">' + icon("download") + 'Exportar PDF</button>' +
-    '</div>';
-  root.appendChild(previewCard);
+  const pend = r.pendencias.filter((p) => p.nivel === "pendente" && !p.confirmado).length;
+  if (pend) root.appendChild(el("div", { html: noteBox("attn", "alert", "<b>Há " + pend + (pend === 1 ? " informação pendente" : " informações pendentes") + ".</b> O relatório será gerado com os dados atuais e registrará as limitações. <button type=\"button\" class=\"link-btn\" data-goto=\"preenchimento\">Completar na etapa 2</button>") }));
 
-  setTimeout(() => {
-    $("#btnGerarPdf").onclick = () => exportPptxPdf();
-    $("#btnPreviewPdf").onclick = () => openPptxPreview();
-    $$('[data-pdfview]').forEach((b) => b.onclick = () => { pdfComparativoView = b.dataset.pdfview; renderContent(); });
-  }, 0);
+  root.appendChild(el("div", { class: "rel-sum", id: "liveRelSum" }));
+  root.appendChild(el("div", { html:
+    '<div class="row-actions">' +
+      '<button type="button" class="btn btn-primary" id="btnGerarPdf">' + icon("download") + "Gerar PDF</button>" +
+      '<button type="button" class="btn btn-secondary" id="btnPreviaPdf">' + icon("search") + "Pré-visualizar</button>" +
+      '<span class="grow"></span>' +
+      '<button type="button" class="btn btn-ghost" id="btnSalvarRel">' + icon("save") + "Salvar simulação</button>" +
+    '</div><div id="pdfStatus" class="pdf-status" aria-live="polite"></div>' }));
+  root.appendChild(el("div", { class: "collapse-list", html: advDetails("relopc", "Nome no relatório", "opcional — empresa ou simulação e CNPJ",
+    '<div class="field-row r2">' +
+      fieldHTML({ label: "Nome da empresa ou da simulação", path: "analise.nome", kind: "text", opt: true, placeholder: "Ex.: Contrato Alfa — 1º trimestre" }) +
+      fieldHTML({ label: "CNPJ", path: "empresa.cnpj", kind: "text", opt: true, placeholder: "00.000.000/0000-00" }) + "</div>") }));
+  root.appendChild(el("div", { html: stepFootHTML("resultados", null) }));
+  LIVE = [{ sel: "#liveRelSum", fn: (rr) => relResumoHTML(rr) }];
+  const n0 = $("#liveRelSum", root); if (n0) n0.innerHTML = relResumoHTML(r);
+
+  $$("[data-modelo]", root).forEach((b) => b.addEventListener("click", () => {
+    state.ui.relatorioModelo = b.dataset.modelo;
+    saveDraft();
+    renderContent();
+  }));
+  $$("details[data-adv]", root).forEach((d) => d.addEventListener("toggle", () => { state.ui.avancado[d.dataset.adv] = d.open; }));
+  $("#btnPreviaPdf", root).onclick = () => openPptxPreview();
+  $("#btnGerarPdf", root).onclick = () => exportPptxPdf();
+  $("#btnSalvarRel", root).onclick = () => salvarSimulacaoAtual();
+  wireGoto(root);
 }
-function slugify(s) { return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40); }
+
+/* ============================================================================
+   BLOCO 80_charts
+   ============================================================================ */
 
 /* ---------------------------------------------------------------------------
-   RELATÓRIO PDF — apresentação em slides (16:9)
-   O relatório passou de "impressão do dashboard" para uma apresentação de
-   slides widescreen, com pré-visualização navegável antes da exportação.
-   Reaproveita exclusivamente os dados já calculados por computeAll() —
-   nenhuma regra tributária é recalculada ou alterada aqui. O visual é fixo
-   em tema claro (paleta própria, independente do modo claro/escuro do
-   sistema) e usa a mesma identidade (azul + verde + Inter) do restante do
-   produto.
+   GRÁFICOS (Chart.js) — gerenciador único
+   - Todas as séries vêm de `state.result` (a mesma fonte dos cartões, da
+     tabela e do PDF); nenhum gráfico recalcula valores por conta própria.
+   - Recriados a cada renderização (alteração de dados, troca de tema,
+     mudança de etapa): nunca exibem valores antigos.
+   - Cores lidas das variáveis CSS do tema vigente; o PDF usa a paleta clara.
+   - Sem animação (valores corretos desde o primeiro quadro) e legendas
+     fora da área de plotagem para evitar sobreposição.
    --------------------------------------------------------------------------- */
-const PPTX_W = 1280, PPTX_H = 720; // 16:9 (equivalente a 13.333in × 7.5in em 96dpi / 960×540pt)
-const PPTX = {
-  navy: "#0F2747", blueDeep: "#123B63", blueMed: "#1769AA", blueLight: "#EAF4FB",
-  green: "#10A36A", greenDark: "#087A50", greenLight: "#E8F7F1",
-  bg: "#F5F7FA", white: "#FFFFFF", text: "#334155", textSec: "#64748B",
-  border: "#E2E8F0", yellow: "#966000", yellowLight: "#FEF6E4",
+let CHARTS = {};
+function destroyCharts() { Object.keys(CHARTS).forEach((k) => { try { CHARTS[k].destroy(); } catch (e) {} }); CHARTS = {}; }
+
+const TOKENS_CLARO = {
+  text: "#03131C", textSec: "#455157", grid: "rgba(3,19,28,.12)", tipBg: "#040809", tipTx: "#EDEDED",
+  regime: { simples: "#455157", hibrido: "#3F6F73", presumido: "#8C7A56" },
+  cats: ["#0C171B", "#455157", "#7C8B92", "#B5BEC1", "#3F6F73", "#8C7A56", "#5E6E8C", "#8A5E57"],
+  receita: "rgba(124,139,146,.35)", line: "#0C171B",
 };
-const pptxState = { index: 0, total: 0, open: false };
+function chartTokens(claro) {
+  if (claro) return TOKENS_CLARO;
+  const cs = getComputedStyle(document.documentElement);
+  const v = (n, d) => (cs.getPropertyValue(n) || "").trim() || d;
+  const cats = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => v("--s" + i, TOKENS_CLARO.cats[i - 1]));
+  const dark = isDarkActive();
+  return {
+    text: v("--text", TOKENS_CLARO.text), textSec: v("--chart-text", TOKENS_CLARO.textSec), grid: v("--chart-grid", TOKENS_CLARO.grid),
+    tipBg: "#040809", tipTx: "#EDEDED",
+    regime: { simples: cats[1], hibrido: cats[4], presumido: cats[5] },
+    cats, receita: dark ? "rgba(237,237,237,.22)" : "rgba(124,139,146,.35)", line: cats[0],
+  };
+}
+function fmtCompacto(v) {
+  const a = Math.abs(v);
+  const n = (x, d) => x.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: d });
+  if (a >= 1e6) return "R$ " + n(v / 1e6, 1) + " mi";
+  if (a >= 1e3) return "R$ " + n(v / 1e3, a >= 1e5 ? 0 : 1) + " mil";
+  return "R$ " + n(v, 0);
+}
+// Rótulo de categoria em até 3 linhas (array = multilinha no Chart.js), para nenhum rótulo ser ocultado por falta de espaço
+function quebrarRotulo(s, max) {
+  max = max || 10;
+  const linhas = [];
+  String(s || "").split(/\s+/).forEach((w) => { const u = linhas.length ? linhas[linhas.length - 1] : null; if (u != null && (u + " " + w).length <= max) linhas[linhas.length - 1] = u + " " + w; else linhas.push(w); });
+  return linhas.length > 1 ? linhas : (linhas[0] || "");
+}
+function curto(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+// plugin: valor acima de cada barra (apenas no gráfico comparativo / cenários)
+const pluginValores = {
+  id: "valoresBarra",
+  afterDatasetsDraw(chart, args, opts) {
+    if (!opts || !opts.ativo) return;
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.font = "600 12px " + (opts.fonte || "Inter, sans-serif");
+    ctx.fillStyle = opts.cor || "#000";
+    ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    chart.data.datasets.forEach((ds, di) => {
+      if (opts.somenteDataset != null && di !== opts.somenteDataset) return;
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden) return;
+      meta.data.forEach((bar, i) => {
+        const v = ds.data[i];
+        if (v == null || !isFinite(v)) return;
+        ctx.fillText(fmtCompacto(v), bar.x, bar.y - 5);
+      });
+    });
+    ctx.restore();
+  },
+};
+function opcoesBase(tok, extra) {
+  const base = {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    layout: { padding: { top: 22, right: 8, left: 4, bottom: 2 } },
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { position: "bottom", labels: { color: tok.textSec, boxWidth: 12, boxHeight: 12, padding: 14, font: { size: 12 } } },
+      tooltip: { backgroundColor: tok.tipBg, titleColor: tok.tipTx, bodyColor: tok.tipTx, borderColor: "rgba(237,237,237,.25)", borderWidth: 1, padding: 10, callbacks: { label: (c) => " " + c.dataset.label + ": " + fmtBRL(c.parsed.y != null ? c.parsed.y : c.parsed) } },
+    },
+    scales: {
+      x: { ticks: { color: tok.text, font: { size: 12 }, maxRotation: 0, autoSkip: true }, grid: { display: false }, border: { color: tok.grid } },
+      y: { beginAtZero: true, grace: "12%", ticks: { color: tok.textSec, callback: (v) => fmtCompacto(v), font: { size: 11 } }, grid: { color: tok.grid }, border: { display: false } },
+    },
+  };
+  return Object.assign(base, extra || {});
+}
+
+/* ---- Especificações (compartilhadas entre tela e PDF) ---- */
+function specComparativo(r, tok) {
+  const labels = r.regimes.map((x) => situacaoRegimeInfo(x) ? quebrarRotulo(x.label + " (" + situacaoRegimeInfo(x).txt.split(" · ")[0].toLowerCase() + ")", 16) : quebrarRotulo(x.label));
+  const melhorIdx = r.melhor ? r.regimes.findIndex((x) => x.id === r.melhor.id) : -1;
+  const o = opcoesBase(tok);
+  o.scales.x.ticks.autoSkip = false;
+  o.plugins.legend.display = false;
+  o.plugins.valoresBarra = { ativo: true, cor: tok.text };
+  o.plugins.tooltip.callbacks = { label: (c) => " " + fmtBRL(c.parsed.y), afterLabel: (c) => " Carga efetiva: " + fmtPct(r.regimes[c.dataIndex].cargaPct) };
+  return {
+    type: "bar",
+    data: { labels, datasets: [{
+      label: "Custo no período", data: r.regimes.map((x) => x.total),
+      backgroundColor: r.regimes.map((x) => tok.regime[x.id]), borderColor: r.regimes.map((x, i) => (i === melhorIdx ? tok.text : "transparent")), borderWidth: r.regimes.map((x, i) => (i === melhorIdx ? 2 : 0)),
+      borderRadius: 3, maxBarThickness: 84,
+    }] },
+    options: o, plugins: [pluginValores],
+  };
+}
+function specComposicao(r, tok) {
+  const C = r.composicao;
+  const ds = [];
+  C.cats.forEach((cat, i) => {
+    const vals = [C.simples[i], C.hibrido[i], C.presumido[i]];
+    if (vals.some((v) => v > 0.005)) ds.push({ label: cat, data: vals, backgroundColor: tok.cats[i], borderWidth: 0, maxBarThickness: 84 });
+  });
+  const o = opcoesBase(tok);
+  o.interaction = { mode: "nearest", intersect: true };
+  o.scales.x.stacked = true; o.scales.y.stacked = true; o.scales.x.ticks.autoSkip = false;
+  o.plugins.tooltip.callbacks = { label: (c) => " " + c.dataset.label + ": " + fmtBRL(c.parsed.y), footer: (items) => "Total: " + fmtBRL(items.reduce((a, b) => a + b.parsed.y, 0)) };
+  return { type: "bar", data: { labels: r.regimes.map((x) => quebrarRotulo(x.label)), datasets: ds }, options: o };
+}
+function specTemporal(r, tok) {
+  const T = r.temporal;
+  const o = opcoesBase(tok);
+  o.scales.y2 = { position: "right", beginAtZero: true, grace: "12%", ticks: { color: tok.textSec, callback: (v) => fmtCompacto(v), font: { size: 11 } }, grid: { drawOnChartArea: false }, border: { display: false }, title: { display: true, text: "Receita", color: tok.textSec, font: { size: 11 } } };
+  o.scales.y.title = { display: true, text: "Custo tributário", color: tok.textSec, font: { size: 11 } };
+  o.scales.x.ticks.autoSkip = true; o.scales.x.ticks.maxTicksLimit = 14;
+  o.plugins.tooltip.callbacks = { label: (c) => " " + c.dataset.label + ": " + fmtBRL(c.parsed.y) };
+  const linha = (label, data, cor, tracejado) => ({ type: "line", label, data, borderColor: cor, backgroundColor: cor, borderWidth: 2.2, pointRadius: T.labels.length > 18 ? 0 : 3, pointHoverRadius: 4, tension: 0.15, yAxisID: "y", order: 1, borderDash: tracejado || [] });
+  return {
+    type: "bar",
+    data: { labels: T.labels, datasets: [
+      { type: "bar", label: "Receita (eixo à direita)", data: T.receita, backgroundColor: tok.receita, borderWidth: 0, yAxisID: "y2", order: 3, maxBarThickness: 40 },
+      linha("Simples Nacional", T.simples, tok.regime.simples),
+      linha("Simples Híbrido", T.hibrido, tok.regime.hibrido, [6, 4]),
+      linha("Lucro Presumido", T.presumido, tok.regime.presumido),
+    ] },
+    options: o,
+  };
+}
+function specCenarios(nomes, res) {
+  const tok = chartTokens(false);
+  const ids = ["simples", "hibrido", "presumido"], lab = { simples: "Simples Nacional", hibrido: "Simples Híbrido", presumido: "Lucro Presumido" };
+  const o = opcoesBase(tok);
+  o.plugins.valoresBarra = { ativo: true, cor: tok.text }; o.scales.x.ticks.autoSkip = false;
+  o.plugins.tooltip.callbacks = { label: (c) => " " + c.dataset.label + ": " + fmtBRL(c.parsed.y) };
+  return {
+    type: "bar",
+    data: { labels: nomes.map((n) => quebrarRotulo(curto(n, 40), 18)), datasets: ids.map((id) => ({ label: lab[id], data: res.map((x) => (x ? x.regimes.find((g) => g.id === id).total : null)), backgroundColor: tok.regime[id], borderWidth: 0, borderRadius: 3, maxBarThickness: 56 })) },
+    options: o, plugins: [pluginValores],
+  };
+}
+
+/* ---- Criação ---- */
+function aplicarDefaultsChart(tok) {
+  if (typeof Chart === "undefined") return;
+  Chart.defaults.font.family = "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif";
+  Chart.defaults.color = tok.textSec;
+}
+function makeChart(key, canvas, cfg, claro) {
+  if (CHARTS[key]) { try { CHARTS[key].destroy(); } catch (e) {} delete CHARTS[key]; }
+  if (typeof Chart === "undefined") {
+    const box = canvas.parentElement;
+    if (box) box.innerHTML = '<div class="chart-empty">Gráfico indisponível: a biblioteca Chart.js não foi carregada. Os mesmos valores estão na tabela comparativa.</div>';
+    return null;
+  }
+  aplicarDefaultsChart(chartTokens(claro));
+  try {
+    CHARTS[key] = new Chart(canvas, cfg);
+    return CHARTS[key];
+  } catch (e) {
+    console.error("Falha ao criar gráfico", key, e);
+    const box = canvas.parentElement;
+    if (box) box.innerHTML = '<div class="chart-empty">Não foi possível desenhar este gráfico.</div>';
+    return null;
+  }
+}
+function renderCharts() {
+  destroyCharts();
+  const aberto = (n) => n && !n.closest("details:not([open])");
+  const cvC = document.getElementById("chartComparativo"), cvK0 = document.getElementById("chartComposicao"), cvT0 = document.getElementById("chartTemporal");
+  const cvK = aberto(cvK0) ? cvK0 : null, cvT = aberto(cvT0) ? cvT0 : null; // retráteis fechados: o gráfico nasce ao abrir
+  if (!cvC && !cvK && !cvT) return;
+  const r = state.result || computeAll();
+  const tok = chartTokens(false);
+  if (cvC) makeChart("comparativo", cvC, specComparativo(r, tok));
+  if (cvK) makeChart("composicao", cvK, specComposicao(r, tok));
+  if (cvT) makeChart("temporal", cvT, specTemporal(r, tok));
+}
+
+/* ---- Verificação de consistência: CARTÕES = TABELA = GRÁFICOS = RELATÓRIO ---- */
+function verificarConsistencia() {
+  const r = state.result || computeAll();
+  const erros = [];
+  const eq = (a, b) => Math.abs(a - b) < 0.005;
+  r.regimes.forEach((x) => {
+    const card = document.querySelector('.regime[data-regime="' + x.id + '"] .val');
+    if (card && !eq(Number(card.dataset.v), x.total)) erros.push("cartão " + x.id);
+    const tr = document.querySelector('#tabComparativo tr[data-regime="' + x.id + '"]');
+    if (tr && !eq(Number(tr.dataset.total), x.total)) erros.push("tabela " + x.id);
+  });
+  if (CHARTS.comparativo) {
+    const d = CHARTS.comparativo.data.datasets[0].data;
+    r.regimes.forEach((x, i) => { if (!eq(d[i], x.total)) erros.push("gráfico comparativo " + x.id); });
+  }
+  if (CHARTS.composicao) {
+    const tot = [0, 0, 0];
+    CHARTS.composicao.data.datasets.forEach((ds) => ds.data.forEach((v, i) => { tot[i] += v; }));
+    r.regimes.forEach((x, i) => { if (!eq(tot[i], x.total)) erros.push("gráfico composição " + x.id + " (" + tot[i].toFixed(2) + " ≠ " + x.total.toFixed(2) + ")"); });
+  }
+  if (CHARTS.temporal) {
+    const ds = CHARTS.temporal.data.datasets;
+    const somas = { simples: soma(ds[1].data), hibrido: soma(ds[2].data), presumido: soma(ds[3].data) };
+    r.regimes.forEach((x) => { if (!eq(somas[x.id], x.total)) erros.push("gráfico temporal " + x.id); });
+  }
+  return { ok: erros.length === 0, erros };
+}
+
+/* ============================================================================
+   BLOCO 85_pdf
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   RELATÓRIO PDF — apresentação 16:9
+   Três modelos independentes (V3.1):
+     · Resumo Executivo (2 slides) — NÃO cita tributos específicos
+       (IRPJ, CSLL, DAS, ISS, IBS, CBS, PIS, COFINS, CPP, ICMS, IPI);
+     · Apresentação Completa (até 5 slides, conteúdo condicional);
+     · Memória Técnica (PDF separado, A4 retrato): cálculos e fundamentos.
+   Ambos leem exclusivamente `state.result` (mesma fonte dos cartões, da
+   tabela e dos gráficos) e informam o período analisado e as premissas.
+   Visual fixo em tema claro, na identidade do produto. A captura usa
+   html2canvas → jsPDF (um slide por página, 16:9), com as fontes aguardadas.
+   --------------------------------------------------------------------------- */
+const PPTX_W = 1280, PPTX_H = 720;
+// Memória Técnica: página A4 retrato em px de 96 dpi (794 × 1123)
+const MEM_W = 794, MEM_H = 1123, MEM_PADX = 52, MEM_PADT = 76, MEM_PADB = 44;
+const PPTX = {
+  bg: "#EDEDED", paper: "#F6F6F5", ink: "#03131C", struct: "#0C171B", second: "#455157", contrast: "#040809",
+  attn: "#FF5001", border: "#C9CDCE", soft: "#E3E4E4", ok: "#3C7A5B", mute: "#66737A",
+  regime: { simples: "#455157", hibrido: "#3F6F73", presumido: "#8C7A56" },
+};
+const pptxState = { index: 0, total: 0, open: false, w: PPTX_W, h: PPTX_H };
 let pptxChartInstances = [];
-// Estilo do slide "Comparativo" no PDF — "resumo" (padrão, enviado ao
-// cliente) mostra só custo mensal + carga efetiva dos 3 cenários;
-// "detalhado" mostra a análise técnica completa (DAS, IRPJ, CSLL, ISS, IBS,
-// CBS). Escolhido pelo usuário na aba Relatório PDF.
-let pdfComparativoView = "resumo";
+// Modelos: resumo (Resumo Executivo) · completa (Apresentação Completa) · memoria (Memória Técnica).
+// "detalhado" é o nome antigo do relatório de 12 slides: rascunhos/simulações antigas são lidos como "completa".
+function modeloRelatorio() { const m = state.ui.relatorioModelo; return m === "completa" || m === "detalhado" ? "completa" : m === "memoria" ? "memoria" : "resumo"; }
 
 const PPTX_CSS = "" +
 ".pptx-host{position:fixed;top:0;left:-4000px;width:" + PPTX_W + "px;height:" + PPTX_H + "px;z-index:1;pointer-events:none}" +
-".pptx-host.pptx-open{left:50%;top:50%;transform:translate(-50%,-50%) scale(var(--pptx-scale,1));z-index:1201;pointer-events:auto;box-shadow:0 24px 70px rgba(0,0,0,.55);border-radius:10px;overflow:hidden}" +
-".pptx-slide{position:absolute;top:0;left:0;width:" + PPTX_W + "px;height:" + PPTX_H + "px;background:" + PPTX.white + ";color:" + PPTX.text + ";font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;overflow:hidden;z-index:1}" +
+".pptx-host.pptx-open{left:50%;top:50%;transform:translate(-50%,-50%) scale(var(--pptx-scale,1));z-index:1201;pointer-events:auto;box-shadow:0 24px 70px rgba(0,0,0,.55);border-radius:6px;overflow:hidden}" +
+".pptx-slide{position:absolute;top:0;left:0;width:" + PPTX_W + "px;height:" + PPTX_H + "px;background:" + PPTX.bg + ";color:" + PPTX.ink + ";font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden;z-index:1;font-size:14px;line-height:1.45}" +
 ".pptx-slide.pptx-active{z-index:5}" +
 ".pptx-slide *{box-sizing:border-box}" +
-".pptx-cover{position:absolute;inset:0;background:linear-gradient(135deg," + PPTX.navy + "," + PPTX.blueMed + ");display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 90px}" +
-".pptx-cover .k{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8CE0B8;margin-bottom:14px}" +
-".pptx-cover h1{font-size:46px;font-weight:800;color:#fff;letter-spacing:-.01em;margin-bottom:10px}" +
-".pptx-cover .sub{font-size:16px;color:#BFD6EA;margin-bottom:34px;max-width:820px}" +
-".pptx-cover .bar{width:64px;height:4px;background:" + PPTX.green + ";border-radius:4px;margin-bottom:34px}" +
-".pptx-cover .empresa{font-size:22px;font-weight:700;color:#fff}" +
-".pptx-cover .cnpj{font-size:13.5px;color:#BFD6EA;margin-top:6px}" +
-".pptx-cover .ano{font-size:13px;color:#8CE0B8;margin-top:20px;font-weight:600;letter-spacing:.03em}" +
-".pptx-head{height:104px;background:linear-gradient(135deg," + PPTX.navy + "," + PPTX.blueMed + ");display:flex;flex-direction:column;justify-content:center;padding:0 56px;position:relative}" +
-".pptx-head::after{content:'';position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg," + PPTX.green + ",transparent 62%)}" +
-".pptx-kicker{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#8CE0B8;margin-bottom:5px}" +
-".pptx-title{font-size:28px;font-weight:800;color:#fff;letter-spacing:-.01em}" +
-".pptx-body{position:absolute;top:104px;left:0;right:0;bottom:44px;padding:32px 56px;overflow:hidden}" +
-".pptx-foot{position:absolute;left:0;right:0;bottom:0;height:44px;background:" + PPTX.bg + ";border-top:1px solid " + PPTX.border + ";display:flex;align-items:center;justify-content:space-between;padding:0 56px;font-size:11.5px;color:" + PPTX.textSec + "}" +
-".pptx-foot b{color:" + PPTX.text + ";font-weight:700}" +
-".pptx-foot-dark{background:rgba(255,255,255,.06);border-top:1px solid rgba(255,255,255,.14);color:#BFD6EA}" +
-".pptx-foot-dark b{color:#fff}" +
-".pptx-grid{display:grid;gap:16px}" +
-".pptx-grid-2{grid-template-columns:repeat(2,1fr)}" +
-".pptx-grid-3{grid-template-columns:repeat(3,1fr)}" +
-".pptx-grid-4{grid-template-columns:repeat(4,1fr)}" +
-".pptx-stat{background:" + PPTX.bg + ";border:1px solid " + PPTX.border + ";border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:5px;min-width:0}" +
-".pptx-stat.pptx-hl{background:" + PPTX.greenLight + ";border-color:#BFE9D8}" +
-".pptx-stat-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:" + PPTX.textSec + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
-".pptx-stat-value{font-size:24px;font-weight:800;color:" + PPTX.navy + ";letter-spacing:-.01em;line-height:1.2;overflow-wrap:anywhere}" +
-".pptx-stat.pptx-hl .pptx-stat-value{color:" + PPTX.greenDark + "}" +
-".pptx-stat-sub{font-size:11.5px;color:" + PPTX.textSec + ";overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}" +
-".pptx-card{background:" + PPTX.white + ";border:1px solid " + PPTX.border + ";border-radius:14px;padding:16px 18px}" +
-".pptx-card-title{font-size:12.5px;font-weight:700;color:" + PPTX.navy + ";margin-bottom:8px}" +
-".pptx-table{border:1px solid " + PPTX.border + ";border-radius:10px;overflow:hidden}" +
-".pptx-table table{width:100%;border-collapse:collapse;font-size:12.5px}" +
-".pptx-table thead th{background:" + PPTX.navy + ";color:#fff;text-align:left;font-weight:700;padding:7px 12px;font-size:10.5px}" +
+".pptx-slide h1,.pptx-slide h2,.pptx-slide h3,.pptx-slide h4,.pptx-title,.pptx-kicker,.pptx-stat-label,.pptx-card-title,.pptx-regime h4{font-family:'Alata','Segoe UI',system-ui,sans-serif;font-weight:400}" +
+".pptx-cover{position:absolute;inset:0 0 44px 0;background:" + PPTX.struct + ";color:#EDEDED;padding:0 90px;display:flex;flex-direction:column;justify-content:center}" +
+".pptx-cover .k{font-family:'Alata',sans-serif;font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:#93A0A6;margin-bottom:18px}" +
+".pptx-cover h1{font-size:58px;line-height:1.05;color:#EDEDED;margin:0 0 16px}" +
+".pptx-cover .sub{font-size:18px;color:#B5BEC1;max-width:860px;margin-bottom:38px}" +
+".pptx-cover .bar{width:72px;height:3px;background:#EDEDED;margin-bottom:34px}" +
+".pptx-cover .empresa{font-family:'Alata',sans-serif;font-size:26px;color:#EDEDED}" +
+".pptx-cover .meta{font-size:15px;color:#B5BEC1;margin-top:8px}" +
+".pptx-head{height:98px;padding:0 56px;display:flex;flex-direction:column;justify-content:center;border-bottom:2px solid " + PPTX.struct + "}" +
+".pptx-kicker{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:" + PPTX.second + ";margin-bottom:6px}" +
+".pptx-title{font-size:30px;color:" + PPTX.ink + ";line-height:1.1}" +
+".pptx-body{position:absolute;top:98px;left:0;right:0;bottom:44px;padding:26px 56px;overflow:hidden}" +
+".pptx-foot{position:absolute;left:0;right:0;bottom:0;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 56px;font-size:11.5px;color:" + PPTX.second + ";border-top:1px solid " + PPTX.border + "}" +
+".pptx-foot b{color:" + PPTX.ink + ";font-weight:600}" +
+".pptx-foot-dark{background:" + PPTX.struct + ";color:#93A0A6;border-top:1px solid #1F2D33}" +
+".pptx-foot-dark b{color:#EDEDED}" +
+".pptx-grid{display:grid;gap:14px}.pptx-grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}.pptx-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}.pptx-grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}" +
+".pptx-stat{background:" + PPTX.paper + ";border:1px solid " + PPTX.border + ";border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;min-width:0}" +
+".pptx-stat.pptx-hl{background:" + PPTX.struct + ";border-color:" + PPTX.struct + "}" +
+".pptx-stat-label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:" + PPTX.mute + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+".pptx-stat-value{font-size:24px;font-weight:600;color:" + PPTX.ink + ";letter-spacing:-.01em;line-height:1.2;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}" +
+".pptx-stat.pptx-hl .pptx-stat-value{color:#EDEDED}.pptx-stat.pptx-hl .pptx-stat-label,.pptx-stat.pptx-hl .pptx-stat-sub{color:#93A0A6}" +
+".pptx-stat-sub{font-size:12px;color:" + PPTX.second + ";overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}" +
+".pptx-card{background:" + PPTX.paper + ";border:1px solid " + PPTX.border + ";border-radius:6px;padding:14px 16px}" +
+".pptx-card-title{font-size:14px;color:" + PPTX.ink + ";margin-bottom:8px}" +
+".pptx-table{border:1px solid " + PPTX.border + ";border-radius:6px;overflow:hidden}" +
+".pptx-table table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}" +
+".pptx-table thead th{background:" + PPTX.struct + ";color:#EDEDED;text-align:left;font-family:'Alata',sans-serif;font-weight:400;padding:7px 11px;font-size:11.5px;letter-spacing:.02em}" +
 ".pptx-table thead th.n,.pptx-table tbody td.n{text-align:right}" +
-".pptx-table tbody td{padding:6.5px 12px;border-top:1px solid " + PPTX.border + ";color:" + PPTX.text + "}" +
-".pptx-table tbody tr:nth-child(even){background:#FAFBFD}" +
-".pptx-table tbody tr.total td{background:" + PPTX.greenLight + ";font-weight:700;color:" + PPTX.greenDark + ";border-top:2px solid " + PPTX.green + "}" +
-".pptx-kv{display:flex;justify-content:space-between;gap:14px;padding:7.5px 0;border-bottom:1px dashed " + PPTX.border + ";font-size:13px}" +
-".pptx-kv .k{color:" + PPTX.textSec + "}" +
-".pptx-kv .v{color:" + PPTX.text + ";font-weight:700;text-align:right}" +
-".pptx-regime{background:" + PPTX.white + ";border:1px solid " + PPTX.border + ";border-top:3px solid " + PPTX.blueDeep + ";border-radius:14px;padding:15px 17px}" +
-".pptx-regime.hl{border-top-color:" + PPTX.green + "}" +
-".pptx-regime h4{font-size:13.5px;font-weight:700;color:" + PPTX.navy + ";margin-bottom:8px}" +
-".pptx-regime .val{font-size:21px;font-weight:800;color:" + PPTX.navy + "}" +
-".pptx-regime .row{display:flex;justify-content:space-between;font-size:11.5px;color:" + PPTX.textSec + ";padding:5px 0;border-top:1px dashed " + PPTX.border + "}" +
-".pptx-regime .row b{color:" + PPTX.text + "}" +
-".pptx-flow{display:flex;align-items:stretch;justify-content:center;gap:0;margin:2px 0 18px}" +
-".pptx-flow-box{width:146px;background:" + PPTX.blueLight + ";border:1px solid #CFE6F5;border-radius:12px;padding:13px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}" +
-".pptx-flow-box .fl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:" + PPTX.blueDeep + "}" +
-".pptx-flow-box .fv{font-size:16.5px;font-weight:800;color:" + PPTX.navy + "}" +
-".pptx-flow-total{width:190px;background:linear-gradient(135deg," + PPTX.blueDeep + "," + PPTX.green + ");border:none}" +
-".pptx-flow-total .fl{color:" + PPTX.greenLight + "}" +
-".pptx-flow-total .fv{color:#fff;font-size:20px}" +
-".pptx-flow-op{width:32px;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:800;color:" + PPTX.textSec + "}" +
+".pptx-table tbody td{padding:6px 11px;border-top:1px solid " + PPTX.border + ";color:" + PPTX.ink + "}" +
+".pptx-table tbody tr:nth-child(even){background:" + PPTX.soft + "55}" +
+".pptx-table tbody tr.total td{background:" + PPTX.soft + ";font-weight:600;border-top:1.5px solid " + PPTX.second + "}" +
+".pptx-table tbody tr.pbest td{font-weight:600;background:" + PPTX.soft + "}" + // sem bordas/sombras extras: o html2canvas as desenha como blocos cheios
+".pptx-kv{display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-bottom:1px solid " + PPTX.border + ";font-size:13px}" +
+".pptx-kv .k{color:" + PPTX.second + "}.pptx-kv .v{color:" + PPTX.ink + ";font-weight:600;text-align:right;font-variant-numeric:tabular-nums}" +
+".pptx-regime{background:" + PPTX.paper + ";border:1px solid " + PPTX.border + ";border-radius:6px;padding:15px 17px;border-top:4px solid " + PPTX.second + "}" +
+".pptx-regime.hl{border-width:2px;border-top-width:4px;border-color:" + PPTX.ink + "}" + // sem box-shadow inset: o html2canvas o desenha como bloco cheio
+".pptx-regime h4{font-size:16px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}" +
+".pptx-regime .val{font-size:28px;font-weight:600;letter-spacing:-.015em;font-variant-numeric:tabular-nums;margin-bottom:6px}" +
+".pptx-regime .row{display:flex;justify-content:space-between;font-size:12.5px;color:" + PPTX.second + ";padding:5px 0;border-top:1px solid " + PPTX.border + "}" +
+".pptx-regime .row b{color:" + PPTX.ink + ";font-variant-numeric:tabular-nums}" +
+".pptx-flow{display:flex;align-items:stretch;justify-content:center;margin:0 0 16px}" +
+".pptx-flow-box{width:150px;background:" + PPTX.paper + ";border:1px solid " + PPTX.border + ";border-radius:6px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center}" +
+".pptx-flow-box .fl{font-family:'Alata',sans-serif;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:" + PPTX.second + "}" +
+".pptx-flow-box .fv{font-size:16.5px;font-weight:600;font-variant-numeric:tabular-nums}" +
+".pptx-flow-total{width:190px;background:" + PPTX.struct + ";border-color:" + PPTX.struct + "}.pptx-flow-total .fl{color:#93A0A6}.pptx-flow-total .fv{color:#EDEDED;font-size:20px}" +
+".pptx-flow-op{width:30px;display:flex;align-items:center;justify-content:center;font-size:20px;color:" + PPTX.second + "}" +
 ".pptx-chart-box{position:relative;width:100%;height:100%}" +
-".pptx-alert{border-radius:10px;padding:11px 14px;font-size:12px;line-height:1.5;border:1px solid transparent}" +
-".pptx-alert-yellow{background:" + PPTX.yellowLight + ";color:#7A5200;border-color:#F3DFA3}" +
-".pptx-alert-blue{background:" + PPTX.blueLight + ";color:" + PPTX.blueDeep + ";border-color:#CFE6F5}" +
-".pptx-badge{display:inline-flex;align-items:center;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:100px;white-space:nowrap}" +
-".pptx-badge-blue{background:" + PPTX.blueLight + ";color:" + PPTX.blueDeep + "}" +
-".pptx-badge-yellow{background:" + PPTX.yellowLight + ";color:#7A5200}" +
-".pptx-src{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-top:1px solid " + PPTX.border + ";font-size:11px}" +
-".pptx-src:first-child{border-top:none}" +
-".pptx-src .n{color:" + PPTX.text + ";font-weight:600}" +
-".pptx-src .f{color:" + PPTX.textSec + ";font-size:10px;margin-top:1px}" +
-".pptx-overlay{position:fixed;inset:0;background:rgba(8,12,20,.88);z-index:1200}" +
-".pptx-controls{position:fixed;left:0;right:0;bottom:0;z-index:1202;display:flex;align-items:center;justify-content:center;gap:14px;padding:18px;background:linear-gradient(0deg,rgba(8,12,20,.85),transparent)}" +
-".pptx-controls button{border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:inherit}" +
-".pptx-controls button:hover{background:rgba(255,255,255,.18)}" +
-".pptx-controls button:disabled{opacity:.35;cursor:not-allowed}" +
-".pptx-controls button.pptx-primary{background:" + PPTX.green + ";border-color:" + PPTX.green + "}" +
-".pptx-controls button.pptx-primary:hover{background:" + PPTX.greenDark + "}" +
-".pptx-counter{color:#fff;font-size:13px;font-weight:600;min-width:64px;text-align:center}" +
-".pptx-close{position:fixed;top:18px;right:22px;z-index:1202;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}" +
-".pptx-close:hover{background:rgba(255,255,255,.2)}" +
+".pptx-note{border-radius:6px;padding:10px 14px;font-size:12.5px;line-height:1.5;border:1px solid " + PPTX.border + ";background:" + PPTX.soft + ";color:" + PPTX.ink + "}" +
+".pptx-note.attn{border-color:" + PPTX.attn + ";background:rgba(255,80,1,.09)}" +
+".pptx-badge{display:inline-flex;align-items:center;font-family:'Alata',sans-serif;font-size:10.5px;letter-spacing:.03em;padding:2px 9px;border-radius:100px;white-space:nowrap;background:" + PPTX.soft + ";color:" + PPTX.second + "}" +
+".pptx-badge.dark{background:" + PPTX.struct + ";color:#EDEDED}.pptx-badge.attn{background:" + PPTX.attn + ";color:#040809}" +
+".pptx-src{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px solid " + PPTX.border + ";font-size:11px}.pptx-src:first-child{border-top:none}" +
+".pptx-src .n{font-weight:600;font-size:10.5px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.pptx-src .f{color:" + PPTX.second + ";font-size:9px;line-height:1.25;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.pptx-src-grid .pptx-card{padding:8px 12px}.pptx-src-grid .pptx-badge{font-size:9px;padding:1px 7px}" +
+".pptx-ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:12.5px}" +
+".pptx-overlay{position:fixed;inset:0;background:rgba(4,8,9,.9);z-index:1200}" +
+".pptx-controls{position:fixed;left:0;right:0;bottom:0;z-index:1202;display:flex;align-items:center;justify-content:center;gap:14px;padding:18px;background:linear-gradient(0deg,rgba(4,8,9,.85),transparent)}" +
+".pptx-controls button{border-radius:6px;border:1px solid rgba(237,237,237,.3);background:rgba(237,237,237,.08);color:#EDEDED;padding:10px 16px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:'Alata',sans-serif}" +
+".pptx-controls button:hover{background:rgba(237,237,237,.18)}.pptx-controls button:disabled{opacity:.35;cursor:not-allowed}" +
+".pptx-controls button.pptx-primary{background:#EDEDED;color:#03131C;border-color:#EDEDED}" +
+".pptx-controls button svg{width:16px;height:16px}" +
+".pptx-counter{color:#EDEDED;font-size:13px;min-width:64px;text-align:center}" +
+".pptx-close{position:fixed;top:18px;right:22px;z-index:1202;width:38px;height:38px;border-radius:6px;background:rgba(237,237,237,.1);border:1px solid rgba(237,237,237,.3);color:#EDEDED;cursor:pointer;display:flex;align-items:center;justify-content:center}" +
 ".pptx-close svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2}" +
+".pptx-slide.pptx-page{width:" + MEM_W + "px;height:" + MEM_H + "px}" +
+".pptx-page .pptx-head{height:60px;padding:0 " + MEM_PADX + "px}.pptx-page .pptx-title{font-size:20px}.pptx-page .pptx-kicker{margin-bottom:3px}" +
+".pptx-page .pptx-body{top:60px;padding:16px " + MEM_PADX + "px 0}.pptx-page .pptx-foot{padding:0 " + MEM_PADX + "px}" +
+".pm-h{font-family:'Alata','Segoe UI',sans-serif;font-weight:400;font-size:16px;margin:0 0 8px;color:" + PPTX.ink + "}" +
+".pm-t table{font-size:11px}.pm-t thead th{padding:5px 8px;font-size:10.5px}.pm-t tbody td{padding:4px 8px;vertical-align:top}" +
+".pm-t:not(.pm-xs) td.n,.pm-t:not(.pm-xs) th.n{text-align:left}" +
+".pm-xs table{font-size:9.5px}.pm-xs thead th{padding:4px 5px;font-size:9px}.pm-xs tbody td{padding:3px 5px}" +
+".pm-p{font-size:11.5px;line-height:1.5;margin:8px 0 0;color:" + PPTX.ink + "}.pm-ul{font-size:11.5px;margin-top:8px}" +
+".pm-step{border-left:3px solid " + PPTX.struct + ";padding:2px 0 2px 12px}.pm-st{font-family:'Alata',sans-serif;font-size:13px;margin-bottom:3px}" +
+".pm-f{font-size:11.5px;font-weight:600;line-height:1.45;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.pm-d{font-size:11px;color:" + PPTX.second + ";line-height:1.5;margin-top:3px;overflow-wrap:anywhere}" +
+".pm-capa .pm-k{font-family:'Alata',sans-serif;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:" + PPTX.second + "}.pm-capa .pm-big{font-family:'Alata',sans-serif;font-size:30px;line-height:1.1;margin:6px 0}.pm-capa .pm-sub{font-size:13px;color:" + PPTX.second + ";margin-top:4px}" +
 "@media (max-width:900px){.pptx-controls{gap:8px;padding:12px}.pptx-controls button{padding:8px 12px;font-size:12px}}";
 
 function ensurePptxStyles() {
-  if ($("#pptxStyles")) return;
-  const style = document.createElement("style");
-  style.id = "pptxStyles";
-  style.textContent = PPTX_CSS;
-  document.head.appendChild(style);
+  let st = $("#pptxStyles");
+  if (!st) { st = document.createElement("style"); st.id = "pptxStyles"; document.head.appendChild(st); }
+  st.textContent = PPTX_CSS;
 }
 
-/* ---- componentes visuais dos slides (strings HTML) ---- */
-function pptxStat(label, value, sub, hl) {
-  return '<div class="pptx-stat' + (hl ? " pptx-hl" : "") + '"><div class="pptx-stat-label">' + escHtml(label) + '</div><div class="pptx-stat-value">' + value + '</div>' + (sub ? '<div class="pptx-stat-sub">' + escHtml(sub) + '</div>' : "") + '</div>';
-}
-function pptxKV(label, value) {
-  return '<div class="pptx-kv"><span class="k">' + escHtml(label) + '</span><span class="v">' + value + '</span></div>';
-}
-function pptxRegime(nome, mensal, cargaPct, anual, sub, hl) {
-  return '<div class="pptx-regime' + (hl ? " hl" : "") + '"><h4>' + escHtml(nome) + '</h4>' +
-    '<div class="val">' + fmtBRL(mensal) + '<span style="font-size:10.5px;font-weight:600;color:' + PPTX.textSec + '"> /mês</span></div>' +
-    '<div class="row"><span>Carga efetiva</span><b>' + fmtPct(cargaPct) + '</b></div>' +
-    '<div class="row"><span>Total anual</span><b>' + fmtBRL(anual) + '</b></div>' +
-    '<div class="row" style="border-top:none;padding-top:2px"><span>' + escHtml(sub) + '</span></div></div>';
-}
-// Versão minimalista do card de regime — usada apenas no slide "Comparativo"
-// em modo Resumo Executivo: nome, custo mensal (grande) e carga efetiva, sem
-// nenhuma linha técnica adicional (nada de IRPJ/CSLL/DAS/IBS/CBS).
-function pptxRegimeSimple(nome, mensal, cargaPct, anual, hl) {
-  return '<div class="pptx-regime' + (hl ? " hl" : "") + '"><h4>' + escHtml(nome) + '</h4>' +
-    '<div class="val">' + fmtBRL(mensal) + '<span style="font-size:10.5px;font-weight:600;color:' + PPTX.textSec + '"> /mês</span></div>' +
-    '<div class="row"><span>Carga efetiva</span><b>' + fmtPct(cargaPct) + '</b></div>' +
-    '<div class="row" style="border-top:none;padding-top:2px"><span>Total anual</span><b>' + fmtBRL(anual) + '</b></div></div>';
-}
-function pptxFlowBox(label, value, total) {
-  return '<div class="pptx-flow-box' + (total ? " pptx-flow-total" : "") + '"><div class="fl">' + escHtml(label) + '</div><div class="fv">' + value + '</div></div>';
-}
-function pptxFlowOp(op) { return '<div class="pptx-flow-op">' + op + '</div>'; }
+/* ---- componentes (strings HTML) ---- */
+function pptxStat(label, value, sub, hl) { return '<div class="pptx-stat' + (hl ? " pptx-hl" : "") + '"><div class="pptx-stat-label">' + escHtml(label) + '</div><div class="pptx-stat-value">' + value + "</div>" + (sub ? '<div class="pptx-stat-sub">' + escHtml(sub) + "</div>" : "") + "</div>"; }
+function pptxKV(label, value) { return '<div class="pptx-kv"><span class="k">' + escHtml(label) + '</span><span class="v">' + value + "</span></div>"; }
+function pptxCard(title, inner, style) { return '<div class="pptx-card"' + (style ? ' style="' + style + '"' : "") + (title ? '><div class="pptx-card-title">' + escHtml(title) + "</div>" : ">") + inner + "</div>"; }
+function pptxNote(kind, text) { return '<div class="pptx-note' + (kind === "attn" ? " attn" : "") + '">' + text + "</div>"; }
 function pptxTable(head, rows) {
-  return '<div class="pptx-table"><table><thead><tr>' +
-    head.map((hd, i) => '<th' + (i > 0 ? ' class="n"' : "") + '>' + hd + '</th>').join("") +
-    '</tr></thead><tbody>' +
-    rows.map((row) => '<tr' + (row.total ? ' class="total"' : "") + '>' + row.cells.map((c, i) => '<td' + (i > 0 ? ' class="n"' : "") + '>' + c + '</td>').join("") + '</tr>').join("") +
-    '</tbody></table></div>';
+  return '<div class="pptx-table"><table><thead><tr>' + head.map((hd, i) => "<th" + (i > 0 ? ' class="n"' : "") + ">" + hd + "</th>").join("") + "</tr></thead><tbody>" +
+    rows.map((row) => "<tr" + (row.total ? ' class="total"' : row.best ? ' class="pbest"' : "") + ">" + row.cells.map((c, i) => "<td" + (i > 0 ? ' class="n"' : "") + ">" + c + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
 }
+function pptxFlowBox(label, value, total) { return '<div class="pptx-flow-box' + (total ? " pptx-flow-total" : "") + '"><div class="fl">' + escHtml(label) + '</div><div class="fv">' + value + "</div></div>"; }
+function pptxFlowOp(op) { return '<div class="pptx-flow-op">' + op + "</div>"; }
+function pptxRegime(x, melhor) {
+  const r = state.result, sit = situacaoRegimeInfo(x), c = r && r.confianca && r.confianca[x.id];
+  return '<div class="pptx-regime' + (melhor ? " hl" : "") + '" style="border-top-color:' + PPTX.regime[x.id] + '"><h4>' + escHtml(x.label) + (melhor ? '<span class="pptx-badge dark">Menor custo</span>' : sit ? '<span class="pptx-badge attn">' + escHtml(sit.txt) + "</span>" : "") + "</h4>" +
+    '<div class="val">' + fmtBRL(x.total) + "</div>" +
+    '<div class="row"><span>Carga efetiva</span><b>' + fmtPct(x.cargaPct) + "</b></div>" +
+    '<div class="row"><span>Média por mês</span><b>' + fmtBRL(x.mediaMensal) + "</b></div>" +
+    (valorRegimeNota(x) ? '<div class="row"><span>Base do resultado</span><b>' + (x.estado === "inaplicavel" ? "Referência, não aplicável" : "Valor mínimo (incompleto)") + "</b></div>" : (c ? '<div class="row"><span>Base do resultado</span><b>' + CONFIANCA_ROTULO[c.nivel] + "</b></div>" : "")) + "</div>";
+}
+function pptxNomeRel() { return state.analise.nome || state.empresa.nome || "Análise tributária"; }
 function pptxSlideShell(idx, total, kicker, title, bodyHtml, opts) {
   opts = opts || {};
-  const empresaNome = state.empresa.nome ? escHtml(state.empresa.nome) : "Empresa não identificada";
-  const footer = '<div class="pptx-foot' + (opts.dark ? " pptx-foot-dark" : "") + '">' +
-    '<span><b>' + empresaNome + '</b> · Elaborado em ' + todayBR() + '</span>' +
-    '<span>Slide ' + String(idx + 1).padStart(2, "0") + ' de ' + total + '</span>' +
-    '</div>';
+  const r = state.result;
+  const footer = '<div class="pptx-foot' + (opts.dark ? " pptx-foot-dark" : "") + '"><span><b>' + escHtml(pptxNomeRel()) + "</b> · " + escHtml(r ? r.meta.periodo : "") + " · Elaborado em " + todayBR() + "</span><span>" + (opts.page ? "Página " : "Slide ") + String(idx + 1).padStart(2, "0") + " de " + total + "</span></div>";
   if (opts.cover) return bodyHtml + footer;
-  return '<div class="pptx-head"><div class="pptx-kicker">' + escHtml(kicker || "") + '</div><div class="pptx-title">' + escHtml(title || "") + '</div></div>' +
-    '<div class="pptx-body">' + bodyHtml + '</div>' + footer;
+  return '<div class="pptx-head"><div class="pptx-kicker">' + escHtml(kicker || "") + '</div><div class="pptx-title">' + escHtml(title || "") + '</div></div><div class="pptx-body">' + bodyHtml + "</div>" + footer;
 }
 
-/* ---- gráficos dos slides (paleta clara fixa, animação desligada para
-   captura instantânea via html2canvas; instâncias isoladas do CHARTS do
-   dashboard/comparativo — não interferem com as demais abas) ---- */
-function pptxDestroyCharts() {
-  pptxChartInstances.forEach((c) => { try { c.destroy(); } catch (e) {} });
-  pptxChartInstances = [];
+/* ---- gráficos dos slides: mesmas especificações da tela, paleta clara ---- */
+function pptxDestroyCharts() { pptxChartInstances.forEach((c) => { try { c.destroy(); } catch (e) {} }); pptxChartInstances = []; }
+function pptxSpec(fn, r) {
+  const spec = fn(r, TOKENS_CLARO);
+  spec.options.devicePixelRatio = 2;
+  return spec;
 }
-function pptxBuildChartVisaoGeral(canvas, r) {
-  return new Chart(canvas, {
-    type: "bar",
-    data: { labels: ["Simples Normal", "Simples Híbrido", "Lucro Presumido"], datasets: [{ data: [r.simples.dasAnual, r.hibrido.totalAnual, r.presumido.totalAnual], backgroundColor: [PPTX.navy, PPTX.blueMed, PPTX.green], borderRadius: 6, maxBarThickness: 70 }] },
-    options: { responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: { y: { ticks: { callback: (v) => fmtBRL(v), color: PPTX.textSec, font: { size: 10.5 } }, grid: { color: PPTX.border } },
-        x: { ticks: { color: PPTX.text, font: { weight: 600, size: 11.5 } }, grid: { display: false } } } },
-  });
-}
-function pptxBuildChartComparativo(canvas, r) {
-  return new Chart(canvas, {
-    type: "bar",
-    data: { labels: ["Simples Normal", "Simples Híbrido", "Lucro Presumido"], datasets: [{ data: [r.simples.dasMensal, r.hibrido.totalMensal, r.presumido.trimestre.totalTrimestre / 3], backgroundColor: [PPTX.navy, PPTX.blueMed, PPTX.green], borderRadius: 6, maxBarThickness: 70 }] },
-    options: { responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: { y: { ticks: { callback: (v) => fmtBRL(v), color: PPTX.textSec, font: { size: 10.5 } }, grid: { color: PPTX.border } },
-        x: { ticks: { color: PPTX.text, font: { weight: 600, size: 11.5 } }, grid: { display: false } } } },
-  });
-}
-function pptxBuildChartHibrido(canvas, r) {
-  const h = r.hibrido;
-  return new Chart(canvas, {
-    type: "doughnut",
-    data: { labels: ["DAS sem IBS/CBS", "IBS líquido", "CBS líquido"], datasets: [{ data: [h.dasSemIbsCbs, h.ibsLiquido, h.cbsLiquido], backgroundColor: [PPTX.navy, PPTX.blueMed, PPTX.green], borderWidth: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { position: "bottom", labels: { color: PPTX.text, font: { size: 10.5 }, boxWidth: 10, padding: 8 } }, tooltip: { enabled: false } } },
-  });
+const pptxBuildComparativo = (canvas, r) => new Chart(canvas, pptxSpec(specComparativo, r));
+const pptxBuildComposicao = (canvas, r) => new Chart(canvas, pptxSpec(specComposicao, r));
+const pptxBuildTemporal = (canvas, r) => new Chart(canvas, pptxSpec(specTemporal, r));
+
+/* ---- textos sem tributos específicos (Resumo Executivo) ---- */
+function ressalvasGenericas(r) {
+  const out = ["Simulação para planejamento, com base nos parâmetros informados e na legislação vigente ou anunciada para o período — não é apuração fiscal definitiva."];
+  if (r.meta.pontual) out.push("Operação pontual: os valores referem-se somente ao período analisado, sem projeção anual.");
+  if (r.meta.nova) out.push("Empresa nova: regras de início de atividade aplicadas à receita acumulada do período.");
+  const ex = r.simples.excesso;
+  if (ex.situacao !== "regular") out.push(ex.mesesVedados > 0 ? (ex.integral ? "Atenção: a exclusão do Simples Nacional" + (ex.retroativo ? " é retroativa à abertura" : " está em vigor em todo o período") + "; Simples e Híbrido são inaplicáveis e seus valores servem apenas de referência." : "Atenção: o limite de receita do Simples Nacional é ultrapassado e, a partir de certo mês do período, o regime deixa de valer; esses valores servem apenas de referência.") : "Atenção: o limite de receita do Simples Nacional é ultrapassado; o efeito ocorre depois do período analisado e exige planejamento de mudança de regime.");
+  if (r.presumido.parcial) out.push("Lucro Presumido em estimativa parcial: o período não cobre o trimestre inteiro e faltam receitas dos demais meses.");
+  if (r.conclusao && !r.conclusao.definitiva) out.push("Resultado preliminar: " + r.conclusao.motivos.join("; ") + ".");
+  const pend = r.pendencias.filter((p) => p.nivel === "pendente").length;
+  if (pend) out.push("Há " + pend + (pend === 1 ? " informação pendente" : " informações pendentes") + (pend === 1 ? " que pode" : " que podem") + " alterar o resultado.");
+  if (r.pendencias.some((p) => p.nivel === "estimativa" && !p.confirmado)) out.push("Alguns dados são estimativas do sistema e ainda não foram confirmados.");
+  return out;
 }
 
-/* ---- deck curto (1-2 páginas) para a opção "Resumo Executivo" — pensado
-   para o cliente entender em poucos segundos quanto custa cada cenário, sem
-   o detalhamento técnico (IRPJ/CSLL/DAS/IBS/CBS) do deck completo. Mesma
-   fonte de dados (computeAll()); nenhuma regra de cálculo é alterada aqui. ---- */
+/* ---- Resumo Executivo (2 slides) ---- */
+function pptxAvisoConclusao(r, compacto) {
+  const RI = recomendacaoInfo(r);
+  const inc = RI && r.recomendacao.estado === "inconclusivo";
+  // compacto (slide 1 do Resumo, sem folga vertical): resumo do motivo; o detalhe está na Apresentação Completa e na Memória Técnica
+  const inconc = inc ? pptxNote("attn", "<b>Comparativo inconclusivo.</b> " + escHtml(compacto ? RI.curto + ". " + categoriasRegimesTexto(r) + ". Detalhes na Apresentação Completa e na Memória Técnica." : RI.detalhe + " " + categoriasRegimesTexto(r) + ".")) : "";
+  if (!r.conclusao || r.conclusao.definitiva) return inconc;
+  if (compacto && inc) return inconc;
+  return inconc + (inconc ? '<div style="height:6px"></div>' : "") + pptxNote("attn", "<b>Resultado preliminar.</b> " + escHtml(r.conclusao.motivos.join("; ")) + ". Não use como conclusão definitiva até completar essas informações.");
+}
 function buildResumoExecutivoSlideDefs(r) {
   r = r || computeAll();
-  const e = state.empresa;
-  const anexo = ANEXOS[r.simples.anexoUsado];
-  const h = r.hibrido;
-  const t = r.presumido.trimestre;
+  const M = r.meta, e = state.empresa;
   const defs = [];
-
+  const econ = r.economia;
   defs.push({ kicker: "Resumo Executivo", title: "Quanto custa cada cenário",
-    body: '<div class="pptx-card" style="margin-bottom:14px;padding:14px 18px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">' +
-      '<div><div style="font-size:16px;font-weight:800;color:' + PPTX.navy + '">' + escHtml(e.nome || "Empresa não identificada") + '</div>' +
-      (e.cnpj ? '<div style="font-size:11.5px;color:' + PPTX.textSec + '">CNPJ ' + escHtml(e.cnpj) + '</div>' : "") + '</div>' +
-      '<div style="font-size:12px;color:' + PPTX.textSec + ';text-align:right">Ano-calendário ' + e.anoAnalise + '<br>Elaborado em ' + todayBR() + '</div>' +
-      '</div></div>' +
-      '<div class="pptx-grid pptx-grid-3" style="margin-bottom:16px">' +
-      pptxRegimeSimple("Simples Normal", r.simples.dasMensal, r.simples.cargaEfetivaPct, r.simples.dasAnual, false) +
-      pptxRegimeSimple("Simples Híbrido", h.totalMensal, h.cargaEfetivaPct, h.totalAnual, true) +
-      pptxRegimeSimple("Lucro Presumido", t.totalTrimestre / 3, r.presumido.cargaEfetivaPct, r.presumido.totalAnual, false) +
-      '</div>' +
-      '<div class="pptx-card" style="height:238px"><div class="pptx-card-title">Custo mensal — três cenários</div><div class="pptx-chart-box" style="height:196px"><canvas id="pptxResC1"></canvas></div></div>',
-    charts: [{ id: "pptxResC1", build: pptxBuildChartComparativo }] });
-
+    body: pptxCard(null, '<div style="display:flex;justify-content:space-between;align-items:center;gap:16px"><div><div style="font-family:Alata,sans-serif;font-size:19px">' + escHtml(pptxNomeRel()) + "</div>" +
+      (e.cnpj ? '<div style="font-size:12px;color:' + PPTX.second + '">CNPJ ' + escHtml(e.cnpj) + "</div>" : "") + "</div>" +
+      '<div style="text-align:right;font-size:13px;color:' + PPTX.second + '">Período analisado: <b style="color:' + PPTX.ink + '">' + escHtml(M.periodo) + "</b> (" + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + ")<br>Receita no período: <b style=\"color:" + PPTX.ink + '">' + fmtBRL(M.receitaTotal) + "</b></div></div>", "margin-bottom:12px;padding:12px 18px") +
+      '<div class="pptx-grid pptx-grid-3" style="margin-bottom:12px">' + r.regimes.map((x) => pptxRegime(x, r.melhor && r.melhor.id === x.id)).join("") + "</div>" +
+      pptxCard("Custo no período — três cenários" + (econ ? " · " + (econ.tipo === "economia" ? "economia estimada " : "diferença potencial entre cenários: ") + fmtBRL(econ.valor) : ""), '<div class="pptx-chart-box" style="height:150px"><canvas id="pptxResC1"></canvas></div>', "height:196px;padding:10px 16px") +
+      (pptxAvisoConclusao(r, true) ? '<div style="height:8px"></div>' + pptxAvisoConclusao(r, true) : ""),
+    charts: [{ id: "pptxResC1", build: pptxBuildComparativo }] });
+  const anexoTxt = r.anexoKey === "III_V" ? "Serviços — conforme a folha de pagamento" : ANEXOS[r.anexoKey].nome + " (" + ANEXOS[r.anexoKey].desc + ")";
   defs.push({ kicker: "Premissas", title: "Base da simulação",
-    body: '<div class="pptx-grid pptx-grid-2">' +
-      '<div>' +
-      pptxKV("Faturamento mensal", fmtBRL(e.faturamentoMensal)) +
-      pptxKV("RBT12", fmtBRL(r.rbt12) + (e.rbt12Modo === "auto" ? " (automático)" : " (manual)")) +
-      pptxKV("Ano-calendário", String(e.anoAnalise)) +
-      pptxKV("Enquadramento Simples", state.simples.anexoModo === "manual" ? "Manual — " + anexo.nome : "Automático (" + (r.anexoKey === "I" || r.anexoKey === "II" ? "CNAE" : "Fator R") + ") — " + anexo.nome) +
-      '</div>' +
-      '<div>' +
-      pptxKV("Atividade — Lucro Presumido", PRESUNCAO[r.atividadeKey].label + (state.presumido.atividadeModo === "auto" && r.classificacao ? " (auto — CNAE)" : "")) +
-      pptxKV("Ano de projeção — Presumido", String(t.ano) + (t.substituidoPorCbs ? " (CBS/IBS)" : " (PIS/COFINS)")) +
-      pptxKV("Ano de referência — Híbrido", String(state.hibrido.anoProjecao)) +
-      pptxKV("Crédito IBS / CBS (simulação)", fmtPct(state.hibrido.creditoIbsPct, 1) + " / " + fmtPct(state.hibrido.creditoCbsPct, 1)) +
-      '</div>' +
-      '</div>' +
-      '<div style="height:14px"></div>' +
-      '<div class="pptx-alert pptx-alert-blue">Resultados de uma simulação, com base nos parâmetros acima e na legislação vigente/anunciada para os períodos indicados — não é uma apuração fiscal definitiva. Uma análise técnica completa (com o detalhamento tributário linha a linha, memória de cálculo e fontes legais) está disponível mediante solicitação.</div>' });
-
+    body: '<div class="pptx-grid pptx-grid-2"><div>' +
+      pptxKV("Tipo de análise", escHtml(M.tipoLabel)) +
+      pptxKV("Período analisado", escHtml(M.periodo) + " · " + M.nMeses + (M.nMeses === 1 ? " mês" : " meses")) +
+      pptxKV("Receita no período", fmtBRL(M.receitaTotal)) +
+      pptxKV("Receita média mensal", fmtBRL(M.receitaMedia)) +
+      pptxKV("Forma de informar a receita", M.receitaModo === "variavel" ? "Variável mês a mês" : M.receitaModo === "total" ? "Valor total distribuído" : "Mensal constante") +
+      '</div><div>' +
+      pptxKV("Ano de análise", String(M.ano)) +
+      pptxKV("Atividade (CNAE)", e.cnae ? escHtml(e.cnae.codigo + " — " + e.cnae.descricao) : "Não informado") +
+      pptxKV("Enquadramento no Simples Nacional", escHtml(anexoTxt)) +
+      pptxKV("Histórico de receita", M.nova ? "Empresa nova — sem histórico" : (M.hist.origem === "pendente" ? "Não informado" : (M.hist.origem === "auto" ? "Estimado a partir da receita" : "Informado"))) +
+      pptxKV(r.recomendacao.estado === "inconclusivo" ? "Recomendação" : (r.conclusao && !r.conclusao.definitiva ? "Menor custo calculado (preliminar)" : "Menor custo no período"), r.recomendacao.estado === "inconclusivo" ? "Comparativo inconclusivo" : (r.melhor ? escHtml(r.melhor.label) + " · " + fmtBRL(r.melhor.total) : "—")) +
+      "</div></div>" +
+      '<div style="height:16px"></div>' + pptxNote("info", "<b>Leitura dos resultados</b><ul class=\"pptx-ul\" style=\"margin-top:6px\">" + ressalvasGenericas(r).map((t) => "<li>" + escHtml(t) + "</li>").join("") + "</ul>") +
+      '<p style="font-size:12px;color:' + PPTX.second + ';margin-top:12px">Cada resultado é identificado como cálculo confirmado, estimativa ou hipótese. O detalhamento está na Apresentação Completa e a memória de cálculo, na Memória Técnica.</p>' });
   return defs;
 }
 
-/* ---- definição dos 12 slides do deck completo ("Detalhado") — apenas
-   leitura de state.result (computeAll); nenhuma regra de cálculo é alterada
-   aqui. ---- */
-function buildPptxSlideDefs(r) {
+/* ---- Apresentação Completa (até 5 slides, conteúdo condicional) ----
+   A  Visão geral e premissas ........................... sempre
+   B  Composição dos tributos (+ evolução mês a mês) .... sempre (evolução só se a receita/custo varia)
+   C  Simples Nacional e Simples Híbrido ................ sempre
+   D  Fator R ........................................... só se o Fator R se aplica ao enquadramento
+   E  Lucro Presumido (+ IBS/CBS quando aplicável) ...... sempre
+   Informações que não se aplicam não ganham slide. Ponto de equilíbrio, memória de cálculo,
+   pendências detalhadas e fontes ficam na Memória Técnica. */
+function buildApresentacaoCompletaSlideDefs(r) {
   r = r || computeAll();
-  const e = state.empresa;
-  const anexo = ANEXOS[r.simples.anexoUsado];
-  const h = r.hibrido;
-  const t = r.presumido.trimestre;
-  const pv = r.simples.partilhaValores;
+  const M = r.meta, e = state.empresa, S = r.simples, H = r.hibrido, L = r.presumido, F = r.fatorRComp;
+  const anexo = ANEXOS[S.anexoUsado];
   const defs = [];
+  const sec = (txt) => '<p style="font-size:11.5px;color:' + PPTX.second + ';margin-top:8px">' + txt + "</p>";
 
-  defs.push({ title: "Capa", cover: true, dark: true,
-    body: '<div class="pptx-cover">' +
-      '<div class="k">Análise Tributária</div>' +
-      '<h1>ANÁLISE TRIBUTÁRIA</h1>' +
-      '<div class="sub">Simulação e comparação de regimes — Simples Nacional, Simples Híbrido (IBS/CBS) e Lucro Presumido</div>' +
-      '<div class="bar"></div>' +
-      '<div class="empresa">' + escHtml(e.nome || "Empresa não identificada") + '</div>' +
-      (e.cnpj ? '<div class="cnpj">CNPJ ' + escHtml(e.cnpj) + '</div>' : "") +
-      '<div class="ano">Ano-calendário ' + e.anoAnalise + ' · Elaborado em ' + todayBR() + '</div>' +
-      '</div>' });
-
+  /* A — visão geral */
   const cnaeLabel = e.cnae ? e.cnae.codigo + " — " + e.cnae.descricao : "Não informado";
-  defs.push({ kicker: "Perfil da empresa", title: "Dados considerados na simulação",
-    body: '<div class="pptx-grid pptx-grid-3">' +
-      pptxStat("CNAE", '<span style="font-size:15px">' + escHtml(cnaeLabel) + '</span>', "Classificação CONCLA/IBGE — informativa") +
-      pptxStat("Regime simulado", "Simples Nacional", anexo.nome + " — " + anexo.desc) +
-      pptxStat("Fator R", r.simples.fatorR == null ? "Não aplicável" : fmtPct(r.simples.fatorR * 100), r.simples.fatorR == null ? "Anexo fixo" : (r.simples.fatorR >= 0.28 ? "≥ 28% → Anexo III" : "< 28% → Anexo V")) +
-      pptxStat("Faturamento mensal", fmtBRL(e.faturamentoMensal), "Base para RBT12 e DAS", true) +
-      pptxStat("RBT12", fmtBRL(r.rbt12), e.rbt12Modo === "auto" ? "Calculado automaticamente (fat. × 12)" : "Informado manualmente") +
-      pptxStat("Carga tributária efetiva", fmtPct(r.simples.cargaEfetivaPct), anexo.nome + " — " + r.simples.faixaLabel + " de RBT12") +
-      '</div>' });
+  const prelim = r.conclusao && !r.conclusao.definitiva;
+  defs.push({ kicker: "Visão geral", title: "Custo tributário por regime — " + M.tipoLabel,
+    body: '<div class="pptx-grid pptx-grid-4" style="margin-bottom:12px">' +
+      pptxStat("Período analisado", escHtml(M.periodo), M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + (M.pontual ? " · operação pontual, sem projeção anual" : "")) +
+      pptxStat("Receita no período", fmtBRL(M.receitaTotal), "Média " + fmtBRL(M.receitaMedia) + " por mês") +
+      pptxStat("Atividade (CNAE)", '<span style="font-size:13px;line-height:1.25;display:block">' + escHtml(cnaeLabel.length > 52 ? cnaeLabel.slice(0, 51).trim() + "…" : cnaeLabel) + "</span>", M.nova ? "Empresa nova — regras de início de atividade" : (M.hist.origem === "pendente" ? "Histórico de receita não informado" : "RBT12 " + (M.hist.origem === "auto" ? "estimado" : "informado"))) +
+      (r.recomendacao.estado === "inconclusivo" ? pptxStat("Comparativo", "Inconclusivo", "Veja o aviso abaixo", true) : pptxStat(prelim ? "Menor custo (preliminar)" : "Menor custo", r.melhor ? fmtBRL(r.melhor.total) : "—", r.melhor ? r.melhor.label + " · carga " + fmtPct(r.melhor.cargaPct) : "Nenhum regime elegível", true)) + "</div>" +
+      '<div class="pptx-grid pptx-grid-3" style="margin-bottom:12px">' + r.regimes.map((x) => pptxRegime(x, r.melhor && r.melhor.id === x.id)).join("") + "</div>" +
+      pptxCard("Custo no período", '<div class="pptx-chart-box" style="height:98px"><canvas id="pptxC1"></canvas></div>', "height:142px;padding:8px 16px") +
+      (pptxAvisoConclusao(r) ? '<div style="height:8px"></div>' + pptxAvisoConclusao(r) : (r.economia ? '<div style="height:8px"></div>' + pptxNote("info", "<b>" + escHtml(r.economia.rotulo) + ": " + fmtBRL(r.economia.valor) + "</b> — " + escHtml(r.economia.descricao) + ".") : "")),
+    charts: [{ id: "pptxC1", build: pptxBuildComparativo }] });
 
-  defs.push({ kicker: "Visão geral", title: "Simples Normal, Híbrido e Presumido",
-    body: '<div class="pptx-grid pptx-grid-3" style="margin-bottom:16px">' +
-      pptxRegime("Simples Normal", r.simples.dasMensal, r.simples.cargaEfetivaPct, r.simples.dasAnual, anexo.nome, false) +
-      pptxRegime("Simples Híbrido", h.totalMensal, h.cargaEfetivaPct, h.totalAnual, "DAS + IBS/CBS líquidos — ano " + h.ano, true) +
-      pptxRegime("Lucro Presumido", t.totalTrimestre / 3, r.presumido.cargaEfetivaPct, r.presumido.totalAnual, t.atividade, false) +
-      '</div>' +
-      '<div class="pptx-card" style="height:238px"><div class="pptx-card-title">Custo tributário anual — comparação rápida</div><div class="pptx-chart-box" style="height:196px"><canvas id="pptxC1"></canvas></div></div>',
-    charts: [{ id: "pptxC1", build: pptxBuildChartVisaoGeral }] });
+  /* B — composição (+ evolução) */
+  const C = r.composicao;
+  const compRows = C.cats.map((c, i) => ({ cells: [c, fmtBRL(C.simples[i]), fmtBRL(C.hibrido[i]), fmtBRL(C.presumido[i])] })).filter((row, i) => C.simples[i] + C.hibrido[i] + C.presumido[i] > 0.005);
+  compRows.push({ cells: ["Total no período", fmtBRL(S.total), fmtBRL(H.total), fmtBRL(L.total)], total: true });
+  compRows.push({ cells: ["Carga efetiva", fmtPct(S.cargaEfetivaPct), fmtPct(H.cargaEfetivaPct), fmtPct(L.cargaEfetivaPct)], total: true });
+  if (r.regimes.some((x) => x.estado !== "elegivel" || x.referenciaGeral)) compRows.push({ cells: ["Situação"].concat(r.regimes.map((x) => { const si = situacaoRegimeInfo(x); return x.estado === "inaplicavel" ? "Inaplicável" : x.referenciaGeral ? "Regra geral" : si ? si.txt.split(" · ")[0] : "Elegível"; })), total: true });
+  const temp = mostrarTemporal(r);
+  defs.push({ kicker: "Composição" + (temp ? " e evolução" : ""), title: "Como o custo se divide entre os tributos",
+    body: '<div class="pptx-grid" style="grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:start;margin-bottom:' + (temp ? "12" : "0") + 'px">' +
+      pptxCard(null, pptxTable(["Tributo", "Simples Normal", "Simples Híbrido", "Lucro Presumido"], compRows)) +
+      pptxCard("Composição", '<div class="pptx-chart-box" style="height:' + (temp ? "140" : "340") + 'px"><canvas id="pptxC2"></canvas></div>', "height:" + (temp ? "186" : "390") + "px") + "</div>" +
+      (temp ? pptxCard("Receita e custo mês a mês", '<div class="pptx-chart-box" style="height:118px"><canvas id="pptxC3"></canvas></div>', "height:162px;padding:8px 16px") : ""),
+    charts: [{ id: "pptxC2", build: pptxBuildComposicao }].concat(temp ? [{ id: "pptxC3", build: pptxBuildTemporal }] : []) });
 
-  defs.push({ kicker: "Simples Nacional", title: "Composição e custo — " + anexo.nome,
-    body: '<div class="pptx-grid pptx-grid-3" style="margin-bottom:16px">' +
-      pptxStat("DAS mensal estimado", fmtBRL(r.simples.dasMensal), r.simples.faixaLabel + " de RBT12", true) +
-      pptxStat("Carga efetiva", fmtPct(r.simples.cargaEfetivaPct), "Alíquota nominal " + fmtPct(r.simples.aliqNominal * 100)) +
-      pptxStat("Total anual", fmtBRL(r.simples.dasAnual), "DAS mensal × 12") +
-      '</div>' +
-      '<div class="pptx-card"><div class="pptx-card-title">Partilha do DAS — ' + anexo.desc + '</div>' +
-      pptxTable(["Tributo", "% partilha", "Valor mensal"], Object.keys(r.simples.partilha).map((k) => ({ cells: [k, fmtPct(r.simples.partilha[k]), fmtBRL(r.simples.partilhaValores[k])] }))) +
-      '</div>' });
-
-  defs.push({ kicker: "Simples Híbrido — IBS/CBS", title: "DAS + IBS + CBS − créditos = total líquido",
-    body: '<div class="pptx-flow">' +
-      pptxFlowBox("DAS (sem IBS/CBS)", fmtBRL(h.dasSemIbsCbs)) + pptxFlowOp("+") +
-      pptxFlowBox("IBS", fmtBRL(h.ibsDebito)) + pptxFlowOp("+") +
-      pptxFlowBox("CBS", fmtBRL(h.cbsDebito)) + pptxFlowOp("−") +
-      pptxFlowBox("Créditos (IBS+CBS)", fmtBRL(h.creditoIbs + h.creditoCbs)) + pptxFlowOp("=") +
-      pptxFlowBox("Total líquido", fmtBRL(h.totalMensal), true) +
-      '</div>' +
+  /* C — Simples e Híbrido */
+  const exS = S.excesso;
+  defs.push({ kicker: "Simples Nacional e Simples Híbrido", title: S.anexosUsados.map((a) => ANEXOS[a].nome).join(" / ") + " — " + anexo.desc,
+    body: '<div class="pptx-grid pptx-grid-4" style="margin-bottom:12px">' +
+      pptxStat("DAS no período", fmtBRL(S.total), "Média " + fmtBRL(S.mediaMensal) + "/mês · carga " + fmtPct(S.cargaEfetivaPct), true) +
+      pptxStat("Faixa (último mês)", S.faixaLabel, "Alíquota efetiva " + fmtPct(S.aliqEfetivaFinalPct)) +
+      pptxStat("RBT12 final", fmtBRL(S.rbt12Final), M.nova ? "Proporcional (início de atividade)" : "Fim do período") +
+      pptxStat("Total do Híbrido", fmtBRL(H.total), "Carga " + fmtPct(H.cargaEfetivaPct)) + "</div>" +
       '<div class="pptx-grid pptx-grid-2">' +
-      '<div class="pptx-card">' + pptxTable(["Item", "Valor"], [
-        { cells: ["DAS sem IBS/CBS", fmtBRL(h.dasSemIbsCbs)] },
-        { cells: ["Alíquota de referência (IBS+CBS)", fmtPct(h.ibsRefPct + h.cbsRefPct, 2)] },
-        { cells: ["Redução/benefício aplicado (" + h.tratamentoIbsCbs.label + ")", h.reducaoAplicadaPct > 0 ? "− " + fmtPct(h.reducaoAplicadaPct, 0) : "—"] },
-        { cells: ["Alíquota efetiva (IBS+CBS)", fmtPct(h.ibsPct + h.cbsPct, 2)] },
-        { cells: ["(+) IBS débito", fmtBRL(h.ibsDebito)] },
-        { cells: ["(+) CBS débito", fmtBRL(h.cbsDebito)] },
-        { cells: ["(−) Crédito IBS", "− " + fmtBRL(h.creditoIbs)] },
-        { cells: ["(−) Crédito CBS", "− " + fmtBRL(h.creditoCbs)] },
-        { cells: ["Total líquido (mensal)", fmtBRL(h.totalMensal)], total: true },
-      ]) + '</div>' +
-      '<div class="pptx-card"><div class="pptx-card-title">Composição do Híbrido — ano ' + h.ano + '</div><div class="pptx-chart-box" style="height:148px"><canvas id="pptxC2"></canvas></div>' +
-      '<p style="font-size:10.5px;color:' + PPTX.textSec + ';margin-top:6px">Carga efetiva: ' + fmtPct(h.cargaEfetivaPct) + ' · Créditos são parâmetro de simulação (IBS ' + fmtPct(h.creditoIbsPct, 1) + ' · CBS ' + fmtPct(h.creditoCbsPct, 1) + ')' + (h.tratamentoIbsCbs.status !== "oficial" ? ' · Tratamento tributário: hipótese, confirmar antes de aplicar em casos reais' : '') + '</p></div>' +
-      '</div>',
-    charts: [{ id: "pptxC2", build: pptxBuildChartHibrido }] });
+      pptxCard("Partilha do DAS no período", pptxTable(["Tributo", "% do DAS", "Valor"], Object.keys(S.partilhaTotais).map((k) => ({ cells: [k, fmtPct(S.partilhaPct[k]), fmtBRL(S.partilhaTotais[k])] })).concat([{ cells: ["Total", "100,00%", fmtBRL(S.total)], total: true }]))) +
+      pptxCard("Simples Híbrido: DAS + IBS + CBS − créditos", pptxTable(["Item", "Valor no período"], [
+        { cells: ["DAS sem IBS/CBS", fmtBRL(H.dasSemIbsCbs)] }, { cells: ["(+) IBS débito", fmtBRL(H.ibsDebito)] }, { cells: ["(+) CBS débito", fmtBRL(H.cbsDebito)] },
+        { cells: ["(−) Créditos (IBS + CBS)", "− " + fmtBRL(H.creditoIbs + H.creditoCbs)] }, { cells: ["Total líquido", fmtBRL(H.total)], total: true }]) +
+        sec("Créditos são parâmetros de simulação (IBS " + fmtPct(H.creditoIbsPct, 1) + " · CBS " + fmtPct(H.creditoCbsPct, 1) + "), não alíquotas legais." + (H.tratamentoIbsCbs.status !== "oficial" ? " Tratamento tributário em hipótese: confirmar." : ""))) + "</div>" +
+      (exS.situacao !== "regular" ? '<div style="height:10px"></div>' + pptxNote("attn", "<b>Limite de receita do Simples.</b> " + escHtml(exS.efeitoTexto) + (exS.mesesVedados > 0 ? (exS.integral ? " Simples e Híbrido são inaplicáveis no período" + (exS.retroativo ? " (exclusão retroativa: regras gerais desde a abertura)" : "") + "." : " Os meses a partir do efeito não têm direito ao Simples.") : " O Simples segue válido dentro do período analisado.")) : "") +
+      (S.sublimiteAv && S.sublimiteAv.mesesAfetados > 0 ? '<div style="height:8px"></div>' + pptxNote("attn", "<b>Sublimite de ICMS, ISS e IBS.</b> " + escHtml(S.sublimiteAv.texto) + " Esses tributos são devidos fora do DAS e não estão somados: o total do Simples e do Híbrido está incompleto.") : "") +
+      (S.anexoMisto ? '<div style="height:8px"></div>' + pptxNote("info", "O Anexo muda durante o período (" + S.anexosUsados.join(" / ") + "), conforme o Fator R de cada mês.") : "") });
 
-  defs.push({ kicker: "Lucro Presumido", title: (t.substituidoPorCbs ? "CBS + IBS + ISS" : "PIS + COFINS + ISS") + " (mensais) e IRPJ + CSLL (trimestrais) — " + t.atividade,
-    body: '<div class="pptx-grid pptx-grid-4" style="margin-bottom:16px">' +
-      pptxStat("IRPJ (trimestral)", fmtBRL(t.irpjTotal), "Normal + adicional") +
-      pptxStat("CSLL (trimestral)", fmtBRL(t.csllTotal), fmtPct(t.csllPctUsado) + " sobre base presumida") +
-      pptxStat((t.substituidoPorCbs ? "CBS + IBS + ISS" : "PIS + COFINS + ISS") + " (mensal)", fmtBRL(t.consumoTotal / 3), "Equivalente por mês") +
-      pptxStat("Carga efetiva", fmtPct(t.cargaEfetivaPct), "Total anual " + fmtBRL(r.presumido.totalAnual), true) +
-      '</div>' +
-      '<div class="pptx-grid pptx-grid-2">' +
-      '<div class="pptx-card">' + pptxTable(["Tributos trimestrais", "Valor"], [
-        { cells: ["IRPJ normal (15%)", fmtBRL(t.irpjNormal)] },
-        { cells: ["IRPJ adicional (10% s/ excedente a R$ 60.000)", fmtBRL(t.irpjAdicional)] },
-        { cells: ["CSLL (9%)", fmtBRL(t.csllTotal)] },
-        { cells: ["Total trimestral", fmtBRL(t.irpjTotal + t.csllTotal)], total: true },
-      ]) + '</div>' +
-      '<div class="pptx-card">' + pptxTable(["Tributos mensais", "Valor"], (
-        t.substituidoPorCbs
-          ? [{ cells: ["CBS (efetivo " + fmtPct(t.cbsPctUsado, 2) + (t.reducaoAplicadaPct > 0 ? ", ref. " + fmtPct(t.cbsRefPct, 2) : "") + ")", fmtBRL(t.cbs)] }, { cells: ["IBS (efetivo " + fmtPct(t.ibsPctUsado, 2) + (t.reducaoAplicadaPct > 0 ? ", ref. " + fmtPct(t.ibsRefPct, 2) : "") + ")", fmtBRL(t.ibs)] }]
-          : [{ cells: ["PIS (" + fmtPct(state.presumido.pisAliq) + ")", fmtBRL(t.pis)] }, { cells: ["COFINS (" + fmtPct(state.presumido.cofinsAliq) + ")", fmtBRL(t.cofins)] }]
-      ).concat([
-        { cells: ["ISS (" + fmtPct(t.issAliqEfetivaPct) + ")", fmtBRL(t.iss)] },
-        { cells: ["Total mensal (no trimestre)", fmtBRL(t.consumoTotal)], total: true },
-      ])) + '</div>' +
-      '</div>' +
-      '<p style="font-size:10.5px;color:' + PPTX.textSec + ';margin-top:8px">Total do trimestre: ' + fmtBRL(t.totalTrimestre) + ' · Total mensal equivalente: ' + fmtBRL(t.totalTrimestre / 3) + ' · Total anual: ' + fmtBRL(r.presumido.totalAnual) + (t.substituidoPorCbs ? ' · Ano de projeção IBS/CBS: ' + t.ano : '') + '</p>' });
+  /* D — Fator R (condicional) */
+  if (F.aplicavel) {
+    defs.push({ kicker: "Fator R", title: "Com e sem enquadramento no Anexo III",
+      body: '<div class="pptx-grid pptx-grid-4" style="margin-bottom:12px">' +
+        pptxStat("Fator R projetado", S.fatorR == null ? "—" : fmtPct(S.fatorR * 100, 1), "Meta para o Anexo III: 28%", true) +
+        pptxStat("Folha necessária (28%)", fmtBRL(F.folhaNecMensal) + "/mês", fmtBRL(F.folhaNecPeriodo) + " no período") +
+        pptxStat("Folha atual", fmtBRL(F.folhaAtualMensal) + "/mês", F.difMensal > 0.005 ? "Faltam " + fmtBRL(F.difMensal) + " por mês" : "Já atinge o necessário") +
+        pptxStat("Pró-labore bruto estimado", fmtBRL(F.proLaboreTotalMensal) + "/mês", F.difMensal > 0.005 ? "Retenções do sócio: INSS " + fmtBRL(F.inssInc) + " · IRRF " + fmtBRL(F.irrfInc) + "/mês" : "Sem pró-labore adicional necessário") + "</div>" +
+        pptxCard(null, pptxTable(["Comparação (" + escHtml(M.periodo) + ")", "Sem folha", "Com Fator R de 28%", "Diferença"], [
+          { cells: ["DAS no período", fmtBRL(F.sem.ag.total), fmtBRL(F.com.ag.total), fmtBRL(F.com.ag.total - F.sem.ag.total)] },
+          { cells: ["Anexo", F.sem.ag.anexosUsados.join(" / "), F.com.ag.anexosUsados.join(" / "), ""] },
+          { cells: [escHtml(F.economiaRotulo) + (F.referencia === "folha-informada" ? " (vs folha atual informada)" : " (vs cenário sem folha)"), "", "", fmtBRL(F.economia)] },
+          { cells: ["(−) Retenções do sócio sobre o adicional (INSS + IRRF; não são custo da empresa)", "", "", "− " + fmtBRL(F.retencoesSocio.periodo)] },
+          { cells: ["Encargos patronais sobre o adicional (CPP já no DAS dos Anexos III e V)", "", "", fmtBRL(0)] },
+          { cells: [escHtml(F.vantagemRotulo), "", "", fmtBRL(F.saldoEstimado)], total: true }])) +
+        '<div style="height:10px"></div>' + (F.jaEnquadrado
+          ? pptxNote("info", "<b>Enquadramento já atingido.</b> A folha atual já dá Fator R de 28% ou mais: o Simples fica no Anexo III e não há pró-labore adicional a simular. Folha elegível = pró-labore e salários brutos mais FGTS; não se confunde com custo da empresa, pró-labore líquido ou encargos retidos.")
+          : pptxNote(F.veredito === "sem-ganho" || F.avaliacao.suficiente ? "info" : "attn", "<b>" + escHtml(veredictoFatorRTexto(F)) + "</b> " + (F.veredito === "sem-ganho"
+            ? "Com a folha necessária o DAS não diminui; o pró-labore adicional só acrescentaria retenções ao sócio."
+            : "O saldo é a economia no DAS menos as retenções estimadas de INSS (11% até o teto) e IRRF do sócio, sem deduções pessoais nem custos reais da folha" +
+              (M.nova ? "; depende ainda da aplicação do Fator R no início de atividade, em hipótese." : (F.enquadraEm.idx == null ? "; além disso, o Fator R de 28% não é atingido dentro deste período, pois a janela de 12 meses ainda inclui a folha anterior." : F.enquadraEm.imediato ? "." : "; o Fator R de 28% só é atingido em " + F.enquadraEm.rotulo + "."))) +
+            " Folha elegível = pró-labore e salários brutos mais FGTS; não se confunde com custo da empresa, pró-labore líquido ou retenções.")) });
+  }
 
-  // Este deck completo (12 slides) é usado apenas na opção "Detalhado" —
-  // a opção "Resumo Executivo" usa buildResumoExecutivoSlideDefs(), um deck
-  // à parte, curto (1-2 páginas), e não passa por aqui.
-  defs.push({ kicker: "Comparativo — detalhado", title: "Custo mensal, anual e carga efetiva",
-    body: '<div class="pptx-card" style="margin-bottom:12px">' + pptxTable(
-      ["Item", "Simples Normal", "Simples Híbrido", "Presumido"],
-      [
-        { cells: ["DAS", fmtBRL(r.simples.dasMensal), fmtBRL(h.dasSemIbsCbs) + " (sem IBS/CBS)", "—"] },
-        { cells: ["IBS", fmtBRL((pv.ICMS || 0) + (pv.ISS || 0)) + " (no DAS)", fmtBRL(h.ibsDebito), t.substituidoPorCbs ? fmtBRL(t.ibs / 3) : "não aplicável antes de 2027"] },
-        { cells: ["CBS", fmtBRL((pv.COFINS || 0) + (pv.PIS || 0)) + " (no DAS)", fmtBRL(h.cbsDebito), t.substituidoPorCbs ? fmtBRL(t.cbs / 3) : "não aplicável antes de 2027"] },
-        { cells: ["PIS + COFINS", "—", "—", t.substituidoPorCbs ? "extinto (CBS a partir de 2027)" : fmtBRL((t.pis + t.cofins) / 3)] },
-        { cells: ["Créditos IBS/CBS", "—", "− " + fmtBRL(h.creditoIbs + h.creditoCbs), "—"] },
-        { cells: ["Total mensal", fmtBRL(r.simples.dasMensal), fmtBRL(h.totalMensal), fmtBRL(t.totalTrimestre / 3)], total: true },
-        { cells: ["Total anual", fmtBRL(r.simples.dasAnual), fmtBRL(h.totalAnual), fmtBRL(r.presumido.totalAnual)], total: true },
-        { cells: ["Carga efetiva", fmtPct(r.simples.cargaEfetivaPct), fmtPct(h.cargaEfetivaPct), fmtPct(r.presumido.cargaEfetivaPct)], total: true },
-      ]
-    ) + '</div>' +
-      '<div class="pptx-card" style="height:158px"><div class="pptx-card-title">Custo mensal — três cenários</div><div class="pptx-chart-box" style="height:118px"><canvas id="pptxC3"></canvas></div></div>',
-    charts: [{ id: "pptxC3", build: pptxBuildChartComparativo }] });
-
-  const rbt12 = r.rbt12;
-  const simIII = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey: "III" });
-  const simV = calcSimplesNacional({ faturamentoMensal: e.faturamentoMensal, rbt12, anexoKey: "V" });
-  const folhaNecessaria = calcFolhaNecessariaFatorR(rbt12);
-  defs.push({ kicker: "Fator R", title: "Enquadramento Anexo III × Anexo V",
-    body: '<div class="pptx-grid pptx-grid-3" style="margin-bottom:16px">' +
-      pptxStat("Fator R atual", r.simples.fatorR == null ? "—" : fmtPct(r.simples.fatorR * 100), "Meta para Anexo III: 28,00%", true) +
-      pptxStat("Enquadramento atual", r.simples.anexoUsado === "III" ? "Anexo III" : (r.simples.anexoUsado === "V" ? "Anexo V" : anexo.nome), r.simples.fatorR == null ? "Anexo fixo (sem Fator R)" : (r.simples.fatorR >= 0.28 ? "Fator R ≥ 28%" : "Fator R < 28%")) +
-      pptxStat("Folha (12m) necessária p/ 28%", fmtBRL(folhaNecessaria), "Folha atual informada: " + fmtBRL(e.folha12m)) +
-      '</div>' +
-      '<div class="pptx-card">' + pptxTable(["Comparação", "Anexo III", "Anexo V", "Diferença"], [
-        { cells: ["Carga efetiva", fmtPct(simIII.cargaEfetivaPct), fmtPct(simV.cargaEfetivaPct), fmtPct(simV.cargaEfetivaPct - simIII.cargaEfetivaPct)] },
-        { cells: ["DAS mensal", fmtBRL(simIII.dasMensal), fmtBRL(simV.dasMensal), fmtBRL(simV.dasMensal - simIII.dasMensal)], total: true },
-      ]) + '<p style="font-size:11px;color:' + PPTX.textSec + ';margin-top:10px">Pró-labore mensal informado: ' + fmtBRL(e.proLabore) + ' · A folha necessária é referência de planejamento — o enquadramento correto depende do Fator R apurado mês a mês.</p></div>' });
-
-  const pp = r.pePrestadora, pc = r.peContratante;
-  defs.push({ kicker: "Ponto de equilíbrio", title: "Prestadora e contratante — Simples Normal × Híbrido",
-    body: '<div class="pptx-grid pptx-grid-2">' +
-      '<div class="pptx-card"><div class="pptx-card-title">Prestadora — manter o mesmo resultado</div>' +
-      pptxKV("Valor atual do contrato", fmtBRL(pp.valorAtualContrato)) +
-      pptxKV("Resultado atual (Simples Normal)", fmtBRL(pp.resultadoAtual)) +
-      (pp.valido ? pptxKV("Necessário no Híbrido", '<b style="color:' + PPTX.greenDark + '">' + fmtBRL(pp.receitaNecessariaHibrido) + '</b>') : pptxKV("Necessário no Híbrido", "Sem solução")) +
-      '</div>' +
-      '<div class="pptx-card"><div class="pptx-card-title">Contratante — custo líquido equivalente</div>' +
-      pptxKV("Valor atual do contrato", fmtBRL(pc.valorAtualContrato)) +
-      pptxKV("Custo líquido atual (" + fmtPct(pc.creditoAtualPct, 1) + " créd.)", fmtBRL(pc.custoLiquidoAtual)) +
-      pptxKV("Equivalente no Híbrido", pc.valorEquivalenteHibrido != null ? '<b style="color:' + PPTX.greenDark + '">' + fmtBRL(pc.valorEquivalenteHibrido) + '</b>' : "—") +
-      '</div>' +
-      '</div>' +
-      '<div style="height:14px"></div>' +
-      '<div class="pptx-alert pptx-alert-blue">Dois cálculos separados, sem misturar os conceitos: a prestadora avalia o próprio resultado; a contratante avalia o custo líquido de contratar, dado o crédito de IBS/CBS aproveitável.</div>' });
-
-  const credC = calcCreditoContratante({ valorContrato: state.hibrido.valorContratoAnual, creditoPct: state.hibrido.creditoContratanteHibridoPct, ibsPct: h.ibsPct, cbsPct: h.cbsPct });
-  defs.push({ kicker: "Simples Híbrido", title: "Impacto para o contratante",
-    body: '<div class="pptx-grid pptx-grid-3" style="margin-bottom:14px">' +
-      pptxStat("Valor da contratação (anual)", fmtBRL(state.hibrido.valorContratoAnual), "Ano de referência " + h.ano) +
-      pptxStat("Crédito IBS potencial", fmtBRL(credC.creditoIbs), fmtPct(h.ibsPct, 2) + " × " + fmtPct(state.hibrido.creditoContratanteHibridoPct, 1)) +
-      pptxStat("Crédito CBS potencial", fmtBRL(credC.creditoCbs), fmtPct(h.cbsPct, 2) + " × " + fmtPct(state.hibrido.creditoContratanteHibridoPct, 1)) +
-      '</div>' +
-      '<div class="pptx-grid pptx-grid-2" style="margin-bottom:14px">' +
-      pptxStat("Crédito total", fmtBRL(credC.creditoTotal), "Soma dos créditos de IBS e CBS") +
-      pptxStat("Custo líquido estimado", fmtBRL(credC.custoLiquido), "Valor da contratação − crédito total", true) +
-      '</div>' +
-      '<div class="pptx-alert pptx-alert-yellow">Não é assumido crédito integral automaticamente. O percentual de crédito é um parâmetro de simulação ajustável e o aproveitamento efetivo depende das condições legais aplicáveis à operação.</div>' });
-
-  defs.push({ kicker: "Premissas", title: "Dados utilizados na simulação",
-    body: '<div class="pptx-grid pptx-grid-2">' +
-      '<div>' +
-      pptxKV("Faturamento mensal", fmtBRL(e.faturamentoMensal)) +
-      pptxKV("RBT12", fmtBRL(r.rbt12) + (e.rbt12Modo === "auto" ? " (automático)" : " (manual)")) +
-      pptxKV("Folha de salários (12m)", fmtBRL(e.folha12m)) +
-      pptxKV("Pró-labore mensal", fmtBRL(e.proLabore)) +
-      pptxKV("Ano-calendário", String(e.anoAnalise)) +
-      pptxKV("Enquadramento Simples", state.simples.anexoModo === "manual" ? "Manual — " + anexo.nome : "Automático (" + (r.anexoKey === "I" || r.anexoKey === "II" ? "CNAE" : "Fator R") + ") — " + anexo.nome) +
-      '</div>' +
-      '<div>' +
-      pptxKV("Atividade — Lucro Presumido", PRESUNCAO[r.atividadeKey].label + (state.presumido.atividadeModo === "auto" && r.classificacao ? " (auto — CNAE)" : "")) +
-      pptxKV("Ano de projeção — Presumido", String(t.ano) + (t.substituidoPorCbs ? " (CBS/IBS)" : " (PIS/COFINS)")) +
-      pptxKV(t.substituidoPorCbs ? "CBS / IBS / ISS (efetivo)" : "PIS / COFINS / ISS", (t.substituidoPorCbs ? fmtPct(t.cbsPctUsado, 2) + " / " + fmtPct(t.ibsPctUsado, 2) : fmtPct(state.presumido.pisAliq) + " / " + fmtPct(state.presumido.cofinsAliq)) + " / " + fmtPct(state.presumido.issAliq)) +
-      pptxKV("Ano de referência — Híbrido", String(state.hibrido.anoProjecao)) +
-      pptxKV("Tratamento tributário IBS/CBS", r.tratamentoIbsCbs.label + (r.tratamentoIbsCbs.status !== "oficial" ? " (hipótese — confirmar)" : "") + (state.ibscbs.modo === "auto" && r.classificacao ? " (auto — CNAE)" : "")) +
-      pptxKV("Crédito IBS / CBS (simulação)", fmtPct(state.hibrido.creditoIbsPct, 1) + " / " + fmtPct(state.hibrido.creditoCbsPct, 1)) +
-      pptxKV("Custos fixos / variáveis (equilíbrio)", fmtBRL(state.equilibrio.custosFixos) + " / " + fmtPct(state.equilibrio.custosVariaveisPct, 1)) +
-      '</div>' +
-      '</div>' +
-      (r.classificacao ? '<div style="height:12px"></div><div class="pptx-card" style="padding:12px 16px"><div class="pptx-card-title">Classificação tributária identificada a partir do CNAE</div>' +
-        pptxKV("CNAE", r.classificacao.cnae.codigo + " — " + r.classificacao.cnae.descricao) +
-        (r.classificacao.presuncao && !r.classificacao.presuncao.pendente ? pptxKV("Presunção — fonte", r.classificacao.presuncao.fonte + " (confiança " + r.classificacao.presuncao.confianca + ")") : pptxKV("Presunção", "pendente de confirmação complementar")) +
-        (r.classificacao.ibscbs && !r.classificacao.ibscbs.pendente ? pptxKV("IBS/CBS — fonte", r.classificacao.ibscbs.fonte + " (confiança " + r.classificacao.ibscbs.confianca + ")") : pptxKV("IBS/CBS", "pendente de confirmação complementar")) +
-        '</div>' : "") +
-      '<div style="height:12px"></div>' +
-      '<div class="pptx-alert pptx-alert-blue">Percentuais de crédito de IBS/CBS são parâmetros de simulação informados pelo usuário — não são alíquotas legais e não assumem crédito integral. Classificações automáticas por CNAE podem ser substituídas manualmente a qualquer momento (aba Dados da Empresa).</div>' });
-
-  const half = Math.ceil(FONTES.length / 2);
-  const pptxSrcCol = (arr) => arr.map((f) => '<div class="pptx-src"><div><div class="n">' + escHtml(f.nome) + '</div><div class="f">' + escHtml(f.fonte) + '</div></div><span class="pptx-badge pptx-badge-' + (f.status === "oficial" ? "blue" : "yellow") + '">' + (f.status === "oficial" ? "Oficial" : "Verificar") + '</span></div>').join("");
-  defs.push({ kicker: "Fontes", title: "Bases legais e datas de consulta",
-    body: '<div class="pptx-grid pptx-grid-2">' +
-      '<div class="pptx-card">' + pptxSrcCol(FONTES.slice(0, half)) + '</div>' +
-      '<div class="pptx-card">' + pptxSrcCol(FONTES.slice(half)) + '</div>' +
-      '</div>' });
-
+  /* E — Lucro Presumido */
+  const trs = L.trimestres;
+  const trRows = trs.slice(0, 6).map((q) => ({ cells: [q.rotulo + (q.parcial ? " · parcial" : ""), q.mesesCount + " de " + q.mesesApuracao, fmtBRL(q.receita), fmtBRL(q.t.irpjTotal), fmtBRL(q.t.csllTotal), fmtBRL(q.t.consumoTotal), fmtBRL(q.total)] }));
+  if (trs.length > 6) { const rest = trs.slice(6); trRows.push({ cells: ["Demais " + rest.length + " trimestres", "", fmtBRL(soma(rest.map((q) => q.receita))), fmtBRL(soma(rest.map((q) => q.t.irpjTotal))), fmtBRL(soma(rest.map((q) => q.t.csllTotal))), fmtBRL(soma(rest.map((q) => q.t.consumoTotal))), fmtBRL(soma(rest.map((q) => q.total)))] }); }
+  trRows.push({ cells: ["Total", String(M.nMeses), fmtBRL(L.receitaTotal), fmtBRL(L.irpjTotal), fmtBRL(L.csllTotal), fmtBRL(L.consumoTotal), fmtBRL(L.total)], total: true });
+  defs.push({ kicker: "Lucro Presumido", title: "IRPJ e CSLL trimestrais + " + (L.algumSubstituidoPorCbs ? "CBS, IBS e ISS" : "PIS, COFINS e ISS") + " — " + L.atividade,
+    body: '<div class="pptx-grid pptx-grid-4" style="margin-bottom:12px">' +
+      pptxStat("Custo no período", fmtBRL(L.total), "Carga efetiva " + fmtPct(L.cargaEfetivaPct), true) +
+      pptxStat("IRPJ (com adicional)", fmtBRL(L.irpjTotal), "Presunção " + fmtPct(L.irpjPctUsado)) +
+      pptxStat("CSLL", fmtBRL(L.csllTotal), "Presunção " + fmtPct(L.csllPctUsado)) +
+      pptxStat("Tributos sobre consumo", fmtBRL(L.consumoTotal), L.algumSubstituidoPorCbs ? "CBS + IBS + ISS" : "PIS + COFINS + ISS") + "</div>" +
+      pptxCard("Apuração por trimestre-calendário", pptxTable(["Trimestre", "Meses", "Receita", "IRPJ", "CSLL", "Consumo", "Total"], trRows)) +
+      sec("O limite do adicional de IRPJ é R$ 20.000 × meses do período de apuração (R$ 60.000 no trimestre completo); só é proporcional no trimestre de início de atividade." + (L.notaMajoracao ? " Majoração de 10% da presunção aplicada (hipótese)." : "") + (L.algumSubstituidoPorCbs ? " Tratamento de IBS/CBS: " + escHtml(r.tratamentoIbsCbs.label) + (r.tratamentoIbsCbs.status !== "oficial" ? " (hipótese)" : "") + "." : "")) +
+      (L.parcial ? '<div style="height:8px"></div>' + pptxNote("attn", "<b>Estimativa parcial.</b> " + escHtml(L.trimestresParciais.map((q) => q.rotulo + " cobre " + q.mesesCount + " de " + q.mesesApuracao + " meses").join("; ")) + ". Faltam as receitas dos demais meses do trimestre; o adicional de IRPJ pode estar subestimado.") : "") });
   return defs;
 }
 
-/* ---- escolhe o deck conforme a opção do usuário: "resumo" → deck curto
-   (buildResumoExecutivoSlideDefs, 1-2 páginas); "detalhado" → deck completo
-   (buildPptxSlideDefs, 12 slides). Usado tanto pela lista de estrutura da
-   aba Relatório PDF quanto pela montagem real (preview/exportação), para
-   nunca divergirem. ---- */
+/* ---- Memória Técnica (PDF separado, páginas A4 retrato) ---- */
+function memSec(num, titulo, inner) { return '<div class="pm-sec"><h3 class="pm-h">' + num + " · " + escHtml(titulo) + "</h3>" + inner + "</div>"; }
+function memChunks(arr, n) { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; }
+function buildMemoriaBlocks(r) {
+  const M = r.meta, e = state.empresa, S = r.simples, H = r.hibrido, L = r.presumido, F = r.fatorRComp;
+  const B = [];
+  const nivelTxt = (id) => CONFIANCA_ROTULO[r.confianca[id].nivel];
+  // 1 premissas
+  const kv = [
+    ["Tipo de análise", M.tipoLabel], ["Período analisado", M.periodo + " (" + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + ")"], ["Ano de análise (cronograma IBS/CBS)", String(M.ano)],
+    ["Receita no período", fmtBRL(M.receitaTotal) + " (média " + fmtBRL(M.receitaMedia) + "/mês)"],
+    ["Forma de informar a receita", M.receitaModo === "variavel" ? "Variável mês a mês" : M.receitaModo === "total" ? "Valor total distribuído em partes iguais" : "Mensal constante"],
+    ["Atividade (CNAE)", e.cnae ? e.cnae.codigo + " — " + e.cnae.descricao : "Não informado"],
+    ["Anexo do Simples", r.anexoKey === "III_V" ? "Anexo III ou V conforme o Fator R" : ANEXOS[r.anexoKey].nome],
+    ["Histórico de receita (RBT12)", M.nova ? "Empresa nova — RBT12 proporcional (LC 123/2006, art. 18, §§ 2º e 3º)" : M.hist.origem === "pendente" ? "Não informado (considerado R$ 0,00)" : fmtBRL(M.hist.rbt12) + (M.hist.origem === "auto" ? " (estimado pela receita informada)" : " (informado)")],
+    ["RBT12 usado no cálculo", M.movel ? "Janela móvel de 12 meses" : "Mantido constante no período"],
+    ["Política de folha", { atual: "Folha atual informada", prolabore: "Pró-labore simulado", necessaria: "Folha necessária para 28%", nenhuma: "Sem folha" }[M.politicaFolha]],
+    ["Folha dos 12 meses anteriores", M.nova ? "Não se aplica" : fmtBRL(M.hist.folha12)],
+    ["Regime atual informado", state.analise.regimeAtual ? ({ simples: "Simples Nacional", hibrido: "Simples Híbrido", presumido: "Lucro Presumido" })[state.analise.regimeAtual] : "Não informado"],
+    ["Presunção do Lucro Presumido", PRESUNCAO[r.atividadeKey].label + " — IRPJ " + fmtPct(PRESUNCAO[r.atividadeKey].irpj) + " / CSLL " + fmtPct(PRESUNCAO[r.atividadeKey].csll)],
+    ["ISS / PIS / COFINS (Presumido)", fmtPct(state.presumido.issAliq) + " / " + fmtPct(state.presumido.pisAliq) + " / " + fmtPct(state.presumido.cofinsAliq)],
+    ["Tratamento IBS/CBS", r.tratamentoIbsCbs.label + (r.tratamentoIbsCbs.status !== "oficial" ? " (hipótese)" : "")],
+    ["Créditos IBS / CBS (simulação)", fmtPct(state.hibrido.creditoIbsPct, 1) + " / " + fmtPct(state.hibrido.creditoCbsPct, 1)],
+    ["Majoração da presunção", state.presumido.majoracao ? "Ativada (hipótese)" : "Não aplicada"],
+  ];
+  B.push(memSec("1", "Premissas e dados de entrada", pptxTable(["Item", "Valor"], kv.map((k) => ({ cells: [k[0], escHtml(k[1])] }))).replace('class="pptx-table"', 'class="pptx-table pm-t"')));
+  // 2 resultado consolidado
+  const rr = r.regimes.map((x) => ({ cells: [x.label, fmtBRL(x.total), fmtBRL(x.mediaMensal), fmtPct(x.cargaPct), (situacaoRegimeInfo(x) ? situacaoRegimeInfo(x).txt : (r.melhor && r.melhor.id === x.id ? "Menor custo" : "Elegível")), nivelTxt(x.id)], best: r.melhor && r.melhor.id === x.id }));
+  let res = pptxTable(["Regime", "Custo no período", "Média/mês", "Carga efetiva", "Situação", "Base"], rr).replace('class="pptx-table"', 'class="pptx-table pm-t"');
+  res += '<ul class="pptx-ul pm-ul">' + ["simples", "hibrido", "presumido"].filter((id) => r.confianca[id].motivos.length).map((id) => "<li><b>" + escHtml(r.regimes.find((x) => x.id === id).label) + " — " + nivelTxt(id) + ":</b> " + escHtml(r.confianca[id].motivos.join("; ")) + ".</li>").join("") + "</ul>";
+  { const RI = recomendacaoInfo(r); if (RI && r.recomendacao.estado === "inconclusivo") res += '<p class="pm-p"><b>Comparativo inconclusivo.</b> ' + escHtml(RI.detalhe) + " " + escHtml(categoriasRegimesTexto(r)) + ".</p>"; }
+  res += '<p class="pm-p"><b>' + escHtml(r.conclusao.rotulo) + ".</b> " + (r.conclusao.definitiva ? "Nenhum dado essencial pendente; ainda assim os valores são estimativas de planejamento, não apuração fiscal." : "Não é conclusão definitiva: " + escHtml(r.conclusao.motivos.join("; ")) + ".") +
+    (r.conclusao.estado === "preliminar" && r.conclusao.aConfirmar.length ? " Estado: preliminar — por informar ou confirmar: " + escHtml(r.conclusao.aConfirmar.map((x) => x.curto).join("; ")) + "." : (r.conclusao.estado === "definitivo" ? " Estado: definitivo (dados essenciais completos e premissas confirmadas)." : "")) +
+    (r.economia ? " " + escHtml(r.economia.rotulo) + ": " + fmtBRL(r.economia.valor) + " — " + escHtml(r.economia.descricao) + "." : "") + "</p>";
+  B.push(memSec("2", "Resultado consolidado e confiabilidade", res));
+  // 3 memória passo a passo
+  (state.memoria || []).forEach((m, i) => B.push((i === 0 ? '<h3 class="pm-h">3 · Memória de cálculo passo a passo</h3>' : "") + '<div class="pm-step"><div class="pm-st">' + (i + 1) + ". " + escHtml(m.titulo) + '</div><div class="pm-f">' + escHtml(m.formula) + '</div><div class="pm-d">' + escHtml(m.detalhe) + "</div></div>"));
+  // 4 simples mes a mes
+  let n = 4;
+  memChunks(S.meses, 16).forEach((ch, i) => B.push(memSec(String(n) + (i ? "" : ""), "Simples Nacional mês a mês" + (i ? " (continuação)" : ""), pptxTable(["Mês", "Receita", "RBT12", "Folha 12m", "Fator R", "Anexo", "Alíq. ef.", "DAS", "Situação"],
+    ch.map((m) => ({ cells: [m.rotulo, fmtBRL(m.receita), fmtBRL(m.rbt12), fmtBRL(m.folha12), m.fatorR == null ? "—" : fmtPct(m.fatorR * 100, 1), m.anexoUsado, fmtPct(m.cargaEfetivaPct), fmtBRL(m.das), m.foraDoLimite ? "Excluído" : "Válido"] }))
+      .concat(i === Math.ceil(S.meses.length / 16) - 1 ? [{ cells: ["Total", fmtBRL(M.receitaTotal), "", "", "", "", fmtPct(S.cargaEfetivaPct), fmtBRL(S.total), ""], total: true }] : [])).replace('class="pptx-table"', 'class="pptx-table pm-t pm-xs"'))));
+  n++;
+  memChunks(H.meses, 16).forEach((ch, i) => B.push(memSec(String(n), "Simples Híbrido mês a mês" + (i ? " (continuação)" : ""), pptxTable(["Mês", "Ano IBS/CBS", "DAS s/ IBS/CBS", "IBS líq.", "CBS líq.", "Total"],
+    ch.map((m) => ({ cells: [m.rotulo, String(m.ano), fmtBRL(m.dasSemIbsCbs), fmtBRL(m.ibsLiquido), fmtBRL(m.cbsLiquido), fmtBRL(m.totalMensal)] }))
+      .concat(i === Math.ceil(H.meses.length / 16) - 1 ? [{ cells: ["Total", "", fmtBRL(H.dasSemIbsCbs), fmtBRL(H.ibsLiquido), fmtBRL(H.cbsLiquido), fmtBRL(H.total)], total: true }] : [])).replace('class="pptx-table"', 'class="pptx-table pm-t pm-xs"'))));
+  n++;
+  B.push(memSec(String(n), "Lucro Presumido por trimestre-calendário", pptxTable(["Trimestre", "Meses", "Receita", "Base IRPJ", "IRPJ normal", "Adicional", "Limite adic.", "CSLL", "Consumo", "Total"],
+    L.trimestres.map((q) => ({ cells: [q.rotulo + (q.parcial ? " · parcial" : ""), q.mesesCount + "/" + q.mesesApuracao, fmtBRL(q.receita), fmtBRL(q.t.baseIRPJ), fmtBRL(q.t.irpjNormal), fmtBRL(q.t.irpjAdicional), fmtBRL(q.limiteAdicional), fmtBRL(q.t.csllTotal), fmtBRL(q.t.consumoTotal), fmtBRL(q.total)] }))
+      .concat([{ cells: ["Total", String(M.nMeses), fmtBRL(L.receitaTotal), fmtBRL(L.baseIRPJ), fmtBRL(L.irpjNormal), fmtBRL(L.irpjAdicional), "", fmtBRL(L.csllTotal), fmtBRL(L.consumoTotal), fmtBRL(L.total)], total: true }])).replace('class="pptx-table"', 'class="pptx-table pm-t pm-xs"') +
+    '<p class="pm-p">Limite do adicional de IRPJ = R$ 20.000 × meses do período de apuração (Lei 9.249/1995, art. 3º, § 1º): trimestre completo = R$ 60.000; proporcional apenas no trimestre de início de atividade. Simulação mais curta que o trimestre não reduz o limite e é marcada como estimativa parcial.</p>'));
+  n++;
+  if (F.aplicavel) {
+    B.push(memSec(String(n), "Fator R", pptxTable(["Item", "Valor"], [
+      { cells: ["Folha elegível necessária (28%) — a mesma usada na simulação", fmtBRL(F.folhaNecMensal) + "/mês · " + fmtBRL(F.folhaNecPeriodo) + " no período"] },
+      { cells: ["Folha atual informada", fmtBRL(F.folhaAtualMensal) + "/mês"] }, { cells: ["Diferença para atingir 28%", fmtBRL(F.difMensal) + "/mês"] },
+      { cells: ["Pró-labore bruto estimado", fmtBRL(F.proLaboreTotalMensal) + "/mês (adicional " + fmtBRL(F.proLaboreAdicionalMensal) + ")"] },
+      { cells: ["Retenções do sócio sobre o adicional — INSS / IRRF (não são custo da empresa)", fmtBRL(F.inssInc) + " / " + fmtBRL(F.irrfInc) + " por mês"] },
+      { cells: ["Encargos patronais sobre o adicional", fmtBRL(0) + " (CPP já no DAS dos Anexos III e V; pró-labore não gera FGTS)"] },
+      { cells: ["DAS sem folha / com Fator R 28%", fmtBRL(F.sem.ag.total) + " / " + fmtBRL(F.com.ag.total)] },
+      { cells: [escHtml(F.economiaRotulo), fmtBRL(F.economia) + " (referência: " + (F.referencia === "folha-informada" ? "folha atual informada" : "cenário sem folha") + ")"] },
+      { cells: ["Retenções do sócio no período", fmtBRL(F.retencoesSocio.periodo)] },
+      { cells: [escHtml(F.vantagemRotulo), fmtBRL(F.saldoEstimado) + " — " + escHtml(veredictoFatorRTexto(F).replace(/\.$/, ""))], total: true }]).replace('class="pptx-table"', 'class="pptx-table pm-t"') +
+      '<p class="pm-p">Folha elegível = pró-labore e salários brutos + FGTS sobre salários; não se confunde com custo da empresa, pró-labore líquido ou retenções do sócio. A CPP patronal (que o manual do PGDAS-D inclui na folha do Fator R) não foi somada — hipótese conservadora a confirmar. O saldo é indicativo enquanto as premissas de INSS/IRRF e os demais dados não forem confirmados.' + (M.nova ? " Início de atividade: aplicação do Fator R em hipótese (proporcionalização desde o 1º mês)." : "") + "</p>"));
+    n++;
+  }
+  // pendências
+  const pend = r.pendencias.filter((p) => ["pendente", "estimativa", "atencao"].indexOf(p.nivel) >= 0 && !p.confirmado);
+  B.push(memSec(String(n), "Pendências, estimativas e limitações", pend.length
+    ? '<ul class="pptx-ul pm-ul">' + pend.map((p) => "<li><b>" + escHtml(p.titulo) + "</b> (" + ({ pendente: "pendente", estimativa: "estimativa", atencao: "atenção" })[p.nivel] + "): " + escHtml(p.texto || "") + (p.limitacao ? " <i>Limitação: " + escHtml(p.limitacao) + "</i>" : "") + "</li>").join("") + "</ul>"
+    : '<p class="pm-p">Nenhuma pendência: análise completa com os dados informados.</p>'));
+  n++;
+  // parâmetros de folha
+  const P = PARAMS_FOLHA;
+  B.push(memSec(String(n), "Parâmetros de INSS e IRRF do pró-labore (" + P.ano + ")", pptxTable(["Parâmetro", "Valor", "Situação"], [
+    { cells: ["INSS do contribuinte individual", fmtPct(P.inss.aliquota * 100) + " até o teto de " + fmtBRL(P.inss.teto), "Portaria Interministerial MPS/MF 13/2026 — conferida no site do INSS"] },
+    { cells: ["IRRF — desconto simplificado mensal", fmtBRL(P.irrf.descontoSimplificado), "Receita Federal — tabelas 2026 (conferida)"] },
+    { cells: ["IRRF — isenção / redução (Lei 15.270/2025)", "até " + fmtBRL(P.irrf.isencaoAte) + " / redução até " + fmtBRL(P.irrf.reducaoAte), "Lei 15.270/2025 (art. 3º-A da Lei 9.250/1995, conferida): redução = " + P.irrf.reducaoConst.toFixed(2).replace(".", ",") + " − " + String(P.irrf.reducaoFator).replace(".", ",") + " × rendimento"] },
+    { cells: ["IRRF — tabela progressiva", P.irrf.tabela.map((t) => (t.ate === Infinity ? "acima" : "até " + fmtBRL(t.ate)) + ": " + fmtPct(t.aliq * 100, 1) + (t.ded ? " − " + fmtBRL(t.ded) : "")).join(" · "), "Receita Federal — tabelas 2026 (conferida)"] },
+    { cells: ["FGTS sobre salários", fmtPct(P.fgtsAliquota * 100), "Lei 8.036/1990"] }]).replace('class="pptx-table"', 'class="pptx-table pm-t"')));
+  n++;
+  // fontes
+  memChunks(FONTES, 7).forEach((ch, i) => B.push(memSec(String(n), "Fundamentos legais e fontes" + (i ? " (continuação)" : ""), pptxTable(["Parâmetro / regra", "Fonte", "Status"],
+    ch.map((f) => ({ cells: [escHtml(f.nome), escHtml(f.fonte) + (f.data ? " <i>(" + escHtml(f.data) + ")</i>" : ""), f.status === "oficial" ? "Oficial" : "Hipótese / a confirmar"] }))).replace('class="pptx-table"', 'class="pptx-table pm-t"'))));
+  return B;
+}
+function memPaginar(blocks) {
+  const meas = document.createElement("div");
+  meas.className = "pptx-slide pptx-page pm-measure";
+  meas.style.cssText = "position:fixed;left:-6000px;top:0;width:" + (MEM_W - 2 * MEM_PADX) + "px;height:auto;overflow:visible;background:transparent";
+  document.body.appendChild(meas);
+  const avail = MEM_H - MEM_PADT - MEM_PADB;
+  const pages = [[]];
+  let used = 0;
+  blocks.forEach((b) => {
+    meas.innerHTML = b;
+    const bh = meas.scrollHeight + 12;
+    if (used + bh > avail && pages[pages.length - 1].length) { pages.push([]); used = 0; }
+    pages[pages.length - 1].push(b); used += bh;
+  });
+  meas.remove();
+  return pages;
+}
+function buildMemoriaPages(r) {
+  r = r || computeAll();
+  const M = r.meta;
+  const capa = '<div class="pm-capa"><div class="pm-k">Memória Técnica</div><div class="pm-big">' + escHtml(pptxNomeRel()) + '</div><div class="pm-sub">' + escHtml(M.tipoLabel) + " · " + escHtml(M.periodo) + " (" + M.nMeses + (M.nMeses === 1 ? " mês" : " meses") + ")</div>" +
+    '<div class="pm-sub">Cálculos, premissas e fundamentos da análise. Os valores são os mesmos exibidos nas telas, nos gráficos e nos demais relatórios.</div>' +
+    (r.conclusao.definitiva ? "" : '<div class="pptx-note attn" style="margin-top:12px"><b>Resultado preliminar.</b> ' + escHtml(r.conclusao.motivos.join("; ")) + ".</div>") + "</div>";
+  const blocks = [capa].concat(buildMemoriaBlocks(r));
+  const pages = memPaginar(blocks);
+  return pages.map((pg, i) => ({ page: true, kicker: "Memória Técnica", title: "Memória de cálculo e fundamentos", body: pg.join('<div style="height:12px"></div>') }));
+}
 function buildActivePptxSlideDefs(r) {
-  return pdfComparativoView === "detalhado" ? buildPptxSlideDefs(r) : buildResumoExecutivoSlideDefs(r);
+  const m = modeloRelatorio();
+  return m === "completa" ? buildApresentacaoCompletaSlideDefs(r) : m === "memoria" ? buildMemoriaPages(r) : buildResumoExecutivoSlideDefs(r);
 }
 
-/* ---- montagem do "deck" (DOM) — usado tanto pela pré-visualização quanto
-   pela exportação, garantindo que o PDF exportado seja idêntico ao que foi
-   revisado na tela. ---- */
+/* ---- montagem do deck (DOM) — usada pela pré-visualização e pela exportação ---- */
 function getPptxHost() {
   let host = $("#pptxHost");
-  if (!host) {
-    host = document.createElement("div");
-    host.id = "pptxHost";
-    host.className = "pptx-host";
-    document.body.appendChild(host);
-  }
+  if (!host) { host = document.createElement("div"); host.id = "pptxHost"; host.className = "pptx-host"; document.body.appendChild(host); }
   return host;
+}
+async function aguardarFontes() {
+  try {
+    if (document.fonts && document.fonts.load) {
+      await Promise.all([document.fonts.load("16px Alata"), document.fonts.load("600 16px Inter"), document.fonts.load("16px Inter")].map((p) => p.catch(() => null)));
+      await document.fonts.ready;
+    }
+  } catch (e) {}
 }
 function mountPptxDeck() {
   ensurePptxStyles();
@@ -2784,48 +4908,44 @@ function mountPptxDeck() {
   pptxDestroyCharts();
   const host = getPptxHost();
   host.innerHTML = "";
+  const isMem = modeloRelatorio() === "memoria";
+  pptxState.w = isMem ? MEM_W : PPTX_W; pptxState.h = isMem ? MEM_H : PPTX_H;
+  host.style.width = pptxState.w + "px"; host.style.height = pptxState.h + "px";
   const defs = buildActivePptxSlideDefs(r);
   const total = defs.length;
   defs.forEach((d, i) => {
     const slideEl = document.createElement("div");
-    slideEl.className = "pptx-slide" + (i === 0 ? " pptx-active" : "");
+    slideEl.className = "pptx-slide" + (d.page ? " pptx-page" : "") + (i === 0 ? " pptx-active" : "");
     slideEl.dataset.index = String(i);
-    slideEl.innerHTML = pptxSlideShell(i, total, d.kicker, d.title, d.body, { cover: d.cover, dark: d.dark });
+    slideEl.innerHTML = pptxSlideShell(i, total, d.kicker, d.title, d.body, { cover: d.cover, dark: d.dark, page: d.page });
     host.appendChild(slideEl);
     (d.charts || []).forEach((c) => {
       const canvas = slideEl.querySelector("#" + c.id);
-      if (canvas && typeof Chart !== "undefined") {
-        try { pptxChartInstances.push(c.build(canvas, r)); } catch (e) {}
-      }
+      if (!canvas) return;
+      if (typeof Chart === "undefined") { const box = canvas.parentElement; if (box) box.innerHTML = '<div style="padding:20px;color:' + PPTX.second + '">Gráfico indisponível (biblioteca Chart.js não carregada).</div>'; return; }
+      try { pptxChartInstances.push(c.build(canvas, r)); } catch (e) { console.error("gráfico do slide", e); }
     });
   });
-  pptxState.total = total;
-  pptxState.index = 0;
-  return { host, total };
+  pptxState.total = total; pptxState.index = 0;
+  return { host, total, defs };
 }
 
-/* ---- pré-visualização navegável (tela cheia) ---- */
+/* ---- pré-visualização navegável ---- */
 function pptxUpdateScale() {
-  const host = $("#pptxHost");
-  if (!host) return;
-  const availW = window.innerWidth - 48;
-  const availH = window.innerHeight - 140;
-  const scale = Math.max(0.2, Math.min(availW / PPTX_W, availH / PPTX_H, 1));
+  const host = $("#pptxHost"); if (!host) return;
+  const scale = Math.max(0.2, Math.min((window.innerWidth - 48) / pptxState.w, (window.innerHeight - 140) / pptxState.h, 1));
   host.style.setProperty("--pptx-scale", String(scale));
 }
 function pptxShowSlide(i) {
-  const host = $("#pptxHost");
-  if (!host) return;
-  const slides = $$(".pptx-slide", host);
-  if (!slides.length) return;
+  const host = $("#pptxHost"); if (!host) return;
+  const slides = $$(".pptx-slide", host); if (!slides.length) return;
   const n = Math.max(0, Math.min(i, slides.length - 1));
   slides.forEach((s, idx) => s.classList.toggle("pptx-active", idx === n));
   pptxState.index = n;
-  const counter = $("#pptxCounter");
-  if (counter) counter.textContent = (n + 1) + " / " + slides.length;
-  const prevBtn = $("#pptxPrev"), nextBtn = $("#pptxNext");
-  if (prevBtn) prevBtn.disabled = n === 0;
-  if (nextBtn) nextBtn.disabled = n === slides.length - 1;
+  const counter = $("#pptxCounter"); if (counter) counter.textContent = (n + 1) + " / " + slides.length;
+  const pb = $("#pptxPrev"), nb = $("#pptxNext");
+  if (pb) pb.disabled = n === 0;
+  if (nb) nb.disabled = n === slides.length - 1;
 }
 function pptxKeyHandler(ev) {
   if (ev.key === "ArrowRight") pptxShowSlide(pptxState.index + 1);
@@ -2837,21 +4957,17 @@ function ensurePptxOverlayDOM() {
   document.body.appendChild(el("div", { class: "pptx-overlay", id: "pptxOverlay", onclick: closePptxPreview }));
   document.body.appendChild(el("button", { class: "pptx-close", id: "pptxClose", "aria-label": "Fechar apresentação", html: icon("x"), onclick: closePptxPreview }));
   const controls = el("div", { class: "pptx-controls", id: "pptxControls" });
-  controls.innerHTML =
-    '<button type="button" id="pptxPrev">‹ Anterior</button>' +
-    '<span class="pptx-counter" id="pptxCounter">1 / 1</span>' +
-    '<button type="button" id="pptxNext">Próximo ›</button>' +
-    '<button type="button" id="pptxExport" class="pptx-primary">' + icon("download") + 'Exportar PDF</button>';
+  controls.innerHTML = '<button type="button" id="pptxPrev">‹ Anterior</button><span class="pptx-counter" id="pptxCounter">1 / 1</span><button type="button" id="pptxNext">Próximo ›</button><button type="button" id="pptxExport" class="pptx-primary">' + icon("download") + "Exportar PDF</button>";
   document.body.appendChild(controls);
   $("#pptxPrev").onclick = () => pptxShowSlide(pptxState.index - 1);
   $("#pptxNext").onclick = () => pptxShowSlide(pptxState.index + 1);
   $("#pptxExport").onclick = () => exportPptxPdf();
 }
-function openPptxPreview() {
+async function openPptxPreview() {
+  await aguardarFontes();
   mountPptxDeck();
   ensurePptxOverlayDOM();
-  const host = getPptxHost();
-  host.classList.add("pptx-open");
+  getPptxHost().classList.add("pptx-open");
   pptxUpdateScale();
   pptxState.open = true;
   pptxShowSlide(0);
@@ -2861,89 +4977,52 @@ function openPptxPreview() {
 function closePptxPreview() {
   const host = $("#pptxHost");
   if (host) { host.classList.remove("pptx-open"); host.innerHTML = ""; }
-  const overlay = $("#pptxOverlay"); if (overlay) overlay.remove();
-  const close = $("#pptxClose"); if (close) close.remove();
-  const controls = $("#pptxControls"); if (controls) controls.remove();
+  ["#pptxOverlay", "#pptxClose", "#pptxControls"].forEach((s) => { const n = $(s); if (n) n.remove(); });
   document.removeEventListener("keydown", pptxKeyHandler);
   window.removeEventListener("resize", pptxUpdateScale);
   pptxState.open = false;
   pptxDestroyCharts();
 }
 
-/* ---- exportação — captura cada slide (html2canvas) e monta um PDF
-   widescreen (16:9), um slide por página. ---- */
+/* ---- exportação: html2canvas → jsPDF 16:9, um slide por página ---- */
+function nomeArquivoPdf() {
+  const dataHora = carimboDataHora();
+  const nome = state.analise.nome || state.empresa.nome;
+  const m = modeloRelatorio();
+  if (m === "memoria") return "analise-tributaria-memoria-tecnica-" + (nome ? slugify(nome) + "-" : "") + dataHora + ".pdf";
+  return "analise-tributaria-apresentacao-" + (nome ? slugify(nome) + "-" : "") + (m === "completa" ? "completa" : "resumo") + "-" + dataHora + ".pdf";
+}
 async function exportPptxPdf() {
   const statusEl = $("#pdfStatus");
   const wasOpen = pptxState.open;
   const exportBtn = $("#pptxExport"), genBtn = $("#btnGerarPdf");
-  if (statusEl) statusEl.innerHTML = '<div class="loading" style="margin-bottom:12px"><span class="spinner"></span> Gerando apresentação em PDF…</div>';
+  if (statusEl) statusEl.innerHTML = '<div class="loading"><span class="spinner"></span> Gerando apresentação em PDF…</div>';
   if (exportBtn) exportBtn.disabled = true;
   if (genBtn) genBtn.disabled = true;
   try {
     if (!window.jspdf) throw new Error("Biblioteca de PDF não carregada.");
     if (typeof html2canvas === "undefined") throw new Error("Biblioteca de captura de slides não carregada.");
+    await aguardarFontes();
     if (!wasOpen) mountPptxDeck();
     const host = $("#pptxHost");
     const slides = $$(".pptx-slide", host);
     if (!slides.length) throw new Error("Nenhum slide para exportar.");
+    await new Promise((res) => setTimeout(res, 60)); // um quadro para os gráficos terminarem de desenhar
     const { jsPDF } = window.jspdf;
     let doc = null;
     for (let i = 0; i < slides.length; i++) {
-      const canvas = await html2canvas(slides[i], { width: PPTX_W, height: PPTX_H, scale: 1.5, backgroundColor: "#ffffff", useCORS: true, logging: false });
-      // JPEG em vez de PNG: os slides têm gradientes/sombras que geram PNGs
-      // muito grandes (dezenas de MB); em qualidade alta o JPEG fica visualmente
-      // idêntico para texto/gráficos e reduz drasticamente tamanho e tempo de
-      // geração — importante para um arquivo que será baixado/enviado por e-mail.
-      const img = canvas.toDataURL("image/jpeg", 0.92);
-      if (!doc) doc = new jsPDF({ unit: "pt", format: [PPTX_W, PPTX_H], orientation: "landscape", compress: true });
-      else doc.addPage([PPTX_W, PPTX_H], "landscape");
-      doc.addImage(img, "JPEG", 0, 0, PPTX_W, PPTX_H);
+      const canvas = await html2canvas(slides[i], { width: pptxState.w, height: pptxState.h, scale: pptxState.w === MEM_W ? 2 : 1.5, backgroundColor: i === 0 && slides[i].querySelector(".pptx-cover") ? PPTX.struct : PPTX.bg, useCORS: true, logging: false });
+      const img = canvas.toDataURL("image/jpeg", 0.92); // JPEG: arquivo muito menor que PNG, sem perda visível para texto e gráficos
+      const orient = pptxState.h > pptxState.w ? "portrait" : "landscape";
+      if (!doc) doc = new jsPDF({ unit: "pt", format: [pptxState.w, pptxState.h], orientation: orient, compress: true });
+      else doc.addPage([pptxState.w, pptxState.h], orient);
+      doc.addImage(img, "JPEG", 0, 0, pptxState.w, pptxState.h);
     }
     const blob = doc.output("blob");
-    // O nome do arquivo inclui a variante do slide "Comparativo" (resumo ou
-    // detalhado) e um horário (não só a data) para nunca colidir entre duas
-    // exportações no mesmo dia — sem isso, o navegador salva a segunda como
-    // "... (1).pdf" e é fácil reabrir por engano o arquivo antigo, dando a
-    // impressão de que a alternância de opção não teve efeito.
-    const now = new Date();
-    const pad2 = (n) => String(n).padStart(2, "0");
-    const dataHora = now.toISOString().slice(0, 10) + "-" + pad2(now.getHours()) + pad2(now.getMinutes()) + pad2(now.getSeconds());
-    const sufixoView = pdfComparativoView === "detalhado" ? "detalhado" : "resumo";
-    const filename = "analise-tributaria-apresentacao-" + (state.empresa.nome ? slugify(state.empresa.nome) + "-" : "") + sufixoView + "-" + dataHora + ".pdf";
-
-    // Ambiente com a capability "downloads" do claude.ai disponível (artifact
-    // publicado e visualizado dentro do claude.ai): usa o fluxo nativo, que
-    // pede confirmação ao usuário antes de salvar/entregar o arquivo.
-    let claudeDownloads = null;
-    try {
-      claudeDownloads = (window.claude && typeof window.claude.use === "function") ? await window.claude.use("downloads") : null;
-    } catch (capErr) {
-      claudeDownloads = null;
-    }
-
-    if (claudeDownloads) {
-      const res = await claudeDownloads.save({ filename, data: blob });
-      if (statusEl) statusEl.innerHTML = alertBox("green", "check", res.status === "delivered" ? "Apresentação em PDF entregue com sucesso." : "Apresentação em PDF salva com sucesso.");
-      return;
-    }
-
-    // Fora do claude.ai (arquivo aberto diretamente, hospedado no próprio
-    // site/GitHub Pages do escritório, etc.): não existe a capability acima,
-    // então usamos o download padrão do navegador (link temporário para um
-    // Blob local — nada é enviado a nenhum servidor).
-    try {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-      if (statusEl) statusEl.innerHTML = alertBox("green", "check", "Apresentação em PDF baixada com sucesso (verifique a pasta de downloads do navegador).");
-    } catch (dlErr) {
-      throw new Error("Falha ao iniciar o download no navegador: " + (dlErr && dlErr.message ? dlErr.message : dlErr));
-    }
+    const filename = nomeArquivoPdf();
+    const res = await entregarArquivo(blob, filename);
+    window.__ultimoPdf = { filename, bytes: blob.size, paginas: slides.length, modelo: modeloRelatorio() };
+    if (statusEl) statusEl.innerHTML = alertBox("green", "check", res.via === "claude" ? (res.status === "delivered" ? "Apresentação em PDF entregue com sucesso." : "Apresentação em PDF salva com sucesso.") : "Apresentação em PDF baixada com sucesso (verifique a pasta de downloads do navegador).");
   } catch (err) {
     const code = err && err.code;
     let msg = "Não foi possível gerar a apresentação em PDF.";
@@ -2959,20 +5038,17 @@ async function exportPptxPdf() {
   }
 }
 
+/* ============================================================================
+   BLOCO 90_boot
+   ============================================================================ */
+
 /* ---------------------------------------------------------------------------
-   TEMA (claro / escuro / sistema)
-   Não altera nenhum cálculo — apenas a apresentação visual e a cor dos
-   gráficos (que precisam ser recriados porque o Chart.js desenha em canvas
-   e não reage sozinho a variáveis CSS).
+   TEMA (claro / escuro / sistema) — só apresentação; nenhum cálculo muda.
+   Os gráficos são recriados porque o Chart.js desenha em canvas.
    --------------------------------------------------------------------------- */
 const THEME_KEY = "analise-tributaria-theme";
 function getStoredThemeChoice() {
-  try {
-    const v = localStorage.getItem(THEME_KEY);
-    return v === "light" || v === "dark" ? v : "system";
-  } catch (e) {
-    return "system";
-  }
+  try { const v = localStorage.getItem(THEME_KEY); return v === "light" || v === "dark" ? v : "system"; } catch (e) { return "system"; }
 }
 function isDarkActive() {
   const attr = document.documentElement.getAttribute("data-theme");
@@ -2982,183 +5058,84 @@ function isDarkActive() {
 }
 function updateThemeToggleUI(choice) {
   $$(".theme-btn").forEach((b) => {
-    const isActive = b.dataset.themeChoice === choice;
-    b.classList.toggle("active", isActive);
-    b.setAttribute("aria-pressed", isActive ? "true" : "false");
+    const on = b.dataset.themeChoice === choice;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
   });
 }
 function applyThemeChoice(choice) {
   document.documentElement.setAttribute("data-theme", choice);
   try { localStorage.setItem(THEME_KEY, choice); } catch (e) {}
   updateThemeToggleUI(choice);
-  renderContent(); // re-renderiza a aba atual só para re-temar os gráficos; nenhum dado/cálculo muda
+  renderContent();
 }
 function initTheme() {
   const choice = getStoredThemeChoice();
+  document.documentElement.setAttribute("data-theme", choice);
   updateThemeToggleUI(choice);
   $$(".theme-btn").forEach((b) => { b.onclick = () => applyThemeChoice(b.dataset.themeChoice); });
   if (window.matchMedia) {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onSystemChange = () => { if (getStoredThemeChoice() === "system") renderContent(); };
-    if (mq.addEventListener) mq.addEventListener("change", onSystemChange);
-    else if (mq.addListener) mq.addListener(onSystemChange);
+    const onChange = () => { if (getStoredThemeChoice() === "system") renderContent(); };
+    if (mq.addEventListener) mq.addEventListener("change", onChange); else if (mq.addListener) mq.addListener(onChange);
   }
 }
 
 /* ---------------------------------------------------------------------------
-   CHARTS (Chart.js)
+   PERSISTÊNCIA LOCAL (rascunho) — mesma chave do app anterior. Rascunhos
+   antigos (sem `analise`) são migrados por aplicarInputs/migrarEstadoLegado.
    --------------------------------------------------------------------------- */
-let CHARTS = {};
-function destroyCharts() { Object.keys(CHARTS).forEach((k) => { try { CHARTS[k].destroy(); } catch (e) {} }); CHARTS = {}; }
-function buildChartsForActive() {
-  if (typeof Chart === "undefined") return;
-  const r = state.result || computeAll();
-  const dark = isDarkActive();
-  const palette = dark
-    ? { navy: "#3B82F6", blue: "#60A5FA", green: "#22C55E" }
-    : { navy: "#0F2747", blue: "#1769AA", green: "#10A36A" };
-  const gridColor = dark ? "#24344D" : "#E2E8F0";
-  const tickColor = dark ? "#CBD5E1" : "#64748B";
-  const xTickColor = dark ? "#F8FAFC" : "#334155";
-  const tooltipBg = dark ? "#111C2E" : "#0F2747";
-  const tooltipBorder = dark ? "#3B82F6" : "transparent";
-  const labels = ["Simples Normal", "Simples Híbrido", "Lucro Presumido"];
-  const colors = [palette.navy, palette.blue, palette.green];
-  const barCfg = (data, label) => ({
-    type: "bar",
-    data: { labels, datasets: [{ label, data, backgroundColor: colors, borderRadius: 6, maxBarThickness: 74 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: tooltipBg, borderColor: tooltipBorder, borderWidth: dark ? 1 : 0,
-          titleColor: "#fff", bodyColor: "#fff",
-          callbacks: { label: (ctx) => fmtBRL(ctx.parsed.y) },
-        },
-      },
-      scales: {
-        y: { ticks: { callback: (v) => fmtBRL(v), color: tickColor }, grid: { color: gridColor } },
-        x: { ticks: { color: xTickColor, font: { weight: 600 } }, grid: { display: false } },
-      },
-    },
-  });
-  const cvDash = document.getElementById("chartDashboard");
-  if (cvDash) CHARTS.dashboard = new Chart(cvDash, barCfg([r.simples.dasAnual, r.hibrido.totalAnual, r.presumido.totalAnual], "Custo tributário anual (R$)"));
-  const cvCmp = document.getElementById("chartComparativo");
-  if (cvCmp) CHARTS.comparativo = new Chart(cvCmp, barCfg([r.simples.dasMensal, r.hibrido.totalMensal, r.presumido.trimestre.totalTrimestre / 3], "Custo tributário mensal (R$)"));
-
-  const cvComp = document.getElementById("chartHibridoComposicao");
-  if (cvComp) {
-    const h = r.hibrido;
-    CHARTS.hibridoComposicao = new Chart(cvComp, {
-      type: "doughnut",
-      data: {
-        labels: ["DAS sem IBS/CBS", "IBS líquido", "CBS líquido"],
-        datasets: [{ data: [h.dasSemIbsCbs, h.ibsLiquido, h.cbsLiquido], backgroundColor: [palette.navy, palette.blue, palette.green], borderWidth: 0 }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { position: "bottom", labels: { color: xTickColor, font: { size: 11.5 }, boxWidth: 12, padding: 14 } },
-          tooltip: {
-            backgroundColor: tooltipBg, borderColor: tooltipBorder, borderWidth: dark ? 1 : 0,
-            titleColor: "#fff", bodyColor: "#fff",
-            callbacks: { label: (ctx) => ctx.label + ": " + fmtBRL(ctx.parsed) + " (" + fmtPct(h.totalMensal > 0 ? (ctx.parsed / h.totalMensal) * 100 : 0) + ")" },
-          },
-        },
-      },
-    });
-  }
+const DRAFT_KEY = "analise-tributaria-draft";
+function currentSnapshot() {
+  const snap = snapshotInputs();
+  snap.active = state.active;
+  snap.simId = state.simId;
+  snap.ui = clonar(state.ui);
+  snap.v = STATE_VERSION;
+  return snap;
 }
-
-/* ---------------------------------------------------------------------------
-   PERSISTÊNCIA LOCAL (conveniência por visualizador — não sincroniza entre
-   dispositivos nem viewers, apenas evita perder o que foi digitado)
-   --------------------------------------------------------------------------- */
 function saveDraft() {
-  try {
-    const snap = { empresa: state.empresa, simples: state.simples, presumido: state.presumido, equilibrio: state.equilibrio, hibrido: state.hibrido, ibscbs: state.ibscbs, classificacaoComplementos: state.classificacaoComplementos, active: state.active, calculated: state.calculated };
-    localStorage.setItem("analise-tributaria-draft", JSON.stringify(snap));
-  } catch (e) {}
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(currentSnapshot())); } catch (e) {}
 }
-function migrateCnaeShape(empresa) {
-  // Rascunhos salvos antes desta etapa guardavam o CNAE no formato antigo
-  // {c,d,anexo,ativ}. Descarta esse valor (em vez de exibi-lo quebrado) —
-  // o usuário só precisa selecionar novamente na aba Empresa.
-  if (empresa && empresa.cnae && !empresa.cnae.codigo) empresa.cnae = null;
+function restaurarSnapshot(snap) {
+  aplicarInputs(snap);
+  if (snap.ui && typeof snap.ui === "object") state.ui = Object.assign({ detalhes: {}, avancado: {}, resultadosVista: "resultado", cenariosSel: [] }, snap.ui);
+  state.simId = snap.simId || null;
+  // abas antigas ("empresa", "simples"…) são traduzidas para as 4 etapas
+  let ativo = snap.active || "inicio";
+  const m = LEGACY_TAB_MAP[ativo];
+  if (m && ativo !== "relatorio") { if (m.detalhe) state.ui.detalhes[m.detalhe] = true; ativo = m.etapa; }
+  state.active = ETAPAS.some((e) => e.id === ativo) ? ativo : "inicio";
+  if (!etapaLiberada(state.active)) state.active = "inicio";
 }
 function loadDraft() {
   try {
-    const raw = localStorage.getItem("analise-tributaria-draft");
+    const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return;
-    const snap = JSON.parse(raw);
-    Object.assign(state.empresa, snap.empresa || {});
-    Object.assign(state.simples, snap.simples || {});
-    Object.assign(state.presumido, snap.presumido || {});
-    Object.assign(state.equilibrio, snap.equilibrio || {});
-    Object.assign(state.hibrido, snap.hibrido || {});
-    Object.assign(state.ibscbs, snap.ibscbs || {});
-    Object.assign(state.classificacaoComplementos, snap.classificacaoComplementos || {});
-    if (snap.active) state.active = snap.active;
-    state.calculated = !!snap.calculated;
-    migrateCnaeShape(state.empresa);
-  } catch (e) {}
+    restaurarSnapshot(JSON.parse(raw));
+  } catch (e) { /* rascunho inválido é ignorado */ }
 }
 function resetState() {
-  state.empresa = { nome: "", cnpj: "", cnae: null, faturamentoMensal: 18000, rbt12Modo: "auto", rbt12Manual: 216000, folha12m: 0, proLabore: 0, anoAnalise: 2026 };
-  state.simples = { anexoModo: "auto", anexoManual: "III" };
-  state.presumido = { atividade: "servicos_gerais", atividadeModo: "auto", receitaTrimestre: 54000, pisAliq: 0.65, cofinsAliq: 3.0, issAliq: 3.0, majoracao: false, anoProjecao: 2027 };
-  state.equilibrio = { custosFixos: 6000, custosVariaveisPct: 10, contratoBruto: 10000, contratoLiquido: 8500, creditoContratanteAtualPct: 0 };
-  state.hibrido = { anoProjecao: 2033, valorContratoAnual: 216000, creditoIbsPct: 0, creditoCbsPct: 0, creditoContratanteHibridoPct: 100 };
-  state.ibscbs = { tratamento: "padrao", modo: "auto", aliquotaEfetivaManualPct: null, observacao: "" };
-  state.classificacaoComplementos = {};
-  state.comparativo = { view: "detalhado" };
-  state.calculated = false;
-  saveDraft();
-  renderContent();
-}
-
-function wireCommonInputs(root) {
-  $$('input[inputmode="decimal"]', root).forEach((inp) => {
-    inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") inp.blur(); });
-  });
+  aplicarInputs(null);
+  state.active = "inicio"; state.simId = null; state.result = null; state.memoria = [];
+  state.ui.avancado = {}; state.ui.mostrarErros = false; // seções recolhidas e sem avisos de campo numa análise nova
+  saveDraft(); renderNav(); renderContent();
 }
 
 /* ---------------------------------------------------------------------------
-   INIT
+   INICIALIZAÇÃO
    --------------------------------------------------------------------------- */
 function boot(initialState) {
-  if (initialState) {
-    try {
-      Object.assign(state.empresa, initialState.empresa || {});
-      Object.assign(state.simples, initialState.simples || {});
-      Object.assign(state.presumido, initialState.presumido || {});
-      Object.assign(state.equilibrio, initialState.equilibrio || {});
-      Object.assign(state.hibrido, initialState.hibrido || {});
-      Object.assign(state.ibscbs, initialState.ibscbs || {});
-      Object.assign(state.classificacaoComplementos, initialState.classificacaoComplementos || {});
-      if (initialState.active) state.active = initialState.active;
-      state.calculated = !!initialState.calculated;
-      migrateCnaeShape(state.empresa);
-    } catch (e) {}
-  } else {
-    loadDraft();
-  }
-  $("#metaYear").textContent = state.empresa.anoAnalise;
-  $("#metaDate").textContent = todayBR();
-  $("#baseUpdateDate").textContent = todayBR();
+  if (initialState) { try { restaurarSnapshot(initialState); } catch (e) { console.error(e); } } else loadDraft();
+  const set = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
+  set("metaYear", state.empresa.anoAnalise); set("metaDate", todayBR()); set("baseUpdateDate", todayBR());
+  initTheme();
   renderNav();
   renderContent();
-  initTheme();
   loadCnaeBase();
-
-  $("#menuToggle").onclick = () => { $("#sidebar").classList.add("open"); $("#scrim").classList.add("open"); };
-  $("#scrim").onclick = closeSidebarMobile;
-}
-
-function currentSnapshot() {
-  return { empresa: state.empresa, simples: state.simples, presumido: state.presumido, equilibrio: state.equilibrio, hibrido: state.hibrido, ibscbs: state.ibscbs, classificacaoComplementos: state.classificacaoComplementos, active: state.active, calculated: state.calculated };
+  const mt = $("#menuToggle"), sc = $("#scrim");
+  if (mt) mt.onclick = () => { $("#sidebar").classList.add("open"); sc.classList.add("open"); };
+  if (sc) sc.onclick = closeSidebarMobile;
 }
 
 if (window.claude && window.claude.hot) {
