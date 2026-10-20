@@ -1,7 +1,7 @@
 // Executa todas as suítes em sequência. Uso: node tests/run-all.js
 const { spawnSync } = require('child_process');
 const path = require('path');
-const suites = ['suite0_existente.js', 'suite.js', 'suite2.js', 'suite3.js', 'suite4_motor.js', 'suite5_charts.js', 'suite6_ux.js', 'suite7_v321.js', 'suite8_v322.js', 'suite9_v323.js', 'suite10_v324.js', 'parity.js'];
+const suites = ['suite0_existente.js', 'suite.js', 'suite2.js', 'suite3.js', 'suite4_motor.js', 'suite5_charts.js', 'suite6_ux.js', 'suite7_v321.js', 'suite8_v322.js', 'suite9_v323.js', 'suite10_v324.js', 'suite11_v325.js', 'suite12_pdf_v325.js', 'parity.js'];
 let fail = 0;
 for (const s of suites) {
   console.log('\n===== ' + s + ' =====');

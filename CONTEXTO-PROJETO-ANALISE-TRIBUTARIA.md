@@ -186,6 +186,15 @@ Regra: elegibilidade legal antes do custo. Nenhum valor calculado mudou; só cla
 - Não calculado de propósito: ISS/ICMS/IBS devidos fora do DAS, Lucro Real, juros, multa, recolhimento retroativo. Pendências: art. 9º da Res. 190; tratamento da 6ª faixa no início de atividade no PGDAS-D.
 - Testes: `tests/suite10_v324.js` (12 aberturas de 2027 com R$ 1,5 mi em 3 meses, decisão, telas, PDFs, Fontes), `tests/regressao_v323.js` (0 diferença em valores; classifica E1–E5). Relatório: `RELATORIO-V3.2.4.md`.
 
+## 0.1g Versão 3.2.5 — correção da 6ª faixa (leia junto com 0.1f; substitui o que 0.1f diz sobre a 6ª faixa)
+Com RBT12 acima do limite da 5ª faixa e sem impedimento, ICMS/ISS/IBS **permanecem no DAS** (Res. CGSN 140, art. 21, IV; 2026: art. 21, III, "b"; teto de ISS: III, "a"). Em `app.js`:
+- `calcAcrescimoArt21IV(rbt12, anexoKey, ano)`: acréscimo = `[(RBT12×nominal 5ª − PD 5ª)/RBT12] × (% ICMS/ISS [+ % IBS] da 5ª faixa)`, com teto de ISS de 5% (`ISS_TETO_PCT`) e redistribuição do excedente (fatores `ISS_TETO_5A_FAIXA` para Anexos III/IV; proporção da 5ª faixa sem ISS nos demais). 2029–2032: teto sobre ISS+IBS; 2033: só IBS.
+- `calcSimplesNacional` devolve `ivPot`; `simularSimplesPeriodo` guarda `dasBase`, `ivPot`, `ivEstado` (`aplicado` | `pendente` | `impedido` | null), `ivValor`; `agregarSimples` soma o acréscimo ao DAS (`r.das = dasBase + ivValor`) e devolve `ivTotal`, `ivPendente`, `piso`. `calcSimplesHibrido` recompõe o DAS com o acréscimo e retira só CBS/IBS (`acrescimoIVnoDas`, `dasTotalH`).
+- `avaliarSublimite` reescrita: eventos desde 2026; `pend[]` (empresa existente, 6ª faixa, receita do ano anterior desconhecida ou > R$ 3,6 mi sem `state.confirmados["sublimite-ano-anterior"]`); campos `mesesFaixa6`, `mesesPendentes`, `anoAnteriorCondicao`.
+- `decidirRecomendacao`: incerto = `incompleto` ou `premissaPendente`; compara o `piso`; novo motivo `premissa-pendente`. Pendências novas: `sublimite-ano-anterior` (estimativa, confirmável) e `faixa6-art21iv` (informativa, com limitações). Memória: seção "6ª faixa — ICMS, ISS e IBS pela fórmula da 5ª faixa (art. 21, IV)". FONTES: art. 21 IV/III "b" (oficial); pontos não confirmados e art. 24, I, "b", 2 não aplicado (hipótese).
+- Não confirmado (resultado sempre preliminar): valor pago dentro do DAS no PGDAS-D; redistribuição do teto (Anexo V é hipótese); Res. 190 art. 22 §5º II, arts. 9º e 26 §7º; art. 24 I "b" 2 (não aplicado); sublimite de 2026 por UF; ICMS/ISS fora do DAS quando impedido.
+- Testes: `tests/suite11_v325.js`, `tests/regressao_v324.js`; relatório `RELATORIO-V3.2.5.md`.
+
 ## 1. O que é o sistema
 
 **Análise Tributária** é uma ferramenta de simulação e comparação de regimes

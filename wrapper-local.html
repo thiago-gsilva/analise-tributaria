@@ -882,6 +882,7 @@ const ISS_TETO_5A_FAIXA = {
     "2031": { fixo: { ISS: 0.035, IBS: 0.015 }, fator: { IRPJ: 31.33, CSLL: 32.00, CBS: 36.67 } },
     "2032": { fixo: { ISS: 0.03, IBS: 0.02 }, fator: { IRPJ: 31.33, CSLL: 32.00, CBS: 36.67 } } } },
 };
+const ISS_TETO_PCT = 0.05;   // Res. CGSN 140, art. 21, III, "a": percentual efetivo máximo do ISS
 function periodoTabelaLC214(ano) {
   if (ano == null || ano < 2027) return null;
   if (ano <= 2028) return "2728";
@@ -901,6 +902,62 @@ function partilhaOficial(anexoKey, ano, faixaIdx, aliqEfetiva) {
     Object.keys(out).forEach((k) => { out[k] = 0; });
     Object.keys(c.fixo).forEach((k) => { out[k] = (c.fixo[k] / aliqEfetiva) * 100; });
     Object.keys(c.fator).forEach((k) => { out[k] = ((exc * c.fator[k]) / 100 / aliqEfetiva) * 100; });
+  }
+  return out;
+}
+
+/* ---------------------------------------------------------------------------
+   V3.2.5 — RBT12 ACIMA DO LIMITE DA 5ª FAIXA: percentual efetivo de ICMS, ISS e IBS (Res. CGSN 140/2018, art. 21)
+   Regra por período (a mesma fórmula, parâmetros de cada época):
+   · 2026 — art. 21, III, "b", da Res. CGSN 140 (texto anterior à Res. CGSN 190; conferido em texto consolidado e na Resposta à Consulta SEFAZ-SP 24036/2021):
+     com RBT12 acima do limite da 5ª faixa (R$ 3,6 mi), SEM exceder o sublimite, o percentual efetivo de ICMS/ISS = {[(RBT12 × alíq. nominal da 5ª faixa) − PD da 5ª faixa] ÷ RBT12}
+     × percentual de distribuição do ICMS/ISS da 5ª faixa;
+   · 2027-2028 — art. 21, IV, na redação da Res. CGSN 190/2026: mesma fórmula, agora para ICMS, ISS e IBS (distribuição da 5ª faixa dos Anexos XVIII a XXII da LC 214/2025);
+   · 2029 em diante — idem, com a distribuição de cada ano (2029…2032) e, em 2033, só IBS (ICMS/ISS extintos).
+   O valor é somado ao DAS apurado pela 6ª faixa (cuja partilha é 100% tributos federais e CBS). Teto: art. 21, III, "a" — o percentual efetivo máximo do ISS é de 5%; a diferença é
+   transferida, proporcionalmente, aos tributos federais (e ao IBS, em 2027-2028) da mesma faixa: não altera o total do DAS, só a composição (relevante no Híbrido, que retira CBS e IBS).
+   De 2029 a 2032 o teto de 5% alcança ISS + IBS e é repartido pela proporção do ano (tabela ISS_TETO_5A_FAIXA, Anexos III e IV). As proporções de redistribuição são as da própria 5ª faixa
+   (partilha sem o ISS, normalizada) — para os Anexos III e IV coincidem com os fatores publicados nas notas dos Anexos; para o Anexo V são HIPÓTESE (a nota do Anexo V não foi lida).
+   Esta função é pura e não decide se o valor se aplica: a aplicação depende de não haver impedimento (avaliarSublimite). */
+function calcAcrescimoArt21IV(rbt12, anexoKey, ano) {
+  const A = ANEXOS[anexoKey];
+  if (!A || !(rbt12 > 0)) return null;
+  const f5 = A.faixas[4], n5 = f5.aliq, pd5 = f5.ded;
+  const per = periodoTabelaLC214(ano);
+  const row5 = {};
+  if (per) { const T = ANEXOS_LC214[anexoKey]; T.cols.forEach((c, i) => { row5[c] = T.p[per][4][i]; }); } else Object.assign(row5, f5.partilha);
+  const consumo = "ICMS" in row5 ? "ICMS" : "ISS";
+  const eff5 = Math.max((rbt12 * n5 - pd5) / rbt12, 0);
+  const sCons = (row5[consumo] || 0) / 100, sIbs = (row5.IBS || 0) / 100;
+  const ivCons = eff5 * sCons, ivIbs = eff5 * sIbs, total = ivCons + ivIbs;
+  const comp = {};
+  const out = {
+    aplica: true, rbt12, anexoKey, ano, periodo: per || "2026", eff5, n5, pd5, consumo, sCons, sIbs, ivCons, ivIbs, total,
+    tetoAcionado: false, excedente: 0, tetoHipotese: false, fatores: null, comp,
+  };
+  const temTeto = consumo === "ISS" && per !== "2033";
+  const conjunto = per && per !== "2728";                 // 2029-2032: o teto de 5% alcança ISS + IBS
+  const base = sCons + (conjunto ? sIbs : 0);
+  const combinado = eff5 * base;
+  if (temTeto && base > 0 && combinado > ISS_TETO_PCT + 1e-12) {
+    // fatores de redistribuição (em %): tabela publicada (Anexos III e IV) ou proporção da 5ª faixa sem ISS (e sem IBS quando o IBS fica fixo)
+    const cap = ISS_TETO_5A_FAIXA[anexoKey];
+    let fat = cap && per && cap.p[per] ? Object.assign({}, cap.p[per].fator) : null;
+    if (!fat) {
+      fat = {}; let s = 0;
+      Object.keys(row5).forEach((k) => { if (k === consumo || (conjunto && k === "IBS")) return; s += row5[k]; });
+      Object.keys(row5).forEach((k) => { if (k === consumo || (conjunto && k === "IBS")) return; fat[k] = (row5[k] / s) * 100; });
+      out.tetoHipotese = anexoKey === "V" || !cap;
+    }
+    out.fatores = fat;
+    out.tetoAcionado = true;
+    out.excedente = combinado - ISS_TETO_PCT;
+    comp[consumo] = conjunto ? ISS_TETO_PCT * (sCons / base) : ISS_TETO_PCT;
+    if (conjunto) comp.IBS = ISS_TETO_PCT * (sIbs / base); else if (ivIbs > 0) comp.IBS = ivIbs;
+    Object.keys(fat).forEach((k) => { comp[k] = (comp[k] || 0) + (out.excedente * fat[k]) / 100; });
+  } else {
+    if (ivCons > 0) comp[consumo] = ivCons;
+    if (ivIbs > 0) comp.IBS = ivIbs;
   }
   return out;
 }
@@ -1593,6 +1650,9 @@ const FONTES = [
   { nome: "CPP patronal no Simples Nacional: já incluída no DAS dos Anexos I, II, III e V (fora do Anexo IV) e dispensa das demais contribuições (sistema S etc.)", fonte: "Lei Complementar 123/2006, art. 13, VI e § 3º (texto conferido no Planalto, 10/2026) — por isso o pró-labore adicional do Fator R não gera encargo patronal extra nos Anexos III e V", data: "consultado em 10/2026", status: "oficial" },
   { nome: "IRRF mensal sobre pró-labore — tabela progressiva, desconto simplificado (R$ 607,20) e redução da Lei 15.270/2025 (até R$ 5.000: redução de até R$ 312,89, zerando o imposto; de R$ 5.000,01 a R$ 7.350: redução = R$ 978,62 − 0,133145 × rendimento; vigência 01/01/2026)", fonte: "Receita Federal — Tabelas do IRPF 2026 (gov.br/receitafederal, conferida: faixas, parcelas a deduzir e desconto simplificado; Lei 15.191/2025) · Lei 15.270/2025, art. 3º-A da Lei 9.250/1995 (texto no Planalto, conferido). O app deduz o maior entre o INSS e o desconto simplificado e não considera dependentes nem outras rendas", data: "consultado em 10/2026", status: "oficial" },
   { nome: "Distribuição de lucros: retenção de 10% do IRPF sobre o que passar de R$ 50.000 por mês pago por uma mesma pessoa jurídica (a partir de 2026) — NÃO modelada", fonte: "Lei 15.270/2025, art. 6º-A da Lei 9.250/1995 (conferida no Planalto) — pode alterar a comparação entre pró-labore e distribuição de lucros em empresas com lucros altos; fora do escopo dos cálculos", data: "consultado em 10/2026", status: "hipotese" },
+  { nome: "6ª faixa do Simples (RBT12 acima de R$ 3,6 mi): percentual efetivo de ICMS, ISS e IBS pela fórmula da 5ª faixa, somado ao DAS da 6ª faixa; ISS limitado a 5%", fonte: "Res. CGSN 140/2018, art. 21, IV, na redação da Res. CGSN 190/2026 (2027+; transcrição em normaslegais.com.br e impressão do DOU de 11/08/2026) · 2026: art. 21, III, \"b\", texto anterior (\"sem exceder o sublimite\"), conferido em texto consolidado da Res. 140 e na Resposta à Consulta SEFAZ-SP nº 24036/2021 · teto de 5% do ISS: art. 21, III, \"a\" · parâmetros da 5ª faixa: Anexos I a V (2026) e Anexos XVIII a XXII da LC 214/2025 (2027 em diante)", data: "consultado em 10/2026", status: "oficial" },
+  { nome: "6ª faixa — pontos NÃO confirmados em texto ou simulação oficial: (1) que o valor do art. 21, IV é recolhido dentro do DAS; (2) repartição do excedente do teto de 5% do ISS na 6ª faixa; (3) proporções do Anexo V; (4) redação, dada pela Res. CGSN 190, do art. 22, § 5º, II", fonte: "(1) leitura coerente com a Consulta SEFAZ-SP 24036/2021, com as tabelas (a 6ª faixa reparte 100% a tributos federais e CBS) e com um caso real do PGDAS-D relatado em fórum (Portal Contábeis, 30/10/2025: o total do PGDAS-D soma tributos federais e o ISS pela fórmula da 5ª faixa) — fonte não normativa; o inciso IV não diz \"no DAS\" · (2) o app redistribui pelas proporções da própria 5ª faixa sem o ISS (iguais aos fatores publicados nas notas dos Anexos III e IV); só muda a composição, não o total do DAS · (3) Anexo V: hipótese · (4) o texto anterior do § 5º aplicava as alíquotas das últimas faixas quando o RBT12 supera o limite e a receita do ano está dentro do limite proporcional; a redação da Res. 190 não foi lida", data: "consultado em 10/2026", status: "hipotese" },
+  { nome: "Parcela da receita acima do sublimite (excesso de até 20%, ainda sem efeitos): fórmula própria do art. 24, I, \"b\", item 2 — NÃO aplicada pelo app", fonte: "Res. CGSN 140/2018, art. 24, I, alínea \"b\", item 2 (texto consolidado anterior à Res. CGSN 190; o PGDAS-D a aplica ao ICMS/ISS da parcela acima do sublimite, com RBT12 fixado em R$ 3,6 mi). Sem leitura da redação de 2027, o app não a aplica; a diferença é pequena e só ocorre no ano do excesso", data: "consultado em 10/2026", status: "hipotese" },
   { nome: "Simples com IBS/CBS pelo regime regular (Simples Híbrido): janelas de opção — jan–jun/2027: de 01/09 a 30/10/2026 (prorrogada de 30/09 pela Res. CGSN 194/2026); cancelamento irretratável de 03/11 a 20/12/2026; nova janela em março/2027 para jul–dez/2027; empresas que abrirem CNPJ de 31/10 a 31/12/2026 seguem regra própria. Sem opção, IBS/CBS ficam dentro do DAS", fonte: "Resolução CGSN 186/2026, arts. 1º a 3º, na redação da Resolução CGSN 194/2026 (25/09/2026, DOU 28/09/2026) — opção pelo Simples Nacional para 2027: 01/09 a 15/10/2026 (pendências regularizáveis até 30/10/2026) · janela de março/2027 conforme Res. CGSN 190 e 191/2026 e fonte secundária (a Res. 194 não trata do 2º semestre)", data: "consultado em 10/2026", status: "oficial" },
   { id: "cnae", nome: "Base de CNAEs (classificação oficial)", fonte: "Carregando base de CNAEs (CONCLA/IBGE)...", data: "—", status: "hipotese" },
 ];
@@ -1660,11 +1720,22 @@ function calcSimplesNacional({ faturamentoMensal, rbt12, anexoKey, folha12m, ano
   const partilha = (ano != null && ano >= ANO_REGRAS_2027 && partilhaOficial(anexoUsado, ano, idx, aliqEfetiva)) || faixa.partilha;
   const partilhaValores = {};
   Object.keys(partilha).forEach((t) => (partilhaValores[t] = dasMensal * (partilha[t] / 100)));
+  // V3.2.5 — 6ª faixa: acréscimo potencial do art. 21, IV (ICMS/ISS/IBS pela fórmula da 5ª faixa). NÃO é somado aqui: `dasMensal` continua sendo o DAS da 6ª faixa
+  // (partilha só de tributos federais e CBS); agregarSimples soma o acréscimo nos meses sem impedimento (avaliarSublimite) e só então o DAS fica completo.
+  let ivPot = null;
+  if (idx === 5 && !primeiraFaixa && rbt12 > 0) {
+    const iv = calcAcrescimoArt21IV(rbt12, anexoUsado, ano);
+    if (iv) {
+      const comp = {};
+      Object.keys(iv.comp).forEach((t) => { comp[t] = faturamentoMensal * iv.comp[t]; });
+      ivPot = { iv, valor: faturamentoMensal * iv.total, comp };
+    }
+  }
   return {
     anexoUsado, faixaIndex: idx + 1, faixaLabel: (idx + 1) + "ª faixa",
     aliqNominal: faixa.aliq, parcelaDeduzir: faixa.ded, aliqEfetiva,
     dasMensal, dasAnual: dasMensal * 12, cargaEfetivaPct: aliqEfetiva * 100,
-    partilha, partilhaValores, fatorR, rbt12,
+    partilha, partilhaValores, fatorR, rbt12, ivPot,
   };
 }
 
@@ -1773,25 +1844,36 @@ function calcLiquidoParaBruto(liquido, cargaPct) { const f = 1 - cargaPct / 100;
 // partilha da LC 214/2025, Anexos XVIII a XXII); IRPJ, CSLL, CPP, IPI, ICMS e ISS continuam no DAS (o ICMS/ISS sai da partilha pela própria tabela, ano a ano).
 // A opção só existe a partir de 01/01/2027 (Res. CGSN 190/2026, efeitos de 2027; Res. CGSN 186/2026 — janelas de opção): antes disso o Híbrido é o próprio DAS
 // (em 2026 os optantes estão dispensados de destacar IBS/CBS e o valor-teste é compensável).
-function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaValores, cronoAno, creditoIbsPct, creditoCbsPct, tratamentoIbsCbs, aliquotaEfetivaManualPct, anexoUsado, faixaIdx, aliqEfetiva }) {
+function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaValores, cronoAno, creditoIbsPct, creditoCbsPct, tratamentoIbsCbs, aliquotaEfetivaManualPct, anexoUsado, faixaIdx, aliqEfetiva, rbt12, dasBase, ivAplicado, ivValor }) {
   const anoH = cronoAno.ano;
   const opcao = anoH >= ANO_REGRAS_2027;
   const tributoConsumo = partilha && partilha.ICMS != null ? "ICMS" : (partilha && partilha.ISS != null ? "ISS" : null);
+  // V3.2.5 — 6ª faixa: o acréscimo do art. 21, IV (ICMS/ISS/IBS pela fórmula da 5ª faixa) já está no DAS do Simples quando aplicado; no Híbrido ele é recomposto com a partilha
+  // do ano do Híbrido: o IBS (e a CBS que o teto de 5% do ISS redistribui) saem do DAS, o ISS/ICMS e os tributos federais permanecem (art. 22-A). Somado uma única vez.
+  let iv = null;
+  if (opcao && ivAplicado && faixaIdx === 5 && rbt12 > 0 && anexoUsado) iv = calcAcrescimoArt21IV(rbt12, anexoUsado, anoH);
+  const dasBaseH = iv && dasBase != null ? dasBase : dasMensal;      // DAS da faixa, sem o acréscimo
+  const dasTotalH = iv ? dasBaseH + faturamentoMensal * iv.total : dasMensal;
   // partilha (em %) que vale para o ano do Híbrido; sem ela (chamada direta com a partilha do próprio mês) usa-se a partilha informada
   let pp = null;
   if (opcao && anexoUsado != null && faixaIdx != null && faixaIdx >= 0) pp = partilhaOficial(anexoUsado, anoH, faixaIdx, aliqEfetiva);
   let parcelaIbsNoDas = 0, parcelaCbsNoDas = 0;
   if (opcao) {
-    if (pp) { parcelaIbsNoDas = dasMensal * ((pp.IBS || 0) / 100); parcelaCbsNoDas = dasMensal * ((pp.CBS || 0) / 100); }
+    if (pp) { parcelaIbsNoDas = dasBaseH * ((pp.IBS || 0) / 100); parcelaCbsNoDas = dasBaseH * ((pp.CBS || 0) / 100); }
     else { parcelaIbsNoDas = (partilhaValores && partilhaValores.IBS) || 0; parcelaCbsNoDas = (partilhaValores && partilhaValores.CBS) || 0; }
+    if (iv) { parcelaIbsNoDas += faturamentoMensal * (iv.comp.IBS || 0); parcelaCbsNoDas += faturamentoMensal * (iv.comp.CBS || 0); }
   }
   const parcelaConsumoDas = parcelaIbsNoDas + parcelaCbsNoDas;
-  const dasSemIbsCbs = Math.max(dasMensal - parcelaConsumoDas, 0);
+  const dasSemIbsCbs = Math.max(dasTotalH - parcelaConsumoDas, 0);
   // o que permanece no DAS, por categoria (para a composição tributária)
   const dasPartes = {};
   const catDas = (k) => (k === "ICMS" || k === "ISS" ? "ICMS/ISS" : (k === "PIS" || k === "COFINS" ? "PIS/COFINS" : k));
-  if (pp) Object.keys(pp).forEach((k) => { if (k !== "CBS" && k !== "IBS") dasPartes[catDas(k)] = (dasPartes[catDas(k)] || 0) + dasMensal * (pp[k] / 100); });
-  else Object.keys(partilhaValores || {}).forEach((k) => { if (!opcao || (k !== "CBS" && k !== "IBS")) dasPartes[catDas(k)] = (dasPartes[catDas(k)] || 0) + partilhaValores[k]; });
+  if (pp) {
+    Object.keys(pp).forEach((k) => { if (k !== "CBS" && k !== "IBS") dasPartes[catDas(k)] = (dasPartes[catDas(k)] || 0) + dasBaseH * (pp[k] / 100); });
+    if (iv) Object.keys(iv.comp).forEach((k) => { if (k !== "CBS" && k !== "IBS") dasPartes[catDas(k)] = (dasPartes[catDas(k)] || 0) + faturamentoMensal * iv.comp[k]; });
+  } else Object.keys(partilhaValores || {}).forEach((k) => { if (!opcao || (k !== "CBS" && k !== "IBS")) dasPartes[catDas(k)] = (dasPartes[catDas(k)] || 0) + partilhaValores[k]; });
+  // parte do acréscimo do art. 21, IV que permanece no DAS do Híbrido (para o piso quando a premissa de elegibilidade está pendente)
+  const acrescimoIVnoDas = iv ? faturamentoMensal * (iv.total - (iv.comp.IBS || 0) - (iv.comp.CBS || 0)) : (ivAplicado && !opcao ? (ivValor || 0) : 0);
 
   // ---- Tratamento tributário de IBS/CBS (alíquota padrão × redução/benefício
   // aplicável à operação, conforme LC 214/2025 — ver IBS_CBS_TRATAMENTOS) ----
@@ -1810,7 +1892,7 @@ function calcSimplesHibrido({ faturamentoMensal, dasMensal, partilha, partilhaVa
     ibsRefPct: aliqIbsCbs.ibsRefPct, cbsRefPct: aliqIbsCbs.cbsRefPct,
     reducaoAplicadaPct: aliqIbsCbs.reducaoAplicadaPct, tratamentoIbsCbsManual: aliqIbsCbs.manual,
     tratamentoIbsCbs: aliqIbsCbs.tratamento,
-    parcelaIbsNoDas, parcelaCbsNoDas, parcelaConsumoDas, dasSemIbsCbs, dasPartes,
+    parcelaIbsNoDas, parcelaCbsNoDas, parcelaConsumoDas, dasSemIbsCbs, dasPartes, acrescimoIVnoDas, dasTotalH,
     ibsDebito, cbsDebito, creditoIbsPct: creditoIbsPct || 0, creditoCbsPct: creditoCbsPct || 0,
     creditoIbs, creditoCbs, ibsLiquido, cbsLiquido,
     totalIbsCbsLiquido, totalMensal, totalAnual: totalMensal * 12,
@@ -2249,6 +2331,8 @@ function simularSimplesPeriodo(P) {
       fatorR: sn.fatorR, anexoUsado: sn.anexoUsado, faixaIndex: sn.faixaIndex, faixaLabel: sn.faixaLabel,
       aliqNominal: sn.aliqNominal, parcelaDeduzir: sn.parcelaDeduzir, aliqEfetiva: sn.aliqEfetiva, cargaEfetivaPct: sn.cargaEfetivaPct,
       das: sn.dasMensal, partilha: sn.partilha, partilhaValores: sn.partilhaValores,
+      // V3.2.5: DAS da faixa (sem o acréscimo do art. 21, IV) e acréscimo potencial; agregarSimples decide, mês a mês, se o acréscimo se aplica (ivEstado)
+      dasBase: sn.dasMensal, ivPot: sn.ivPot, ivEstado: null, ivValor: 0,
       // preenchido por avaliarExclusaoSimples (efeitos da exclusão por excesso de receita) — ver agregarSimples
       foraDoLimite: false, rbt12AcimaLimite: (P.nova && k < (r27 ? 13 : 12)) ? false : rbt12 > LIMITE_SIMPLES,
     });
@@ -2353,27 +2437,37 @@ function avaliarExclusaoSimples(rows, hist) {
 }
 
 /* ---------------------------------------------------------------------------
-   SUBLIMITE DE ICMS, ISS E IBS (V3.2.4)
-   Fontes: LC 123/2006, art. 13-A e art. 3º, §§ 9º a 13 (redação da LC 214/2025); Res. CGSN 140/2018, art. 12, na redação da Res. CGSN 190/2026:
-   - caput: se a receita bruta acumulada no ano-calendário ultrapassar o sublimite (R$ 3.600.000), a EPP fica impedida de recolher IBS, ICMS e ISS pelo
-     Simples (a CBS e os tributos federais continuam no DAS);
+   SUBLIMITE DE ICMS, ISS E IBS (V3.2.4; reescrito na V3.2.5 — a 6ª faixa deixou de contar como impedimento)
+   Fontes: LC 123/2006, art. 13-A e art. 3º, §§ 9º a 13 (redação da LC 214/2025); Res. CGSN 140/2018, art. 12, na redação da Res. CGSN 190/2026 (2027+) e na redação anterior
+   (2026, conferida em texto consolidado: mesmos §§ 1º a 4º, 6º e 7º):
+   - caput: se a receita bruta acumulada no ano-calendário ultrapassar o sublimite (R$ 3.600.000), a EPP fica impedida de recolher IBS, ICMS e ISS pelo Simples (a CBS e os
+     tributos federais continuam no DAS);
    - § 1º: excesso superior a 20% → impedimento a partir do mês seguinte ao do excesso; excesso de até 20% → a partir do ano-calendário seguinte;
-   - §§ 2º a 4º: no início de atividade o sublimite é proporcional (R$ 300.000 × meses; fração = mês inteiro); excesso superior a 20% → efeitos
-     RETROATIVOS ao início da atividade; até 20% → ano seguinte;
+   - §§ 2º a 4º: no início de atividade o sublimite é proporcional (R$ 300.000 × meses; fração = mês inteiro); excesso superior a 20% → efeitos RETROATIVOS ao início da
+     atividade; até 20% → ano seguinte;
    - §§ 7º e 8º: o impedido recolhe esses tributos pelas normas gerais (com juros de mora se pagar antes de procedimento de ofício).
-   Além disso, nos meses em que o RBT12 está na 6ª faixa (acima de R$ 3,6 mi) a partilha oficial do Anexo não inclui ISS, ICMS nem IBS no DAS.
-   O app NÃO calcula esses tributos fora do DAS (alíquotas municipais/estaduais, créditos, juros): marca o total como INCOMPLETO. Ver `recomendacao`.
+   V3.2.5 — o RBT12 na 6ª faixa (acima de R$ 3,6 mi) NÃO é impedimento: o impedimento decorre da receita acumulada no ano (RBA) contra o sublimite. Sem impedimento, ICMS/ISS/IBS
+   permanecem no DAS e são calculados pelo art. 21, IV (calcAcrescimoArt21IV). Cinco situações distintas, mês a mês:
+     · 6ª faixa sem impedimento ........ ivEstado "aplicado" (acréscimo somado ao DAS);
+     · sublimite efetivamente excedido . `fora` (ICMS/ISS/IBS pelas normas gerais, não calculados → total INCOMPLETO);
+     · exclusão do Simples ............. tratada em avaliarExclusaoSimples;
+     · empresa existente com a receita do ano anterior desconhecida ou incompatível com o RBT12 ... `pend` (premissa a confirmar: ivEstado "pendente", total com o acréscimo mas
+       só como estimativa; o piso é o DAS sem o acréscimo);
+     · (incompleto por falta de informação = `pend`/histórico pendente).
+   Em 2026 a RBA só é aplicada aos meses de 6ª faixa (o app não avaliava o sublimite antes de 2027; mudar os demais meses fica fora desta versão).
+   O app NÃO calcula ICMS/ISS/IBS fora do DAS (alíquotas municipais/estaduais, créditos, juros): marca o total como INCOMPLETO. Ver `recomendacao`.
    --------------------------------------------------------------------------- */
 function avaliarSublimite(rows, hist) {
   const N = rows.length, nova = empresaEhNova();
-  const fora = Array(N).fill(false), motivo = Array(N).fill(null);
-  const res = { fora, motivo, mesesAfetados: 0, retroativo: false, eventos: [], porFaixa6: 0, porSublimite: 0, texto: "" };
+  const fora = Array(N).fill(false), motivo = Array(N).fill(null), pend = Array(N).fill(false);
+  const res = { fora, motivo, pend, mesesAfetados: 0, retroativo: false, eventos: [], porSublimite: 0, mesesFaixa6: 0, mesesPendentes: 0, anoAnteriorSuposto: null,
+    historicoIncompleto: false, estimado: false, limitado2026: false, anoAnteriorCondicao: false, anoAnteriorConfirmado: false, texto: "" };
   if (!N) return res;
   const eps = 0.005, anoInicio = rows[0].ano;
   const eventos = [];
   if (nova) {
     const li = verificarLimiteInicioAtividade(rows);
-    if (li.aplica && anoInicio >= ANO_REGRAS_2027 && li.sublimite > 0 && li.receitaAno > li.sublimite + eps) {
+    if (li.aplica && li.sublimite > 0 && li.receitaAno > li.sublimite + eps) {
       const pct = li.receitaAno / li.sublimite - 1, acima = pct > LIMITE_EXCESSO_PCT + 1e-9;
       const j = rows.findIndex((r) => r.ano > anoInicio);
       eventos.push({ base: "inicio", acima20: acima, pct, idx: acima ? 0 : (j < 0 ? N : j), retro: acima, ano: anoInicio, limite: li.sublimite, receita: li.receitaAno, meses: li.mesesFuncionamento });
@@ -2382,10 +2476,11 @@ function avaliarSublimite(rows, hist) {
   const proxMensal = (!nova && hist && hist.origem !== "pendente") ? hist.rbt12 / 12 : 0;
   const anos = Array.from(new Set(rows.map((r) => r.ano)));
   anos.forEach((ano, ai) => {
-    if (ano < ANO_REGRAS_2027 || (nova && ano === anoInicio)) return;
+    if (nova && ano === anoInicio) return;
     const ks = rows.map((r, k) => k).filter((k) => rows[k].ano === ano);
     const mesesAntes = (ai === 0 && !nova) ? rows[ks[0]].mes : 0;
     let acc = mesesAntes * proxMensal, kAcima = -1, kAcima20 = -1, max = acc;
+    if (mesesAntes > 0 && proxMensal > 0) res.estimado = true;
     ks.forEach((k) => {
       acc += rows[k].receita; max = Math.max(max, acc);
       if (kAcima < 0 && acc > SUBLIMITE_ICMS_ISS_IBS + eps) kAcima = k;
@@ -2396,12 +2491,30 @@ function avaliarSublimite(rows, hist) {
     if (kAcima20 >= 0) eventos.push({ base: "rba", acima20: true, pct, idx: Math.min(kAcima20 + 1, N), retro: false, ano, limite: SUBLIMITE_ICMS_ISS_IBS, receita: max });
     else { const j = rows.findIndex((r) => r.ano > ano); eventos.push({ base: "rba", acima20: false, pct, idx: j < 0 ? N : j, retro: false, ano, limite: SUBLIMITE_ICMS_ISS_IBS, receita: max }); }
   });
-  eventos.forEach((ev) => { for (let k = ev.idx; k < N; k++) if (!fora[k]) { fora[k] = true; motivo[k] = "sublimite"; } });
-  // 6ª faixa (RBT12 acima de R$ 3,6 mi): a partilha oficial não traz ISS/ICMS/IBS dentro do DAS
-  rows.forEach((r, k) => { if (r.faixaIndex === 6 && !fora[k]) { fora[k] = true; motivo[k] = "faixa6"; } else if (r.faixaIndex === 6 && motivo[k] === "sublimite") motivo[k] = "sublimite+faixa6"; });
+  eventos.forEach((ev) => {
+    for (let k = ev.idx; k < N; k++) {
+      if (rows[k].ano < ANO_REGRAS_2027 && !rows[k].ivPot) { res.limitado2026 = true; continue; }   // 2026: só os meses de 6ª faixa (ver cabeçalho)
+      if (!fora[k]) { fora[k] = true; motivo[k] = "sublimite"; }
+    }
+  });
+  res.mesesFaixa6 = rows.filter((r) => r.ivPot).length;
+  // Empresa existente: a receita do ano-calendário ANTERIOR ao período não é conhecida. O RBT12 informado só a estima (histórico uniforme); se ele supera o sublimite,
+  // pode já haver impedimento em vigor (excesso do ano anterior), o que não se pode afirmar nem excluir. Não se presume ausência de receita anterior.
+  if (!nova && rows.length) {
+    const rbtRef = hist && hist.origem !== "pendente" ? hist.rbt12 : null;
+    res.anoAnteriorSuposto = rbtRef;
+    res.historicoIncompleto = !!(hist && hist.origem === "pendente");
+    const confirmado = !!(state.confirmados && state.confirmados["sublimite-ano-anterior"]);
+    const Y0 = rows[0].ano;
+    rows.forEach((r, k) => {
+      if (r.ano !== Y0 || !r.ivPot || fora[k]) return;
+      if (rbtRef == null || rbtRef > SUBLIMITE_ICMS_ISS_IBS + eps) { res.anoAnteriorCondicao = true; if (!confirmado) pend[k] = true; }
+    });
+    res.anoAnteriorConfirmado = confirmado;
+  }
   res.mesesAfetados = fora.filter(Boolean).length;
-  res.porFaixa6 = rows.filter((r, k) => fora[k] && /faixa6/.test(motivo[k] || "")).length;
-  res.porSublimite = rows.filter((r, k) => fora[k] && /sublimite/.test(motivo[k] || "")).length;
+  res.porSublimite = res.mesesAfetados;
+  res.mesesPendentes = pend.filter((p, k) => p && !fora[k]).length;
   res.eventos = eventos; res.retroativo = eventos.some((e) => e.retro);
   const partes = [];
   eventos.forEach((ev) => {
@@ -2409,27 +2522,35 @@ function avaliarSublimite(rows, hist) {
       : "Receita acumulada de " + fmtBRL(ev.receita) + " em " + ev.ano + " contra o sublimite de " + fmtBRL(ev.limite)) + ": excesso de " + fmtPct(ev.pct * 100) + " (" + (ev.acima20 ? "acima de 20%" : "até 20%") + ") — " +
       (ev.retro ? "o impedimento de recolher ICMS, ISS e IBS pelo Simples tem efeitos retroativos ao início da atividade" : ev.acima20 ? "impedimento a partir do mês seguinte" : "impedimento a partir de 1º de janeiro de " + (ev.ano + 1) + (ev.idx >= N ? " (depois do período analisado)" : "")) + ".");
   });
-  if (res.porFaixa6 > 0) partes.push("Em " + res.porFaixa6 + (res.porFaixa6 === 1 ? " mês" : " meses") + " o RBT12 está na 6ª faixa (acima de " + fmtBRL(SUBLIMITE_ICMS_ISS_IBS) + "): a partilha oficial do Anexo não inclui ISS, ICMS nem IBS no DAS.");
+  if (res.limitado2026 && eventos.length) partes.push("Em 2026 o app aplica esse impedimento apenas aos meses de 6ª faixa.");
+  if (res.mesesPendentes > 0) partes.push("Em " + res.mesesPendentes + (res.mesesPendentes === 1 ? " mês" : " meses") + " de 6ª faixa de empresa existente, a receita do ano anterior " + (res.anoAnteriorSuposto == null ? "não foi informada" : "não é conhecida (o RBT12 informado, " + fmtBRL(res.anoAnteriorSuposto) + ", supera o sublimite de " + fmtBRL(SUBLIMITE_ICMS_ISS_IBS) + " e sugere excesso em " + (Y0Rot(rows) - 1) + ")") + ": não é possível afirmar que não há impedimento.");
   res.texto = partes.join(" ");
   return res;
 }
+function Y0Rot(rows) { return rows.length ? rows[0].ano : 0; }
 
 /* V3.2.4 — decisão pura (testável): quais regimes competem e se a recomendação é conclusiva. Ver comentário "Elegibilidade legal ANTES do custo". */
 function decidirRecomendacao(regimes, ex) {
   const aptos = regimes.filter((x) => x.elegivel);
-  const completos = aptos.filter((x) => !x.incompleto);
+  // V3.2.5: "certo" = total completo E sem premissa de elegibilidade pendente. Um regime com premissa pendente tem total estimado; seu `piso` (DAS sem o acréscimo do art. 21, IV)
+  // é o menor custo possível se houver impedimento. Um regime com total incompleto tem `piso` = total.
+  const incerto = (x) => !!(x.incompleto || x.premissaPendente);
+  const completos = aptos.filter((x) => !incerto(x));
   const minBy = (a) => (a.length ? a.reduce((p, q) => (q.total < p.total ? q : p)) : null);
   const maxBy = (a) => (a.length ? a.reduce((p, q) => (q.total > p.total ? q : p)) : null);
+  const pisoDe = (x) => (x.piso != null ? x.piso : x.total);
   const melhorCompleto = minBy(completos), melhorReferencia = minBy(aptos);
-  const incompletosBaixos = aptos.filter((x) => x.incompleto && (!melhorCompleto || x.total < melhorCompleto.total - 0.005));
+  const incertosBaixos = aptos.filter((x) => incerto(x) && (!melhorCompleto || pisoDe(x) < melhorCompleto.total - 0.005));
   const motivosInc = [];
   if (ex.integral && ex.retroativo) motivosInc.push("exclusao-retroativa");
   if (ex.parcial) motivosInc.push("regime-misto");
-  if (incompletosBaixos.length) motivosInc.push("total-incompleto");
+  if (incertosBaixos.some((x) => x.incompleto)) motivosInc.push("total-incompleto");
+  if (incertosBaixos.some((x) => x.premissaPendente && !x.incompleto)) motivosInc.push("premissa-pendente");
   const recomendacao = {
     estado: !aptos.length ? "indisponivel" : motivosInc.length ? "inconclusivo" : "conclusivo",
     motivos: motivosInc, regimeId: !motivosInc.length && melhorCompleto ? melhorCompleto.id : null,
-    incompletos: incompletosBaixos.map((x) => x.id), referencia: melhorReferencia ? melhorReferencia.id : null,
+    incompletos: incertosBaixos.filter((x) => x.incompleto).map((x) => x.id), pendentes: incertosBaixos.filter((x) => x.premissaPendente && !x.incompleto).map((x) => x.id),
+    referencia: melhorReferencia ? melhorReferencia.id : null,
     elegiveis: regimes.filter((x) => x.estado === "elegivel").map((x) => x.label),
     comRestricao: regimes.filter((x) => x.estado === "restricao").map((x) => x.label),
     inaplicaveis: regimes.filter((x) => x.estado === "inaplicavel").map((x) => x.label),
@@ -2443,7 +2564,22 @@ function agregarSimples(rows, receitaTotal, histOpt) {
   const excesso = avaliarExclusaoSimples(rows, hist);
   rows.forEach((r, k) => { r.foraDoLimite = !excesso.valido[k]; });
   const sublimiteAv = avaliarSublimite(rows, hist);
-  rows.forEach((r, k) => { r.semIcmsIssIbs = sublimiteAv.fora[k]; });
+  rows.forEach((r, k) => {
+    r.semIcmsIssIbs = sublimiteAv.fora[k];
+    // V3.2.5 — 6ª faixa: soma o acréscimo do art. 21, IV ao DAS nos meses SEM impedimento (aplicado) ou com a premissa de elegibilidade ainda a confirmar (pendente)
+    if (r.ivPot && r.ivEstado === null) {
+      if (sublimiteAv.fora[k]) r.ivEstado = "impedido";
+      else {
+        r.ivEstado = sublimiteAv.pend[k] ? "pendente" : "aplicado";
+        r.ivValor = r.ivPot.valor; r.das = r.dasBase + r.ivValor;
+        Object.keys(r.ivPot.comp).forEach((t) => { r.partilhaValores[t] = (r.partilhaValores[t] || 0) + r.ivPot.comp[t]; });
+        const pctDas = {}; Object.keys(r.partilhaValores).forEach((t) => { pctDas[t] = r.das > 0 ? (r.partilhaValores[t] / r.das) * 100 : 0; });
+        r.partilha = pctDas;
+        if (r.receita > 0) r.cargaEfetivaPct = (r.das / r.receita) * 100;
+      }
+    }
+  });
+  const ivTotal = soma(rows.map((r) => r.ivValor)), ivPendente = soma(rows.filter((r) => r.ivEstado === "pendente").map((r) => r.ivValor));
   const N = rows.length, total = soma(rows.map((r) => r.das));
   const last = rows[N - 1], first = rows[0];
   const partilhaTotais = {};
@@ -2464,6 +2600,9 @@ function agregarSimples(rows, receitaTotal, histOpt) {
     partilha: last.partilha, partilhaTotais, partilhaPct,
     // mesesForaDoLimite = meses em que a exclusão por excesso JÁ produz efeitos (ver avaliarExclusaoSimples)
     mesesForaDoLimite: mesesFora, foraDoLimite: mesesFora > 0, limiteInicio, excesso, sublimiteAv,
+    // V3.2.5: acréscimo do art. 21, IV (6ª faixa) incluído no total; `piso` = total sem o acréscimo dos meses com premissa pendente
+    ivTotal, ivPendente, piso: total - ivPendente, mesesIV: rows.filter((r) => r.ivEstado === "aplicado" || r.ivEstado === "pendente").length,
+    mesesIVPendentes: rows.filter((r) => r.ivEstado === "pendente").length, mesesIVImpedidos: rows.filter((r) => r.ivEstado === "impedido").length,
     rbt12AcimaLimite: rows.some((r) => r.rbt12AcimaLimite),
     // compatibilidade com consumidores que liam valores "do mês"
     dasMensal: total / N, aliqEfetiva: last.aliqEfetiva, partilhaValores: partilhaTotais,
@@ -2479,6 +2618,7 @@ function simularHibridoPeriodo(simplesRows, tratamento, aliquotaManualPct) {
       cronoAno: crono, creditoIbsPct: state.hibrido.creditoIbsPct, creditoCbsPct: state.hibrido.creditoCbsPct,
       tratamentoIbsCbs: tratamento, aliquotaEfetivaManualPct: aliquotaManualPct,
       anexoUsado: s.anexoUsado, faixaIdx: s.faixaIndex - 1, aliqEfetiva: s.aliqEfetiva,
+      rbt12: s.rbt12, dasBase: s.dasBase, ivAplicado: s.ivEstado === "aplicado" || s.ivEstado === "pendente", ivValor: s.ivValor,
     });
     h.i = k; h.rotulo = s.rotulo; h.receita = s.receita;
     return h;
@@ -2769,11 +2909,19 @@ function computeAll() {
     else if (ex.parcial) { x.estado = "restricao"; x.restricoes.push("valido-ate"); }
     else if (ex.situacao !== "regular") { x.estado = "restricao"; x.restricoes.push("excesso-futuro"); }
     if (sb.mesesAfetados > 0 && x.estado !== "inaplicavel") { x.estado = "restricao"; x.incompleto = true; x.mesesIncompletos = sb.mesesAfetados; x.restricoes.push("sublimite"); }
+    // V3.2.5 — meses de 6ª faixa de empresa existente em que a ausência de impedimento depende da receita do ano anterior (premissa a confirmar)
+    x.premissaPendente = false; x.mesesPendentes = 0; x.piso = x.total;
+    const pisoIV = x.id === "simples" ? simples.ivPendente : soma(rowsHibrido.map((h, k) => (simples.meses[k].ivEstado === "pendente" ? h.acrescimoIVnoDas : 0)));
+    if (simples.mesesIVPendentes > 0 && x.estado !== "inaplicavel") {
+      x.premissaPendente = true; x.mesesPendentes = simples.mesesIVPendentes; x.piso = x.total - pisoIV;
+      if (x.estado === "elegivel") x.estado = "restricao";
+      x.restricoes.push("premissa-sublimite");
+    }
   });
   const { recomendacao, melhor, pior, melhorReferencia, completos } = decidirRecomendacao(regimes, ex);
   const refId = state.analise.regimeAtual && regimes.find((x) => x.id === state.analise.regimeAtual) ? state.analise.regimeAtual : null;
   const ref = refId ? regimes.find((x) => x.id === refId) : null;
-  const refOk = ref && !ref.incompleto && ref.estado !== "inaplicavel";
+  const refOk = ref && !ref.incompleto && !ref.premissaPendente && ref.estado !== "inaplicavel";
   // "Economia" só existe com referência válida (regime atual informado e aplicável, com total completo). Sem ele, a comparação é uma
   // "diferença potencial entre cenários" (maior × menor custo calculados) — não uma economia garantida.
   const economia = melhor && (refOk || pior)
@@ -2853,6 +3001,8 @@ function classificarConfianca(r) {
     if (S.excesso.situacao !== "regular") est.push("excesso do limite de receita (" + (S.excesso.situacao === "excesso-acima20" ? "acima de 20%" : "até 20%") + ")");
     if (S.excesso.estimado) est.push("receita dos meses anteriores do ano estimada pelo RBT12");
     if (r.anexoKey === "III_V" && M.politicaFolha !== "atual" && M.politicaFolha !== "nenhuma") est.push("folha simulada (não é folha real)");
+    if (S.mesesIV > 0) est.push("6ª faixa: ICMS/ISS/IBS pelo art. 21, IV (recolhimento no DAS e redistribuição do teto de 5% do ISS a confirmar)");
+    if (S.mesesIVPendentes > 0) est.push("sublimite: receita do ano anterior a confirmar");
     out.simples = mk(hip, est);
   }
   // Híbrido
@@ -2891,6 +3041,7 @@ function avaliarConclusao(r) {
   if (r.presumido.parcial) motivos.push("trimestre incompleto no Lucro Presumido (estimativa parcial)");
   if (r.anexoKey === "III_V" && r.pendencias.some((p) => p.id === "folha")) motivos.push("folha/pró-labore não informado (Fator R)");
   if (r.simples.excesso.mesesVedados > 0) motivos.push(r.simples.excesso.integral ? "Simples e Híbrido inaplicáveis: exclusão do Simples em vigor em todo o período" + (r.simples.excesso.retroativo ? " (retroativa à abertura)" : "") : "o Simples Nacional deixa de valer em parte do período por excesso de receita");
+  if (r.simples.mesesIV > 0) motivos.push("6ª faixa (art. 21, IV) a confirmar no PGDAS-D");
   { const RI = recomendacaoInfo(r); if (RI && r.recomendacao.estado === "inconclusivo") motivos.push("comparativo inconclusivo: " + RI.motivoCurto); }
   const definitiva = motivos.length === 0;
   const nivelGeral = ["simples", "hibrido", "presumido"].some((k) => r.confianca[k].nivel === "hipotese") ? "hipotese"
@@ -2967,6 +3118,18 @@ function montarMemoria(r) {
       detalhe: "Quando o CNAE identifica claramente natureza de comércio ou indústria, o Anexo correspondente (I ou II) é usado automaticamente, dispensando a regra do Fator R (aplicável apenas a serviços). Pode ser substituído nos ajustes avançados do preenchimento.",
     });
   }
+  if (S.mesesIV > 0 || S.mesesIVImpedidos > 0) {
+    const mm = S.meses.filter((x) => x.ivPot);
+    const mostrar = mm.length > 6 ? mm.slice(0, 3).concat(mm.slice(-3)) : mm;
+    m.push({
+      titulo: "6ª faixa — ICMS, ISS e IBS pela fórmula da 5ª faixa (art. 21, IV)",
+      formula: "Percentual efetivo = {[(RBT12 × alíquota nominal da 5ª faixa) − parcela a deduzir da 5ª faixa] ÷ RBT12} × distribuição de ICMS/ISS e de IBS da 5ª faixa · somado ao DAS da 6ª faixa (100% tributos federais e CBS) · ISS limitado a 5%",
+      detalhe: "Regra por época: 2026 — Res. CGSN 140, art. 21, III, \"b\" (ICMS/ISS, sem exceder o sublimite); 2027-2028 — art. 21, IV, na redação da Res. CGSN 190/2026 (ICMS, ISS e IBS; distribuição dos Anexos XVIII a XXII da LC 214/2025); 2029 em diante — idem, com a distribuição de cada ano (2033: só IBS). " +
+        "Só se aplica sem impedimento por sublimite (a 6ª faixa isolada não prova impedimento: ele vem da receita acumulada no ano). O teto de 5% do ISS (art. 21, III, \"a\") move o excedente para os tributos federais da mesma faixa sem alterar o total do DAS. " +
+        "No Híbrido, o IBS (e a CBS que o teto redistribui) saem do DAS e o restante permanece. Meses: " + S.mesesIV + " com acréscimo (" + S.mesesIVPendentes + " com premissa a confirmar), " + S.mesesIVImpedidos + " sem acréscimo por impedimento. " +
+        mostrar.map((x) => textoAcrescimoIV(x)).join(" | ") + (mm.length > mostrar.length ? " | (… " + (mm.length - mostrar.length) + " meses intermediários com a mesma conta)" : "") + " · Não confirmado no PGDAS-D: recolhimento dentro do DAS e repartição do excedente do teto de ISS" + (mm.some((x) => x.ivPot.iv.tetoHipotese) ? "; no Anexo V as proporções de redistribuição são hipótese" : "") + ".",
+    });
+  }
   m.push({
     titulo: "Enquadramento e alíquota efetiva — " + ANEXOS[S.anexoUsado].nome,
     formula: "Alíquota efetiva = (RBT12 × Alíquota nominal − Parcela a deduzir) ÷ RBT12 · último mês: (" + fmtBRL(last.rbt12) + " × " + fmtPct(last.aliqNominal * 100) + " − " + fmtBRL(last.parcelaDeduzir) + ") ÷ " + fmtBRL(last.rbt12) + " = " + fmtPct(last.cargaEfetivaPct),
@@ -2997,8 +3160,8 @@ function montarMemoria(r) {
       titulo: "Elegibilidade legal e recomendação",
       formula: categoriasRegimesTexto(r) + " · Recomendação: " + (R.estado === "conclusivo" ? "conclusiva (" + r.melhor.label + ")" : R.estado === "inconclusivo" ? "INCONCLUSIVA" : "indisponível"),
       detalhe: RI
-        ? "A elegibilidade legal vem antes do custo (LC 123, art. 3º, §§ 9º a 13 e art. 13-A; Res. CGSN 140, art. 12). " + RI.detalhe + (sbv && sbv.mesesAfetados > 0 ? " Meses com ICMS/ISS/IBS fora do DAS: " + sbv.mesesAfetados + " (" + sbv.porSublimite + " por sublimite; " + sbv.porFaixa6 + " por RBT12 na 6ª faixa)." : "")
-        : "Nenhuma exclusão ou sublimite impede a comparação: a elegibilidade legal é verificada antes do custo (LC 123, art. 3º, §§ 9º a 13 e art. 13-A; Res. CGSN 140, art. 12).",
+        ? "A elegibilidade legal vem antes do custo (LC 123, art. 3º, §§ 9º a 13 e art. 13-A; Res. CGSN 140, art. 12). " + RI.detalhe + (sbv && sbv.mesesAfetados > 0 ? " Meses com ICMS/ISS/IBS fora do DAS por sublimite excedido: " + sbv.mesesAfetados + "." : "") + (sbv && sbv.mesesFaixa6 > 0 ? " Meses com RBT12 na 6ª faixa: " + sbv.mesesFaixa6 + " (sem impedimento: acréscimo do art. 21, IV no DAS" + (sbv.mesesPendentes > 0 ? "; " + sbv.mesesPendentes + " com a receita do ano anterior a confirmar" : "") + "). A 6ª faixa isolada não prova impedimento." : "")
+        : "Nenhuma exclusão ou sublimite impede a comparação: a elegibilidade legal é verificada antes do custo (LC 123, art. 3º, §§ 9º a 13 e art. 13-A; Res. CGSN 140, art. 12)." + (sbv && sbv.mesesFaixa6 > 0 ? " Meses com RBT12 na 6ª faixa: " + sbv.mesesFaixa6 + " (sem impedimento: acréscimo do art. 21, IV no DAS" + (sbv.mesesPendentes > 0 ? "; " + sbv.mesesPendentes + " com a receita do ano anterior a confirmar" : "") + "). A 6ª faixa isolada não prova impedimento." : ""),
     });
   }
   // IBS/CBS tratamento
@@ -3071,6 +3234,19 @@ function montarMemoria(r) {
    PENDÊNCIAS INTELIGENTES — uma única área, com níveis distintos.
    nivel: "atencao" (laranja) | "pendente" | "estimativa" | "opcional" | "confirmado"
    --------------------------------------------------------------------------- */
+/* V3.2.5 — texto da conta do art. 21, IV (Memória e pendências): mostra a fórmula com os números do mês. */
+function textoAcrescimoIV(row) {
+  const p = row.ivPot; if (!p) return "";
+  const v = p.iv, nomeCons = v.consumo === "ICMS" ? "ICMS" : "ISS";
+  let t = row.rotulo + ": alíquota efetiva da 5ª faixa = (" + fmtBRL(v.rbt12) + " × " + fmtPct(v.n5 * 100) + " − " + fmtBRL(v.pd5) + ") ÷ " + fmtBRL(v.rbt12) + " = " + fmtPct(v.eff5 * 100, 4);
+  if (v.ivCons > 0) t += " · × " + fmtPct(v.sCons * 100) + " de " + nomeCons + " = " + fmtPct(v.ivCons * 100, 4);
+  if (v.ivIbs > 0) t += " · × " + fmtPct(v.sIbs * 100, 2) + " de IBS = " + fmtPct(v.ivIbs * 100, 4);
+  if (v.tetoAcionado) t += " · teto de ISS (5%): excedente de " + fmtPct(v.excedente * 100, 4) + " redistribuído entre os tributos federais" + (v.comp.IBS && v.ivIbs <= 0 ? "" : "") + " (soma não muda)";
+  t += " · acréscimo = " + fmtPct(v.total * 100, 4) + " × " + fmtBRL(row.receita) + " = " + fmtBRL(p.valor);
+  if (row.ivEstado === "pendente") t += " [premissa de elegibilidade a confirmar]";
+  if (row.ivEstado === "impedido") t += " [NÃO somado: impedimento por sublimite — ICMS/ISS/IBS fora do DAS]";
+  return t;
+}
 function buildPendencias(r) {
   const P = [], M = r.meta, e = state.empresa;
   const add = (o) => P.push(o);
@@ -3146,6 +3322,23 @@ function buildPendencias(r) {
     const sbv = r.simples.sublimiteAv;
     add({ id: "sublimite", nivel: "atencao", titulo: "Sublimite de ICMS, ISS e IBS — total do Simples incompleto",
       texto: sbv.texto + " Em " + sbv.mesesAfetados + (sbv.mesesAfetados === 1 ? " mês" : " meses") + " do período o ICMS, o ISS e o IBS são devidos pelas normas gerais, fora do Simples (LC 123, art. 13-A; Res. CGSN 140, art. 12), e o app não os calcula: o custo de Simples e Híbrido está subestimado e esses regimes ficam com restrição na comparação.", foco: "bloco-rbt12" });
+  }
+  // V3.2.5 — empresa existente: a receita do ano anterior define se já há impedimento em vigor (Res. CGSN 140, art. 12, § 1º). Pendência objetiva; não se presume ausência de receita.
+  if (r.simples.sublimiteAv && r.simples.sublimiteAv.anoAnteriorCondicao) {
+    const sbv = r.simples.sublimiteAv, anoPrev = (r.simples.meses[0] ? r.simples.meses[0].ano : M.ano) - 1;
+    add({ id: "sublimite-ano-anterior", nivel: "estimativa", curto: "receita do ano anterior (sublimite)", titulo: "Receita de " + anoPrev + " — sublimite de ICMS, ISS e IBS",
+      pergunta: "A receita bruta de " + anoPrev + " (ano-calendário anterior) ficou até " + fmtBRL(SUBLIMITE_ICMS_ISS_IBS) + "?",
+      texto: (sbv.anoAnteriorSuposto == null ? "O RBT12 anterior não foi informado, então a receita de " + anoPrev + " é desconhecida." : "O RBT12 informado (" + fmtBRL(sbv.anoAnteriorSuposto) + ") está na 6ª faixa e supera o sublimite, o que sugere excesso em " + anoPrev + ", mas o RBT12 mistura anos e não prova isso.") +
+        " Se a receita de " + anoPrev + " passou do sublimite, o ICMS, o ISS e o IBS já estão fora do Simples em " + (r.simples.meses[0] ? r.simples.meses[0].ano : M.ano) + " (Res. CGSN 140, art. 12, § 1º) e o app não os calcula. Sem essa informação o Simples e o Híbrido são calculados como se não houvesse impedimento, apenas como estimativa, e o comparativo não é conclusivo. Confirmando que ficou até o sublimite, o valor da 6ª faixa passa a valer (art. 21, IV).",
+      confirmavel: true, confirmado: !!sbv.anoAnteriorConfirmado, foco: M.tipo === "avulsa" ? "campo-rbt12-historico" : "campo-rbt12",
+      limitacao: sbv.anoAnteriorConfirmado ? null : "Receita de " + anoPrev + " a confirmar: sem isso não se sabe se ICMS, ISS e IBS estão dentro do DAS." });
+  }
+  // V3.2.5 — 6ª faixa calculada pelo art. 21, IV (informativo; os pontos a confirmar mantêm o resultado como preliminar)
+  if (r.simples.mesesIV > 0) {
+    const meses = r.simples.meses.filter((m) => m.ivEstado === "aplicado" || m.ivEstado === "pendente");
+    add({ id: "faixa6-art21iv", nivel: "estimativa", curto: "6ª faixa (art. 21, IV)", titulo: "6ª faixa: ICMS, ISS e IBS pela fórmula da 5ª faixa",
+      texto: "Em " + meses.length + (meses.length === 1 ? " mês" : " meses") + " o RBT12 passa do limite da 5ª faixa e não há impedimento: o ICMS, o ISS e o IBS continuam no DAS e são calculados pelo art. 21, IV, da Res. CGSN 140 (em 2026, art. 21, III, \"b\"), somando " + fmtBRL(r.simples.ivTotal) + " ao DAS da 6ª faixa (limite de 5% do ISS aplicado). Ainda não confirmado em simulação oficial do PGDAS-D: (1) que o valor é recolhido dentro do DAS; (2) a repartição do excedente do teto de 5% do ISS — só muda a composição e o Híbrido em poucas centenas de reais.",
+      limitacao: "6ª faixa pelo art. 21, IV: pontos a confirmar no PGDAS-D (valor dentro do DAS; repartição do teto de ISS)." });
   }
   { const RI = recomendacaoInfo(r); if (RI && r.recomendacao.estado === "inconclusivo") add({ id: "comparativo-inconclusivo", nivel: "atencao", titulo: "Comparativo inconclusivo", texto: RI.curto + ". " + RI.detalhe + " " + categoriasRegimesTexto(r) + "." }); }
   if (!M.nova && M.hist.folha12 > M.hist.rbt12 && M.hist.rbt12 > 0) add({ id: "folha-maior", nivel: "atencao", titulo: "Folha maior que o RBT12", texto: "A folha informada supera a receita dos 12 meses — confira os valores." });
@@ -4147,6 +4340,7 @@ function situacaoRegimeInfo(x) {
   if (x.estado === "inaplicavel") return { txt: x.retroativo ? "Inaplicável · exclusão retroativa" : "Inaplicável no período", tom: "attn" };
   if (x.estado === "restricao") {
     if (x.incompleto) return { txt: "Com restrição · total incompleto", tom: "attn" };
+    if (x.premissaPendente) return { txt: "Com restrição · premissa a confirmar", tom: "attn" };
     if (x.situacao === "vedado-parcial") return { txt: "Com restrição · válido até " + x.validoAte, tom: "attn" };
     return { txt: "Com restrição · excesso após o período", tom: "attn" };
   }
@@ -4173,9 +4367,19 @@ function recomendacaoInfo(r) {
     motivosCurtos.push("regime misto no período (Simples até " + sn.validoAte + ", regras gerais depois)");
     partes.push("O Simples Nacional só se aplica até " + sn.validoAte + "; a partir daí valem as regras gerais. O custo misto do período não é calculado, então a comparação por regime inteiro não permite recomendar um regime.");
   }
+  if (R.motivos.indexOf("premissa-pendente") >= 0) {
+    const nomes = R.pendentes.map((id) => r.regimes.find((x) => x.id === id).label);
+    const comp = r.regimes.filter((x) => x.elegivel && !x.incompleto && !x.premissaPendente).reduce((p, q) => (!p || q.total < p.total ? q : p), null);
+    curtos.push("Receita do ano anterior a confirmar (sublimite)");
+    motivosCurtos.push("receita do ano anterior a confirmar (sublimite)");
+    partes.push("Empresa existente em 6ª faixa sem a receita do ano anterior" + (sb.anoAnteriorSuposto != null ? " (RBT12 de " + fmtBRL(sb.anoAnteriorSuposto) + " acima do sublimite de " + fmtBRL(SUBLIMITE_ICMS_ISS_IBS) + ")" : "") +
+      ". Se houve excesso, ICMS, ISS e IBS saem do DAS (Res. CGSN 140, art. 12, § 1º) e o app não os calcula. " + (nomes.length > 1 ? "Os totais de " + nomes.join(" e ") + " estão estimados" : "O total de " + nomes[0] + " está estimado") + " sem impedimento" +
+      (comp ? "; mesmo sem o acréscimo do art. 21, IV, o menor custo possível fica abaixo do melhor regime completo (" + comp.label + ", " + fmtBRL(comp.total) + ")" : " (art. 21, IV)") +
+      ". Confirme a receita do ano anterior nas pendências.");
+  }
   if (R.motivos.indexOf("total-incompleto") >= 0) {
     const nomes = R.incompletos.map((id) => r.regimes.find((x) => x.id === id).label);
-    const comp = r.regimes.filter((x) => x.elegivel && !x.incompleto).reduce((p, q) => (!p || q.total < p.total ? q : p), null);
+    const comp = r.regimes.filter((x) => x.elegivel && !x.incompleto && !x.premissaPendente).reduce((p, q) => (!p || q.total < p.total ? q : p), null);
     curtos.push("Total incompleto: ICMS, ISS e IBS ficam fora do DAS");
     motivosCurtos.push("ICMS, ISS e IBS fora do DAS não calculados (sublimite)");
     partes.push((sb.texto || "ICMS, ISS e IBS saem do DAS.") + " Esses tributos são recolhidos pelas normas gerais, fora do Simples (Res. CGSN 140, art. 12), e o app não os calcula (alíquotas municipais e estaduais, créditos, juros). O total de " + nomes.join(" e ") + " é, portanto, um valor mínimo" +
@@ -4187,6 +4391,7 @@ function recomendacaoInfo(r) {
 function valorRegimeNota(x) {
   if (x.estado === "inaplicavel") return "Cálculo de referência · não é custo aplicável";
   if (x.incompleto) return "Valor mínimo · não inclui ICMS, ISS e IBS fora do DAS";
+  if (x.premissaPendente) return "Estimativa · sem impedimento por sublimite, a confirmar";
   return null;
 }
 function confiancaBadge(r, id) {
@@ -4397,7 +4602,7 @@ function detSimples(r) {
     statHTML("Faixa (último mês)", last.faixaLabel, fmtBRL(FAIXAS_LIMITES[last.faixaIndex - 1].min) + " a " + fmtBRL(FAIXAS_LIMITES[last.faixaIndex - 1].max), "sm") +
     statHTML("Alíquota efetiva (último mês)", fmtPct(last.cargaEfetivaPct), "Nominal " + fmtPct(last.aliqNominal * 100) + " · dedução " + fmtBRL(last.parcelaDeduzir), "sm") +
     statHTML("DAS no período", fmtBRL(S.total), "Média " + fmtBRL(S.mediaMensal) + "/mês", "sm") + "</div>";
-  if (S.excesso.situacao !== "regular") h += '<div style="margin-top:14px">' + noteBox("attn", "alert", "<b>Limite de receita:</b> " + escHtml(S.excesso.efeitoTexto) + (S.excesso.mesesVedados > 0 ? (S.excesso.integral ? " Simples e Híbrido são inaplicáveis no período" + (S.excesso.retroativo ? " (exclusão retroativa: regras gerais desde a abertura)" : "") + "; os valores abaixo são só cálculo de referência e não entram na recomendação." : " Os meses a partir do efeito não têm direito ao Simples e não entram no ranking.") : " O Simples segue válido dentro do período; planeje a mudança de regime.")) + (S.sublimiteAv && S.sublimiteAv.mesesAfetados > 0 ? '<div style="height:8px"></div>' + noteBox("attn", "alert", "<b>Sublimite de ICMS, ISS e IBS:</b> " + escHtml(S.sublimiteAv.texto) + " Esses tributos são devidos fora do DAS e não estão somados: o total do Simples está incompleto.") : "") + "</div>";
+  if (S.excesso.situacao !== "regular") h += '<div style="margin-top:14px">' + noteBox("attn", "alert", "<b>Limite de receita:</b> " + escHtml(S.excesso.efeitoTexto) + (S.excesso.mesesVedados > 0 ? (S.excesso.integral ? " Simples e Híbrido são inaplicáveis no período" + (S.excesso.retroativo ? " (exclusão retroativa: regras gerais desde a abertura)" : "") + "; os valores abaixo são só cálculo de referência e não entram na recomendação." : " Os meses a partir do efeito não têm direito ao Simples e não entram no ranking.") : " O Simples segue válido dentro do período; planeje a mudança de regime.")) + (S.sublimiteAv && S.sublimiteAv.mesesAfetados > 0 ? '<div style="height:8px"></div>' + noteBox("attn", "alert", "<b>Sublimite de ICMS, ISS e IBS:</b> " + escHtml(S.sublimiteAv.texto) + " Esses tributos são devidos fora do DAS e não estão somados: o total do Simples está incompleto.") : "") + (S.sublimiteAv && S.sublimiteAv.mesesPendentes > 0 ? '<div style="height:8px"></div>' + noteBox("attn", "alert", "<b>Receita do ano anterior a confirmar:</b> em " + S.sublimiteAv.mesesPendentes + " mês(es) de 6ª faixa o total inclui ICMS, ISS e IBS pelo art. 21, IV, mas só vale se não houver impedimento por sublimite. Confirme nas pendências.") : "") + "</div>";
   // V3.2.1 — Folha 12m e Fator R só aparecem quando o enquadramento depende deles (Anexo III/V)
   const comFR = r.anexoKey === "III_V";
   const colsMes = comFR ? ["Mês", "Receita", "RBT12", "Folha 12m", "Fator R", "Anexo", "Alíq. efetiva", "DAS"] : ["Mês", "Receita", "RBT12", "Anexo", "Alíq. efetiva", "DAS"];
@@ -5294,7 +5499,7 @@ function pptxRegime(x, melhor) {
     '<div class="val">' + fmtBRL(x.total) + "</div>" +
     '<div class="row"><span>Carga efetiva</span><b>' + fmtPct(x.cargaPct) + "</b></div>" +
     '<div class="row"><span>Média por mês</span><b>' + fmtBRL(x.mediaMensal) + "</b></div>" +
-    (valorRegimeNota(x) ? '<div class="row"><span>Base do resultado</span><b>' + (x.estado === "inaplicavel" ? "Referência, não aplicável" : "Valor mínimo (incompleto)") + "</b></div>" : (c ? '<div class="row"><span>Base do resultado</span><b>' + CONFIANCA_ROTULO[c.nivel] + "</b></div>" : "")) + "</div>";
+    (valorRegimeNota(x) ? '<div class="row"><span>Base do resultado</span><b>' + (x.estado === "inaplicavel" ? "Referência, não aplicável" : x.incompleto ? "Valor mínimo (incompleto)" : "Estimativa (premissa a confirmar)") + "</b></div>" : (c ? '<div class="row"><span>Base do resultado</span><b>' + CONFIANCA_ROTULO[c.nivel] + "</b></div>" : "")) + "</div>";
 }
 function pptxNomeRel() { return state.analise.nome || state.empresa.nome || "Análise tributária"; }
 function pptxSlideShell(idx, total, kicker, title, bodyHtml, opts) {
@@ -5336,10 +5541,13 @@ function pptxAvisoConclusao(r, compacto) {
   const RI = recomendacaoInfo(r);
   const inc = RI && r.recomendacao.estado === "inconclusivo";
   // compacto (slide 1 do Resumo, sem folga vertical): resumo do motivo; o detalhe está na Apresentação Completa e na Memória Técnica
-  const inconc = inc ? pptxNote("attn", "<b>Comparativo inconclusivo.</b> " + escHtml(compacto ? RI.curto + ". " + categoriasRegimesTexto(r) + ". Detalhes na Apresentação Completa e na Memória Técnica." : RI.detalhe + " " + categoriasRegimesTexto(r) + ".")) : "";
+  const inconc = inc ? pptxNote("attn", "<b>Comparativo inconclusivo.</b> " + escHtml(compacto ? RI.curto + ". " + categoriasRegimesTexto(r) + ". Detalhes " + (compacto === "completa" ? "nos slides seguintes e na Memória Técnica." : "na Apresentação Completa e na Memória Técnica.") : RI.detalhe + " " + categoriasRegimesTexto(r) + ".")) : "";
   if (!r.conclusao || r.conclusao.definitiva) return inconc;
   if (compacto && inc) return inconc;
-  return inconc + (inconc ? '<div style="height:6px"></div>' : "") + pptxNote("attn", "<b>Resultado preliminar.</b> " + escHtml(r.conclusao.motivos.join("; ")) + ". Não use como conclusão definitiva até completar essas informações.");
+  // quando o aviso de comparativo inconclusivo já está na tela, o motivo dele não se repete no aviso de resultado preliminar
+  const mot = inc ? r.conclusao.motivos.filter((m) => !/^comparativo inconclusivo/.test(m)) : r.conclusao.motivos;
+  if (inc && !mot.length) return inconc;
+  return inconc + (inconc ? '<div style="height:6px"></div>' : "") + pptxNote("attn", "<b>Resultado preliminar.</b> " + escHtml(mot.join("; ")) + ". Não use como conclusão definitiva até completar essas informações.");
 }
 function buildResumoExecutivoSlideDefs(r) {
   r = r || computeAll();
@@ -5400,7 +5608,7 @@ function buildApresentacaoCompletaSlideDefs(r) {
       (r.recomendacao.estado === "inconclusivo" ? pptxStat("Comparativo", "Inconclusivo", "Veja o aviso abaixo", true) : pptxStat(prelim ? "Menor custo (preliminar)" : "Menor custo", r.melhor ? fmtBRL(r.melhor.total) : "—", r.melhor ? r.melhor.label + " · carga " + fmtPct(r.melhor.cargaPct) : "Nenhum regime elegível", true)) + "</div>" +
       '<div class="pptx-grid pptx-grid-3" style="margin-bottom:12px">' + r.regimes.map((x) => pptxRegime(x, r.melhor && r.melhor.id === x.id)).join("") + "</div>" +
       pptxCard("Custo no período", '<div class="pptx-chart-box" style="height:98px"><canvas id="pptxC1"></canvas></div>', "height:142px;padding:8px 16px") +
-      (pptxAvisoConclusao(r) ? '<div style="height:8px"></div>' + pptxAvisoConclusao(r) : (r.economia ? '<div style="height:8px"></div>' + pptxNote("info", "<b>" + escHtml(r.economia.rotulo) + ": " + fmtBRL(r.economia.valor) + "</b> — " + escHtml(r.economia.descricao) + ".") : "")),
+      (pptxAvisoConclusao(r, "completa") ? '<div style="height:8px"></div>' + pptxAvisoConclusao(r, "completa") : (r.economia ? '<div style="height:8px"></div>' + pptxNote("info", "<b>" + escHtml(r.economia.rotulo) + ": " + fmtBRL(r.economia.valor) + "</b> — " + escHtml(r.economia.descricao) + ".") : "")),
     charts: [{ id: "pptxC1", build: pptxBuildComparativo }] });
 
   /* B — composição (+ evolução) */
@@ -5433,6 +5641,7 @@ function buildApresentacaoCompletaSlideDefs(r) {
         sec("Créditos são parâmetros de simulação (IBS " + fmtPct(H.creditoIbsPct, 1) + " · CBS " + fmtPct(H.creditoCbsPct, 1) + "), não alíquotas legais." + (H.tratamentoIbsCbs.status !== "oficial" ? " Tratamento tributário em hipótese: confirmar." : ""))) + "</div>" +
       (exS.situacao !== "regular" ? '<div style="height:10px"></div>' + pptxNote("attn", "<b>Limite de receita do Simples.</b> " + escHtml(exS.efeitoTexto) + (exS.mesesVedados > 0 ? (exS.integral ? " Simples e Híbrido são inaplicáveis no período" + (exS.retroativo ? " (exclusão retroativa: regras gerais desde a abertura)" : "") + "." : " Os meses a partir do efeito não têm direito ao Simples.") : " O Simples segue válido dentro do período analisado.")) : "") +
       (S.sublimiteAv && S.sublimiteAv.mesesAfetados > 0 ? '<div style="height:8px"></div>' + pptxNote("attn", "<b>Sublimite de ICMS, ISS e IBS.</b> " + escHtml(S.sublimiteAv.texto) + " Esses tributos são devidos fora do DAS e não estão somados: o total do Simples e do Híbrido está incompleto.") : "") +
+      (S.sublimiteAv && S.sublimiteAv.mesesPendentes > 0 ? '<div style="height:8px"></div>' + pptxNote("attn", "<b>Receita do ano anterior a confirmar.</b> Em " + S.sublimiteAv.mesesPendentes + " mês(es) de 6ª faixa o total do Simples e do Híbrido inclui ICMS, ISS e IBS pelo art. 21, IV, mas só vale se não houver impedimento por sublimite.") : "") +
       (S.anexoMisto ? '<div style="height:8px"></div>' + pptxNote("info", "O Anexo muda durante o período (" + S.anexosUsados.join(" / ") + "), conforme o Fator R de cada mês.") : "") });
 
   /* D — Fator R (condicional) */

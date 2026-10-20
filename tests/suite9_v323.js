@@ -111,15 +111,15 @@ const { ok, goto } = require('./helpers');
     const g = { m: x.li.m, rec: x.li.rec, lim: x.li.lim, exc: x.li.exc, subx: x.li.subx };
     if (JSON.stringify(e) !== JSON.stringify(g)) { okM = false; falhas.push([x.ano, x.mi, e, g]); }
     if (x.ids.includes('limite-simples') !== e.exc) { okM = false; falhas.push(['pendência limite', x.ano, x.mi]); }
-    // V3.2.4: a pendência 'sublimite' também cobre meses na 6ª faixa (RBT12 proporcional de R$ 6 mi no 3º mês): aparece em todas as aberturas
-    if (!x.ids.includes('sublimite')) { okM = false; falhas.push(['pendência sublimite', x.ano, x.mi]); }
+    // V3.2.5: a 6ª faixa isolada não é impedimento; a pendência 'sublimite' aparece quando o sublimite proporcional é efetivamente excedido (2027) — em 2026 o sublimite é avaliado nos meses de 6ª faixa
+    if (x.ano >= 2027 && x.ids.includes('sublimite') !== e.subx) { okM = false; falhas.push(['pendência sublimite', x.ano, x.mi, x.ids.includes('sublimite'), e.subx]); }
   }
   ok('R$ 1,5 mi em 3 meses (empresa nova): limite de R$ 400 mil × meses e sublimite de R$ 300 mil × meses conferem para 15 meses de abertura (out/2026 a dez/2027)', okM, falhas);
   const jan = MX.find((x) => x.ano === 2027 && x.mi === 1), set = MX.find((x) => x.ano === 2027 && x.mi === 9), out = MX.find((x) => x.ano === 2027 && x.mi === 10), out26 = MX.find((x) => x.ano === 2026 && x.mi === 10);
-  ok('Sem excesso do limite geral (abertura em jan/2027 até set/2027): Simples permanece R$ 167.000; abertura em set/2027 ultrapassa só o sublimite (25% sobre R$ 1,2 mi)', jan.simples === 167000 && set.fora === 0 && set.li.subx && !set.li.exc && Math.abs(set.li.pct - 25) < 1e-9, [jan.simples, set.li]);
+  ok('Sem excesso do limite geral (abertura em jan/2027 até set/2027): Simples = R$ 193.017,54 (R$ 167.000 até a v3.2.4, antes do acréscimo do art. 21, IV na 6ª faixa); abertura em set/2027 ultrapassa só o sublimite (25% sobre R$ 1,2 mi)', Math.abs(jan.simples - 193017.5425) < 0.006 && set.fora === 0 && set.li.subx && !set.li.exc && Math.abs(set.li.pct - 25) < 1e-9, [jan.simples, set.li]);
   ok('Excesso acima de 20% (abertura em out, nov ou dez/2027): exclusão retroativa ao início — todos os 3 meses marcados como fora do Simples (efeito retroativo), com os dois alertas', out.fora === 3 && out.ids.includes('limite-simples') && out.ids.includes('sublimite') && MX.filter((x) => x.ano === 2027 && x.mi >= 10).every((x) => x.fora === 3), out);
-  ok('Reconciliação: R$ 322.500 (regras de 2026: 3 × 107.500, RBT12 de 6 mi na 6ª faixa do Anexo V a 30,5%) × R$ 167.000 (regras de 2027: 2 × 30.000 na 1ª faixa do Anexo III + 107.000 com 30,4%) = R$ 155.500 = 2 × (107.500 − 30.000) + (107.500 − 107.000)',
-    out26.simples === 322500 && out26.das.every((d) => d === 107500) && jan.simples === 167000 && jan.das[0] === 30000 && jan.das[1] === 30000 && jan.das[2] === 107000 && 322500 - 167000 === 2 * (107500 - 30000) + (107500 - 107000), [out26.das, jan.das]);
+  ok('Reconciliação: R$ 322.500 (regras de 2026: 3 × 107.500, RBT12 de 6 mi na 6ª faixa do Anexo V a 30,5%) × R$ 193.017,54 (regras de 2027: 2 × 30.000 na 1ª faixa + 107.000 com 30,4% + R$ 26.017,54 do art. 21, IV) = R$ 129.482,46 = 2 × (107.500 − 30.000) + (107.500 − 107.000 − 26.017,54)',
+    out26.simples === 322500 && out26.das.every((d) => d === 107500) && Math.abs(jan.simples - 193017.5425) < 0.006 && jan.das[0] === 30000 && jan.das[1] === 30000 && Math.abs(jan.das[2] - 133017.5425) < 0.006 && Math.abs((322500 - jan.simples) - (2 * (107500 - 30000) + (107500 - 107000 - 26017.5425))) < 0.006, [out26.das, jan.das]);
 
   /* ===== 6. Parâmetros ainda não oficiais continuam como projeção ===== */
   G = await page.evaluate(() => ({ teto: PARAMS_FOLHA.inss.teto, ano: PARAMS_FOLHA.ano, cbs: IBS_CBS_CRONOGRAMA.find((x) => x.ano === 2027).cbs, ibs29: IBS_CBS_CRONOGRAMA.find((x) => x.ano === 2029).ibs,

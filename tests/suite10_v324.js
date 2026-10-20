@@ -15,7 +15,7 @@ const { ok, goto } = require('./helpers');
       state.periodo.receitaModo = 'total'; state.periodo.receitaTotal = 1500000; state.fatorR.modo = 'nenhuma';
       const r = computeAll(), sb = r.simples.sublimiteAv, RI = recomendacaoInfo(r);
       out.push({ mi, estados: r.regimes.map((x) => x.estado), incompleto: r.regimes.map((x) => x.incompleto), elegivel: r.regimes.map((x) => x.elegivel), tot: r.regimes.map((x) => Math.round(x.total * 100) / 100),
-        rec: r.recomendacao, melhor: r.melhor && r.melhor.id, melhorRef: r.melhorReferencia && r.melhorReferencia.id, economia: r.economia, sb: { n: sb.mesesAfetados, sub: sb.porSublimite, f6: sb.porFaixa6, retro: sb.retroativo }, ex: { s: r.simples.excesso.situacao, retro: r.simples.excesso.retroativo, integral: r.simples.excesso.integral },
+        rec: r.recomendacao, melhor: r.melhor && r.melhor.id, melhorRef: r.melhorReferencia && r.melhorReferencia.id, economia: r.economia, sb: { n: sb.mesesAfetados, sub: sb.porSublimite, f6: sb.mesesFaixa6, retro: sb.retroativo }, ex: { s: r.simples.excesso.situacao, retro: r.simples.excesso.retroativo, integral: r.simples.excesso.integral },
         ids: r.pendencias.map((p) => p.id), motivos: r.conclusao.motivos, estadoConclusao: r.conclusao.estado, RI: RI && RI.curto, ref: r.regimes[2].referenciaGeral });
     }
     return out;
@@ -25,19 +25,25 @@ const { ok, goto } = require('./helpers');
     const m = 13 - x.mi, rec = 500000 * Math.min(3, m);
     const geralRetro = rec > 400000 * m * 1.2 - 1e-6 || (rec > 400000 * m && (rec / (400000 * m) - 1) > 0.2 + 1e-9);   // excesso do limite proporcional acima de 20% → retroativo (art. 3º, § 10)
     const subPct = rec / (300000 * m) - 1, subRetro = subPct > 0.2 + 1e-9;                                              // sublimite proporcional acima de 20% → retroativo (Res. 140, art. 12, § 4º, I)
+    // V3.2.5: a 6ª faixa isolada (3º mês) não é impedimento — o ICMS/ISS/IBS entra no DAS pela fórmula do art. 21, IV. Só o sublimite excedido (set) ou a exclusão retroativa (out–dez) limitam o comparativo.
     let esperado;
-    if (geralRetro) esperado = { estados: ['inaplicavel', 'inaplicavel', 'elegivel'], motivo: 'exclusao-retroativa' };
-    else esperado = { estados: ['restricao', 'restricao', 'elegivel'], motivo: 'total-incompleto' };  // jan–set: restrição por total incompleto (3º mês na 6ª faixa; em set também sublimite retroativo)
+    if (geralRetro) esperado = { estados: ['inaplicavel', 'inaplicavel', 'elegivel'], motivo: 'exclusao-retroativa', est: 'inconclusivo' };
+    else if (subRetro) esperado = { estados: ['restricao', 'restricao', 'elegivel'], motivo: 'total-incompleto', est: 'inconclusivo' };
+    else esperado = { estados: ['elegivel', 'elegivel', 'elegivel'], motivo: '', est: 'conclusivo' };
     if (JSON.stringify(x.estados) !== JSON.stringify(esperado.estados)) falhas.push(['estados', x.mi, x.estados, esperado.estados]);
-    if (x.rec.estado !== 'inconclusivo' || x.rec.motivos.join() !== esperado.motivo) falhas.push(['recomendação', x.mi, x.rec]);
-    if (x.melhor !== null || x.rec.regimeId !== null || x.economia !== null) falhas.push(['recomendou algo', x.mi, x.melhor]);
+    if (x.rec.estado !== esperado.est || x.rec.motivos.join() !== esperado.motivo) falhas.push(['recomendação', x.mi, x.rec]);
+    if (esperado.est === 'inconclusivo' && (x.melhor !== null || x.rec.regimeId !== null || x.economia !== null)) falhas.push(['recomendou algo', x.mi, x.melhor]);
+    if (esperado.est === 'conclusivo' && x.melhor !== 'simples') falhas.push(['jan–ago: menor custo = Simples', x.mi, x.melhor]);
     if (x.mi === 9 && !(x.sb.retro && x.sb.n === 3 && subRetro)) falhas.push(['set: sublimite retroativo', x.sb]);
-    if (x.mi <= 8 && !(x.sb.n === 1 && x.sb.f6 === 1 && x.sb.sub === 0)) falhas.push(['jan–ago: só o 3º mês na 6ª faixa', x.mi, x.sb]);
+    if (x.mi <= 8 && !(x.sb.n === 0 && x.sb.f6 === 1 && x.sb.sub === 0)) falhas.push(['jan–ago: 3º mês na 6ª faixa, sem impedimento', x.mi, x.sb]);
     if (x.mi >= 10 && !(x.ex.retro && x.ex.integral && x.ref === true)) falhas.push(['out–dez: exclusão retroativa integral', x.mi, x.ex]);
-    if (!x.ids.includes('comparativo-inconclusivo') || !x.ids.includes('sublimite')) falhas.push(['pendências', x.mi, x.ids]);
-    if (x.estadoConclusao !== 'preliminar' || !x.motivos.some((s) => /comparativo inconclusivo/.test(s))) falhas.push(['conclusão', x.mi, x.motivos]);
+    if (x.mi >= 9 && !x.ids.includes('comparativo-inconclusivo')) falhas.push(['pendências', x.mi, x.ids]);
+    if (x.mi <= 8 && (x.ids.includes('comparativo-inconclusivo') || x.ids.includes('sublimite'))) falhas.push(['jan–ago: sem pendência de comparativo/sublimite', x.mi, x.ids]);
+    if (x.mi >= 9 && !x.ids.includes('sublimite')) falhas.push(['set–dez: pendência sublimite', x.mi, x.ids]);
+    if (x.estadoConclusao !== 'preliminar') falhas.push(['conclusão preliminar (6ª faixa e redistribuição a confirmar)', x.mi, x.estadoConclusao]);
+    if (x.mi >= 9 && !x.motivos.some((s) => /comparativo inconclusivo/.test(s))) falhas.push(['conclusão', x.mi, x.motivos]);
   }
-  ok('R$ 1,5 mi em 3 meses (empresa nova), abertura jan–dez/2027: nunca recomenda Simples nem Híbrido; comparativo inconclusivo em todos os 12 meses (jan–set por total incompleto; out–dez por exclusão retroativa)', falhas.length === 0 && MX.length === 12, falhas.slice(0, 4));
+  ok('R$ 1,5 mi em 3 meses (empresa nova), abertura jan–dez/2027 (v3.2.5): jan–ago conclusivo (Simples, com o acréscimo do art. 21, IV no 3º mês); set inconclusivo por total incompleto (sublimite > 20%); out–dez inconclusivo por exclusão retroativa; nunca recomenda Simples/Híbrido nos meses inconclusivos', falhas.length === 0 && MX.length === 12, falhas.slice(0, 4));
   const S = MX.filter((x) => x.mi === 9)[0], O = MX.filter((x) => [10, 11, 12].includes(x.mi));
   ok('Setembro/2027: limite geral R$ 1,6 mi respeitado, mas sublimite R$ 1,2 mi excedido em 25% (> 20%) → impedimento retroativo de ICMS/ISS/IBS; Simples e Híbrido "com restrição" (total incompleto), não inaplicáveis', S.estados.slice(0, 2).every((e) => e === 'restricao') && S.incompleto[0] && S.incompleto[1] && S.sb.retro && S.ex.s === 'regular', S);
   ok('Outubro, novembro e dezembro/2027: excesso de 25% do limite proporcional (R$ 1,2 mi / 800 mil / 400 mil) → exclusão retroativa: Simples e Híbrido inaplicáveis, fora da concorrência (elegivel=false); Lucro Presumido é a regra geral de referência', O.every((x) => x.estados[0] === 'inaplicavel' && x.estados[1] === 'inaplicavel' && x.elegivel[0] === false && x.elegivel[1] === false && x.elegivel[2] === true && x.melhorRef === 'presumido'), O.map((x) => x.estados));
@@ -72,9 +78,9 @@ const { ok, goto } = require('./helpers');
     resetState(); state.analise.tipo = 'existente'; state.empresa.anoAnalise = 2027; state.empresa.faturamentoMensal = 340000; state.empresa.rbt12Modo = 'manual'; state.empresa.rbt12Manual = 340000 * 12;
     state.simples.anexoModo = 'manual'; state.simples.anexoManual = 'III'; state.periodo.rbt12Movel = false;
     const r = computeAll();
-    return { sb: r.simples.sublimiteAv.mesesAfetados, f6: r.simples.sublimiteAv.porFaixa6, est: r.regimes.map((x) => x.estado), tot: r.regimes.map((x) => Math.round(x.total)), rec: r.recomendacao, ids: r.pendencias.map((p) => p.id) };
+    return { sb: r.simples.sublimiteAv.mesesAfetados, f6: r.simples.sublimiteAv.mesesFaixa6, pend: r.simples.sublimiteAv.mesesPendentes, est: r.regimes.map((x) => x.estado), tot: r.regimes.map((x) => Math.round(x.total)), rec: r.recomendacao, ids: r.pendencias.map((p) => p.id) };
   });
-  ok('Empresa existente com RBT12 de R$ 4,08 mi (6ª faixa) em 2027: 12 meses sem ISS/ICMS/IBS no DAS → Simples e Híbrido "com restrição"; Simples (R$ 694 mil) abaixo do Presumido → comparativo inconclusivo; Híbrido (acima do Presumido) não é o motivo', G.sb === 12 && G.f6 === 12 && G.est.slice(0, 2).every((e) => e === 'restricao') && G.rec.estado === 'inconclusivo' && G.rec.incompletos.join() === 'simples' && G.ids.includes('sublimite'), G);
+  ok('Empresa existente com RBT12 de R$ 4,08 mi (6ª faixa) em 2027 (v3.2.5): 12 meses de 6ª faixa com o acréscimo do art. 21, IV estimado; receita do ano anterior não informada → premissa pendente (não presumida), Simples e Híbrido "com restrição" e comparativo inconclusivo por premissa pendente; pendência objetiva do ano anterior', G.sb === 0 && G.f6 === 12 && G.pend === 12 && G.est.slice(0, 2).every((e) => e === 'restricao') && G.rec.estado === 'inconclusivo' && G.rec.motivos.join() === 'premissa-pendente' && G.rec.pendentes.join() === 'simples' && G.ids.includes('sublimite-ano-anterior'), G);
   G = await page.evaluate(() => {
     resetState(); state.analise.tipo = 'existente'; state.empresa.anoAnalise = 2027; state.empresa.faturamentoMensal = 300000; state.empresa.rbt12Modo = 'manual'; state.empresa.rbt12Manual = 3600000;
     state.simples.anexoModo = 'manual'; state.simples.anexoManual = 'III'; state.periodo.rbt12Movel = false;

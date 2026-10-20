@@ -1,6 +1,12 @@
-# Análise Tributária — v3.2.4
+# Análise Tributária — v3.2.5
 
 Simulador e comparador de regimes tributários — Simples Nacional (com Fator R), Simples Híbrido (IBS/CBS) e Lucro Presumido — com relatório em PDF (apresentação 16:9). A v3 reformula a experiência de uso e a identidade visual; **o motor tributário foi preservado** (ver `CONTEXTO-PROJETO-ANALISE-TRIBUTARIA.md`, seção 0).
+
+## O que mudou na v3.2.5 (correção da 6ª faixa — art. 21, IV)
+Sem mudança visual, de fontes, cores, navegação ou funcionalidades. Com RBT12 acima do limite da 5ª faixa **e sem impedimento**, o ICMS/ISS/IBS **continua no DAS**, pela fórmula da 5ª faixa (Res. CGSN 140/2018, art. 21, IV; 2026: art. 21, III, "b"), com teto de ISS de 5% e redistribuição do excedente:
+- Simples e Simples Híbrido recalculados (ex.: R$ 500 mil × 3 meses abertos em jan–ago/2027: Simples R$ 167.000 → **R$ 193.017,54**; Híbrido R$ 269.975,40 → **R$ 295.602,94**); comparativo conclusivo (Simples), mas sempre **preliminar** enquanto os pontos não confirmados no PGDAS-D permanecerem (ver relatório).
+- A 6ª faixa isolada **não** é impedimento: só sublimite efetivamente excedido ou exclusão limitam o regime. Empresa existente em 6ª faixa sem a receita do ano anterior → pendência objetiva ("premissa pendente"), sem presumir ausência de receita.
+- Testes: `node tests/run-all.js` (inclui `suite11_v325.js`, com oráculo independente); regressão `node tests/regressao_v324.js <pasta-v3.2.4>` (1.362 cenários, 0 mudança inesperada). Veja `RELATORIO-V3.2.5.md`.
 
 ## O que mudou na v3.2.4 (ajuste final de elegibilidade)
 Sem mudança visual, de navegação ou de funcionalidades; **nenhum valor calculado mudou**. A elegibilidade legal passa a vir antes da comparação de custos:

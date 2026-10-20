@@ -1,6 +1,6 @@
 {
   "name": "analise-tributaria",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "private": true,
   "description": "Simulador e comparador de regimes tributarios (Simples Nacional, Simples Hibrido IBS/CBS e Lucro Presumido), com relatorio em PDF.",
   "scripts": {
