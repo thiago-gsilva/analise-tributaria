@@ -157,7 +157,7 @@ Nenhuma fórmula, alíquota, tabela, visual, fonte, cor ou navegação mudou. Mu
 - RBT12: `rbt12InlineHTML` (`#campo-rbt12`, `#liveRbt12Txt`, botões `data-rbt12="manual|auto"`), só para empresa existente.
 - Fator R só é exibido quando `fatorRComp.aplicavel` (Anexos III/V); `detSimples` esconde Folha12m/Fator R fora disso.
 - Fontes (`FONTES`): INSS teto, IRRF/Lei 15.270, CPP no Simples (LC 123 art. 13), manual PGDAS-D (FS12), CGSN 190/191 e cronograma IBS/CBS = oficiais; 11% INSS do sócio, Fator R em início de atividade, FS12 sem CPP, alíquotas CBS/IBS 2027+ e retenção de 10% sobre dividendos (Lei 15.270 art. 6º-A, não modelada) = hipóteses.
-- Testes: `tests/suite7_v321.js`; `tests/comparar_regressao.js`. Relatório completo: `RELATORIO-V3.2.1.md`.
+- Testes: `tests/suite7_v321.js`; `tests/comparar_regressao.js`. Relatório completo: `docs/relatorios/RELATORIO-V3.2.1.md`.
 
 ## 0.1d Versão 3.2.2 — homologação fiscal de 2027 (leia junto com 0.1c)
 O ano de análise padrão é 2027, portanto as regras de 2027 valem por padrão. Mudanças no motor (`app.js`), todas com fonte oficial registrada em `FONTES`:
@@ -165,7 +165,7 @@ O ano de análise padrão é 2027, portanto as regras de 2027 valem por padrão.
 - `ALIQ_NOMINAL_6A_FAIXA_2027` (I 0,189; II 0,299; III 0,329; IV 0,329; V 0,304), aplicado a partir de 2027 (2029+ = projeção); parcelas a deduzir e partilha inalteradas.
 - Textos: `fatorRInicioTexto(r)`; aviso do prazo de opção em `detHibrido`; entradas de `FONTES` (janela 2027, início de atividade, 6ª faixa, folha fiscal, INSS 11% oficial, teto/IRRF 2027 hipótese, CGSN 194).
 - Não alterado de propósito: soma da CPP paga no DAS à folha (estimativa tratada como paga + circularidade), partilha com IBS/CBS da Res. 190, §7º do art. 26 (incisos não lidos), Lei 15.270 art. 6º-A.
-- Testes: `tests/suite8_v322.js` (oráculo independente), `tests/regressao_2026.js`, `tests/parity.js` (ajustado: 6ª faixa 2027+ é divergência esperada em relação ao app v1). Relatório: `RELATORIO-V3.2.2.md`.
+- Testes: `tests/suite8_v322.js` (oráculo independente), `tests/regressao_2026.js`, `tests/parity.js` (ajustado: 6ª faixa 2027+ é divergência esperada em relação ao app v1). Relatório: `docs/relatorios/RELATORIO-V3.2.2.md`.
 
 ## 0.1e Versão 3.2.3 — conferência final dos Anexos e das regras de 2027 (leia junto com 0.1d)
 Mudanças no motor (`app.js`), todas com fonte registrada em `FONTES`:
@@ -175,7 +175,7 @@ Mudanças no motor (`app.js`), todas com fonte registrada em `FONTES`:
 - `calcSimplesHibrido`: retira do DAS só CBS e IBS da partilha do Anexo/faixa/ano; antes de 2027 (`opcao` falso) o Híbrido é o DAS integral. Novos campos: `opcao`, `dasPartes`, `parcelaIbsNoDas`, `parcelaCbsNoDas`, `dasSemIbsCbs`; `agregarHibrido` soma `dasPartesTotais`, `mesesComOpcao`, `mesesSemOpcao`.
 - `verificarLimiteInicioAtividade` ganha `sublimite` (R$ 300.000 × meses, só ≥ 2027) e a pendência informativa `sublimite` em `buildPendencias` (não altera cálculo).
 - Não alterado de propósito: INSS/IRRF de 2027 (hipótese), alíquotas de referência de IBS/CBS (projeção), soma da CPP no DAS à folha, efeito financeiro da exclusão do sublimite. Art. 9º da Res. 190 e incisos do § 7º do art. 26: não lidos no texto integral (registrados como tal em Fontes).
-- Testes: `tests/suite9_v323.js`, `tests/regressao_v322.js` (classifica S1/S2/H1/H2 e exige 0 diferença inesperada), oráculo da `suite8` atualizado, `tests/parity.js` (o Híbrido deixa de ser comparado com o app v1 por desenho). Relatório: `RELATORIO-V3.2.3.md`.
+- Testes: `tests/suite9_v323.js`, `tests/regressao_v322.js` (classifica S1/S2/H1/H2 e exige 0 diferença inesperada), oráculo da `suite8` atualizado, `tests/parity.js` (o Híbrido deixa de ser comparado com o app v1 por desenho). Relatório: `docs/relatorios/RELATORIO-V3.2.3.md`.
 
 ## 0.1f Versão 3.2.4 — ajuste final de elegibilidade (leia junto com 0.1e)
 Regra: elegibilidade legal antes do custo. Nenhum valor calculado mudou; só classificação e recomendação (`app.js`):
@@ -184,7 +184,7 @@ Regra: elegibilidade legal antes do custo. Nenhum valor calculado mudou; só cla
 - `avaliarSublimite(rows, hist)` → `simples.sublimiteAv` (meses afetados, por sublimite ou por 6ª faixa, retroatividade, eventos). Excesso ≤ 20% no início de atividade não retroage (LC 123, art. 3º, §§ 12 e 13).
 - Textos: `situacaoRegimeInfo`, `recomendacaoInfo`, `categoriasRegimesTexto`, `valorRegimeNota`; hero/cartões/tabela, três PDFs (aviso compacto no slide 1 do Resumo), Memória Técnica (seção "Elegibilidade legal e recomendação"), Pendências (`sublimite`, `comparativo-inconclusivo`) e Fontes.
 - Não calculado de propósito: ISS/ICMS/IBS devidos fora do DAS, Lucro Real, juros, multa, recolhimento retroativo. Pendências: art. 9º da Res. 190; tratamento da 6ª faixa no início de atividade no PGDAS-D.
-- Testes: `tests/suite10_v324.js` (12 aberturas de 2027 com R$ 1,5 mi em 3 meses, decisão, telas, PDFs, Fontes), `tests/regressao_v323.js` (0 diferença em valores; classifica E1–E5). Relatório: `RELATORIO-V3.2.4.md`.
+- Testes: `tests/suite10_v324.js` (12 aberturas de 2027 com R$ 1,5 mi em 3 meses, decisão, telas, PDFs, Fontes), `tests/regressao_v323.js` (0 diferença em valores; classifica E1–E5). Relatório: `docs/relatorios/RELATORIO-V3.2.4.md`.
 
 ## 0.1g Versão 3.2.5 — correção da 6ª faixa (leia junto com 0.1f; substitui o que 0.1f diz sobre a 6ª faixa)
 Com RBT12 acima do limite da 5ª faixa e sem impedimento, ICMS/ISS/IBS **permanecem no DAS** (Res. CGSN 140, art. 21, IV; 2026: art. 21, III, "b"; teto de ISS: III, "a"). Em `app.js`:
@@ -193,7 +193,7 @@ Com RBT12 acima do limite da 5ª faixa e sem impedimento, ICMS/ISS/IBS **permane
 - `avaliarSublimite` reescrita: eventos desde 2026; `pend[]` (empresa existente, 6ª faixa, receita do ano anterior desconhecida ou > R$ 3,6 mi sem `state.confirmados["sublimite-ano-anterior"]`); campos `mesesFaixa6`, `mesesPendentes`, `anoAnteriorCondicao`.
 - `decidirRecomendacao`: incerto = `incompleto` ou `premissaPendente`; compara o `piso`; novo motivo `premissa-pendente`. Pendências novas: `sublimite-ano-anterior` (estimativa, confirmável) e `faixa6-art21iv` (informativa, com limitações). Memória: seção "6ª faixa — ICMS, ISS e IBS pela fórmula da 5ª faixa (art. 21, IV)". FONTES: art. 21 IV/III "b" (oficial); pontos não confirmados e art. 24, I, "b", 2 não aplicado (hipótese).
 - Não confirmado (resultado sempre preliminar): valor pago dentro do DAS no PGDAS-D; redistribuição do teto (Anexo V é hipótese); Res. 190 art. 22 §5º II, arts. 9º e 26 §7º; art. 24 I "b" 2 (não aplicado); sublimite de 2026 por UF; ICMS/ISS fora do DAS quando impedido.
-- Testes: `tests/suite11_v325.js`, `tests/regressao_v324.js`; relatório `RELATORIO-V3.2.5.md`.
+- Testes: `tests/suite11_v325.js`, `tests/regressao_v324.js`; relatório `docs/relatorios/RELATORIO-V3.2.5.md`.
 
 ## 1. O que é o sistema
 

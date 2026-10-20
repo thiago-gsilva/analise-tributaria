@@ -3,3 +3,41 @@ node_modules/
 *.jpg
 *.jpeg
 .DS_Store
+
+# --- Organização final (v3.2.5) ---
+# Dependências e caches (reproduzíveis)
+__pycache__/
+*.pyc
+.cache/
+.pytest_cache/
+test-results/
+playwright-report/
+# Backups e pacotes (ficam fora do repositório)
+*.zip
+*.7z
+*.rar
+*.bak
+*.backup
+_backups*/
+backups/
+historico/
+# Temporários do sistema e do editor
+Thumbs.db
+desktop.ini
+*.tmp
+*.temp
+*.log
+*.swp
+~$*
+.vscode/
+.idea/
+# Credenciais e arquivos locais (nunca enviar)
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+credentials*.json
+secrets*.json
+*.local
